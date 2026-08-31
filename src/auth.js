@@ -15,7 +15,7 @@ export const sessionStore = new MySQLStore(
     checkExpirationInterval: 1000 * 60 * 15,
     schema: { tableName: 'user_sessions' },
   },
-  config.db,
+  pool,
 );
 
 export const sessionMiddleware = session({

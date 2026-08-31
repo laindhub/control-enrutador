@@ -83,9 +83,11 @@ export function createApiRouter(io) {
             `SELECT t.id, t.created_at, a.name AS advisor_name
              FROM attentions t
              INNER JOIN advisors a ON a.id = t.advisor_id
-             WHERE t.created_at >= ? AND t.created_at < ? AND t.voided_at IS NULL
+             WHERE t.advisor_id = ?
+               AND t.created_at >= ? AND t.created_at < ?
+               AND t.voided_at IS NULL
              ORDER BY t.created_at DESC LIMIT 1`,
-            [day.startUtc, day.endUtc],
+            [advisorId, day.startUtc, day.endUtc],
           );
           const recent = recentRows[0];
           if (recent && !acknowledgeRecent) {
@@ -121,7 +123,7 @@ export function createApiRouter(io) {
       } catch (error) {
         if (error instanceof RecentAttentionError) {
           return res.status(409).json({
-            error: 'Se registró otra atención hace menos de 3 minutos.',
+            error: 'Ese asesor recibió otra atención hace menos de 3 minutos.',
             requiresRecentConfirmation: true,
             lastAttention: error.lastAttention,
           });

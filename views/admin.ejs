@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#15191f">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title><%= title %> · Control Enrutador</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <img src="/assets/assets/mas-duenos-logo.svg" alt="Más Dueños" class="topbar-logo">
+        <span class="operator-pill"><strong>Administración</strong></span>
+        <form method="post" action="/logout">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="text-button" type="submit">Salir</button>
+        </form>
+      </div>
+    </header>
+
+    <main class="page-shell admin-shell">
+      <section class="page-heading"><div><p class="eyebrow">SUCURSAL LINIERS</p><h1>Panel de control</h1></div></section>
+      <nav class="tabs" aria-label="Secciones">
+        <button class="tab active" data-tab="dashboard" type="button">Resumen</button>
+        <button class="tab" data-tab="schedule" type="button">Horarios</button>
+        <button class="tab" data-tab="people" type="button">Personal</button>
+        <button class="tab" data-tab="audit" type="button">Auditoría</button>
+      </nav>
+
+      <section id="tab-dashboard" class="tab-panel active">
+        <div class="filter-bar">
+          <div class="quick-filters">
+            <button data-range="today" class="chip active" type="button">Hoy</button>
+            <button data-range="yesterday" class="chip" type="button">Ayer</button>
+            <button data-range="week" class="chip" type="button">Semana</button>
+            <button data-range="month" class="chip" type="button">Mes</button>
+          </div>
+          <label>Desde<input id="reportFrom" type="date"></label>
+          <label>Hasta<input id="reportTo" type="date"></label>
+          <button id="applyRange" class="button button-secondary" type="button">Aplicar</button>
+          <button id="exportExcel" class="button button-primary" type="button">Descargar Excel</button>
+        </div>
+        <div id="metricCards" class="metric-grid"></div>
+        <div class="admin-grid-two">
+          <section class="panel"><h2>Atenciones por asesor</h2><div id="advisorReport" class="bar-list"></div></section>
+          <section class="panel"><h2>Actividad por hora</h2><div id="hourlyReport" class="hourly-chart"></div></section>
+          <section class="panel"><h2>Registros por enrutador</h2><div id="operatorReport" class="bar-list"></div></section>
+        </div>
+        <section class="panel detail-panel"><h2>Registros del período</h2><p class="helper">El supervisor puede corregir aquí una carga histórica. La acción queda en la auditoría.</p><div id="attentionDetail" class="attention-detail"></div></section>
+      </section>
+
+      <section id="tab-schedule" class="tab-panel">
+        <div class="filter-bar">
+          <button id="previousWeek" class="button button-secondary" type="button">← Anterior</button>
+          <label>Semana del<input id="weekPicker" type="date"></label>
+          <button id="nextWeek" class="button button-secondary" type="button">Siguiente →</button>
+          <button id="copyPrevious" class="button button-secondary" type="button">Copiar semana anterior</button>
+          <button id="saveSchedule" class="button button-primary" type="button">Guardar horarios</button>
+        </div>
+        <p class="helper">LIBRE y ACADEMIA se dejan como “No trabaja”. Los asesores aparecen automáticamente durante su horario.</p>
+        <div class="table-scroll"><table id="scheduleTable" class="schedule-table"></table></div>
+      </section>
+
+      <section id="tab-people" class="tab-panel">
+        <div class="admin-grid-two">
+          <section class="panel">
+            <h2>Asesores</h2>
+            <form id="addAdvisor" class="inline-form"><input name="name" placeholder="Nombre y apellido" required><input name="team" placeholder="Equipo" value="Ventas"><button class="button button-primary" type="submit">Agregar</button></form>
+            <div id="advisorPeople" class="people-list"></div>
+          </section>
+          <section class="panel">
+            <h2>Enrutadores</h2>
+            <form id="addOperator" class="inline-form"><input name="name" placeholder="Nombre" required><button class="button button-primary" type="submit">Agregar</button></form>
+            <div id="operatorPeople" class="people-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="tab-audit" class="tab-panel">
+        <section class="panel"><h2>Historial de auditoría</h2><div id="auditList" class="audit-list"></div><button id="moreAudit" class="button button-secondary" type="button">Cargar más</button></section>
+      </section>
+    </main>
+    <div id="toast" class="toast" hidden></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/assets/js/admin.js" type="module"></script>
+  </body>
+</html>

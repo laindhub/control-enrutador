@@ -25,9 +25,15 @@ import { createAdminRouter } from './routes/admin.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
-validateConfig();
-await initializeDatabase();
-await cleanupExpiredRecords();
+let startupError = null;
+try {
+  validateConfig();
+  await initializeDatabase();
+  await cleanupExpiredRecords();
+} catch (error) {
+  startupError = error;
+  console.error('Error durante el arranque de Control Enrutador:', error);
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -64,6 +70,43 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+
+app.get('/health', async (_req, res) => {
+  if (startupError) {
+    return res.status(503).json({
+      ok: false,
+      service: 'control-enrutador',
+      stage: 'startup',
+      error: publicStartupError(startupError),
+    });
+  }
+
+  try {
+    await pool.query('SELECT 1');
+    return res.json({ ok: true, service: 'control-enrutador' });
+  } catch (error) {
+    console.error('Healthcheck MySQL falló:', error);
+    return res.status(503).json({
+      ok: false,
+      service: 'control-enrutador',
+      stage: 'database',
+      error: publicStartupError(error),
+    });
+  }
+});
+
+app.use((req, res, next) => {
+  if (!startupError) return next();
+  const details = publicStartupError(startupError);
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(503).json({ error: 'La aplicación no pudo inicializarse.', details });
+  }
+  return res.status(503).render('error', {
+    title: 'Servicio no disponible',
+    message: `La aplicación no pudo inicializarse (${details.code}). Revisá /health para el diagnóstico.`,
+  });
+});
+
 app.use(sessionMiddleware);
 app.use(attachLocals);
 app.use('/assets', express.static(path.join(root, 'public'), { maxAge: config.env === 'production' ? '7d' : 0 }));
@@ -74,11 +117,6 @@ const loginLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: 'Demasiados intentos. Esperá unos minutos antes de volver a intentar.',
-});
-
-app.get('/health', async (_req, res) => {
-  await pool.query('SELECT 1');
-  res.json({ ok: true, service: 'control-enrutador' });
 });
 
 app.get('/login', (req, res) => {
@@ -152,20 +190,61 @@ app.use((error, req, res, _next) => {
 });
 
 io.engine.use(sessionMiddleware);
-io.use((socket, next) => (socket.request.session?.user ? next() : next(new Error('unauthorized'))));
+io.use((socket, next) => {
+  if (startupError) return next(new Error('service unavailable'));
+  return socket.request.session?.user ? next() : next(new Error('unauthorized'));
+});
 io.on('connection', (socket) => {
   socket.emit('socket:ready', { connected: true });
 });
 
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`Control Enrutador disponible en el puerto ${config.port}`);
+  if (startupError) console.error('El servidor inició en modo diagnóstico. Abrí /health.');
 });
 
-const cleanupTimer = setInterval(() => {
-  cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención:', error));
-}, 24 * 60 * 60 * 1000);
-cleanupTimer.unref();
+if (!startupError) {
+  const cleanupTimer = setInterval(() => {
+    cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención:', error));
+  }, 24 * 60 * 60 * 1000);
+  cleanupTimer.unref();
+}
 
 function cryptoToken() {
   return randomBytes(32).toString('hex');
+}
+
+function publicStartupError(error) {
+  const message = String(error?.message || 'Error desconocido');
+  const code = String(error?.code || inferStartupCode(message));
+
+  return {
+    code,
+    message: sanitizeStartupMessage(message),
+  };
+}
+
+function inferStartupCode(message) {
+  if (message.startsWith('Faltan variables de entorno obligatorias:')) return 'CONFIG_MISSING';
+  if (message.startsWith('SESSION_SECRET')) return 'CONFIG_SESSION_SECRET';
+  if (message.startsWith('ROUTER_PASSWORD')) return 'CONFIG_ROUTER_PASSWORD';
+  if (message.startsWith('ADMIN_PASSWORD')) return 'CONFIG_ADMIN_PASSWORD';
+  return 'STARTUP_FAILED';
+}
+
+function sanitizeStartupMessage(message) {
+  if (message.startsWith('Faltan variables de entorno obligatorias:')) return message;
+  if (message.startsWith('SESSION_SECRET')) return message;
+  if (message.startsWith('ROUTER_PASSWORD')) return message;
+  if (message.startsWith('ADMIN_PASSWORD')) return message;
+
+  const mysqlCodes = {
+    ER_ACCESS_DENIED_ERROR: 'MySQL rechazó el usuario o la contraseña configurados.',
+    ER_BAD_DB_ERROR: 'La base indicada en DB_NAME no existe o no es accesible.',
+    ECONNREFUSED: 'No se pudo conectar con MySQL en DB_HOST/DB_PORT.',
+    ENOTFOUND: 'No se pudo resolver el host configurado en DB_HOST.',
+    ETIMEDOUT: 'La conexión con MySQL agotó el tiempo de espera.',
+  };
+
+  return mysqlCodes[startupError?.code] || 'Falló la inicialización. Revisá las variables de base de datos y los logs del despliegue.';
 }

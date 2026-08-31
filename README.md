@@ -60,9 +60,9 @@ Las cuatro variables de las cuentas se leen durante el primer inicio y las contr
 5. No se requiere comando de compilación. El inicio es `npm start` y el archivo de entrada es `src/server.js`.
 6. Cargar todas las variables de la tabla anterior en **Environment Variables**.
 7. Asociar el sitio con `masduenos.laind.io` y habilitar SSL.
-8. Desplegar. En el primer inicio, la app crea automáticamente las tablas, las cuentas, el personal inicial y el cronograma de la semana 31/08/2026–06/09/2026.
+8. Desplegar. En el primer inicio, la app crea automáticamente las tablas y las dos cuentas de acceso definidas por variables de entorno.
 9. Abrir `https://masduenos.laind.io/health`; debe responder con `{"ok":true,"service":"control-enrutador"}`.
-10. Ingresar primero como administrador, revisar **Horarios** y confirmar la semana activa.
+10. Ingresar primero como administrador, cargar los asesores y enrutadores en **Personal**, y luego definir la semana activa en **Horarios**.
 
 Guías oficiales utilizadas:
 

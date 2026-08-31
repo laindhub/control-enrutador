@@ -8,7 +8,7 @@
     <title><%= title %></title>
     <link rel="stylesheet" href="/assets/css/styles.css">
   </head>
-  <body>
+  <body class="router-page">
     <header class="topbar">
       <div class="topbar-inner">
         <img src="/assets/assets/mas-duenos-logo.svg" alt="Más Dueños" class="topbar-logo">
@@ -39,10 +39,24 @@
     </main>
 
     <footer class="router-footer">
-      <form method="post" action="/logout">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button class="footer-logout" type="submit">Cerrar sesión</button>
-      </form>
+      <div class="router-footer-inner">
+        <div class="footer-identity">
+          <span class="footer-mark" aria-hidden="true">M</span>
+          <div>
+            <strong>Más Dueños</strong>
+            <span>Control Enrutador · Liniers</span>
+          </div>
+        </div>
+        <form method="post" action="/logout">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="footer-logout" type="submit">
+            <span class="footer-logout-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>
+            </span>
+            <span><strong>Cerrar sesión</strong><small>Finalizar operación</small></span>
+          </button>
+        </form>
+      </div>
     </footer>
 
     <div id="confirmModal" class="modal-backdrop" hidden>

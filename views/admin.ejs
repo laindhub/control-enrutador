@@ -57,9 +57,11 @@
           <label>Semana del<input id="weekPicker" type="date"></label>
           <button id="nextWeek" class="button button-secondary" type="button">Siguiente →</button>
           <button id="copyPrevious" class="button button-secondary" type="button">Copiar semana anterior</button>
+          <button id="importScheduleJson" class="button button-secondary" type="button">Importar JSON</button>
+          <input id="scheduleJsonFile" type="file" accept=".json,application/json" hidden>
           <button id="saveSchedule" class="button button-primary" type="button">Guardar horarios</button>
         </div>
-        <p class="helper">LIBRE y ACADEMIA se dejan como “No trabaja”. Los asesores aparecen automáticamente durante su horario.</p>
+        <p class="helper">LIBRE y ACADEMIA se dejan como “No trabaja”. También podés importar un JSON semanal: la app valida nombres, los 7 días y los horarios antes de reemplazar la semana.</p>
         <div class="table-scroll"><table id="scheduleTable" class="schedule-table"></table></div>
       </section>
 
@@ -85,5 +87,6 @@
     <div id="toast" class="toast" hidden></div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/assets/js/admin.js" type="module"></script>
+    <script src="/assets/js/schedule-import.js" type="module"></script>
   </body>
 </html>

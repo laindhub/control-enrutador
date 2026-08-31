@@ -17,6 +17,7 @@ import {
   requireOperator,
   requireRole,
   sessionMiddleware,
+  sessionStore,
   verifyCsrf,
 } from './auth.js';
 import { createApiRouter } from './routes/api.js';
@@ -25,15 +26,9 @@ import { createAdminRouter } from './routes/admin.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
+let startupState = 'starting';
 let startupError = null;
-try {
-  validateConfig();
-  await initializeDatabase();
-  await cleanupExpiredRecords();
-} catch (error) {
-  startupError = error;
-  console.error('Error durante el arranque de Control Enrutador:', error);
-}
+let cleanupTimer = null;
 
 const app = express();
 const server = http.createServer(app);
@@ -72,7 +67,16 @@ app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 
 app.get('/health', async (_req, res) => {
-  if (startupError) {
+  if (startupState === 'starting') {
+    return res.status(503).json({
+      ok: false,
+      service: 'control-enrutador',
+      stage: 'startup',
+      error: { code: 'STARTING', message: 'La aplicación está inicializando la base de datos.' },
+    });
+  }
+
+  if (startupState === 'failed') {
     return res.status(503).json({
       ok: false,
       service: 'control-enrutador',
@@ -96,14 +100,16 @@ app.get('/health', async (_req, res) => {
 });
 
 app.use((req, res, next) => {
-  if (!startupError) return next();
-  const details = publicStartupError(startupError);
+  if (startupState === 'ready') return next();
+  const details = startupState === 'failed'
+    ? publicStartupError(startupError)
+    : { code: 'STARTING', message: 'La aplicación está inicializando la base de datos.' };
   if (req.originalUrl.startsWith('/api/')) {
-    return res.status(503).json({ error: 'La aplicación no pudo inicializarse.', details });
+    return res.status(503).json({ error: 'La aplicación todavía no está disponible.', details });
   }
   return res.status(503).render('error', {
     title: 'Servicio no disponible',
-    message: `La aplicación no pudo inicializarse (${details.code}). Revisá /health para el diagnóstico.`,
+    message: `La aplicación todavía no está disponible (${details.code}). Revisá /health para el diagnóstico.`,
   });
 });
 
@@ -191,7 +197,7 @@ app.use((error, req, res, _next) => {
 
 io.engine.use(sessionMiddleware);
 io.use((socket, next) => {
-  if (startupError) return next(new Error('service unavailable'));
+  if (startupState !== 'ready') return next(new Error('service unavailable'));
   return socket.request.session?.user ? next() : next(new Error('unauthorized'));
 });
 io.on('connection', (socket) => {
@@ -200,14 +206,27 @@ io.on('connection', (socket) => {
 
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`Control Enrutador disponible en el puerto ${config.port}`);
-  if (startupError) console.error('El servidor inició en modo diagnóstico. Abrí /health.');
+  initializeApplication();
 });
 
-if (!startupError) {
-  const cleanupTimer = setInterval(() => {
-    cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención:', error));
-  }, 24 * 60 * 60 * 1000);
-  cleanupTimer.unref();
+async function initializeApplication() {
+  try {
+    validateConfig();
+    await initializeDatabase();
+    await sessionStore.onReady();
+    await cleanupExpiredRecords();
+    startupState = 'ready';
+    console.log('Control Enrutador inicializado correctamente.');
+
+    cleanupTimer = setInterval(() => {
+      cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención:', error));
+    }, 24 * 60 * 60 * 1000);
+    cleanupTimer.unref();
+  } catch (error) {
+    startupError = error;
+    startupState = 'failed';
+    console.error('Error durante el arranque de Control Enrutador:', error);
+  }
 }
 
 function cryptoToken() {
@@ -220,7 +239,7 @@ function publicStartupError(error) {
 
   return {
     code,
-    message: sanitizeStartupMessage(message),
+    message: sanitizeStartupMessage(error, message),
   };
 }
 
@@ -232,7 +251,7 @@ function inferStartupCode(message) {
   return 'STARTUP_FAILED';
 }
 
-function sanitizeStartupMessage(message) {
+function sanitizeStartupMessage(error, message) {
   if (message.startsWith('Faltan variables de entorno obligatorias:')) return message;
   if (message.startsWith('SESSION_SECRET')) return message;
   if (message.startsWith('ROUTER_PASSWORD')) return message;
@@ -246,5 +265,5 @@ function sanitizeStartupMessage(message) {
     ETIMEDOUT: 'La conexión con MySQL agotó el tiempo de espera.',
   };
 
-  return mysqlCodes[startupError?.code] || 'Falló la inicialización. Revisá las variables de base de datos y los logs del despliegue.';
+  return mysqlCodes[error?.code] || 'Falló la inicialización. Revisá las variables de base de datos y los logs del despliegue.';
 }

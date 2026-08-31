@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Isotipo de Más Dueños</title>
+  <g fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M68 242H39c-14 0-25-11-25-25v-84c0-10 4-20 12-27l84-83c10-10 26-10 36 0l84 83c8 7 12 17 12 27v84c0 14-11 25-25 25h-29"/>
+    <path d="M55 218v-86c0-10 6-19 15-23 9-4 19-2 26 5l32 32 32-32c7-7 17-9 26-5 9 4 15 13 15 23v86"/>
+  </g>
+</svg>

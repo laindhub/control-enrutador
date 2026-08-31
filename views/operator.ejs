@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#15191f">
+    <title><%= title %> · Control Enrutador</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="operator-card">
+        <div class="modal-accent"></div>
+        <p class="eyebrow">CONTROL ENRUTADOR</p>
+        <h1>¿Quién está operando?</h1>
+        <p class="muted">Se pregunta una sola vez por sesión. Después podés cambiarlo.</p>
+        <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+        <form method="post" action="/operator" class="stack-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label>Enrutador
+            <select name="operatorId" required>
+              <option value="">Seleccionar…</option>
+              <% operators.forEach((item) => { %><option value="<%= item.id %>"><%= item.name %></option><% }) %>
+            </select>
+          </label>
+          <button class="button button-primary button-block" type="submit">Confirmar</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

@@ -9,7 +9,10 @@ const MySQLStore = MySQLStoreFactory(session);
 
 export const sessionStore = new MySQLStore(
   {
-    createDatabaseTable: true,
+    // La tabla se crea de forma controlada en initializeDatabase(). Si la
+    // librería intenta crearla en paralelo puede fallar antes de onReady() y
+    // dejar el proceso esperando indefinidamente.
+    createDatabaseTable: false,
     expiration: 1000 * 60 * 60 * 24 * 365,
     clearExpired: true,
     checkExpirationInterval: 1000 * 60 * 15,

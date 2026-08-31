@@ -17,7 +17,6 @@ import {
   requireOperator,
   requireRole,
   sessionMiddleware,
-  sessionStore,
   verifyCsrf,
 } from './auth.js';
 import { createApiRouter } from './routes/api.js';
@@ -29,6 +28,7 @@ const root = path.resolve(__dirname, '..');
 let startupState = 'starting';
 let startupError = null;
 let cleanupTimer = null;
+let startupPromise = null;
 
 const app = express();
 const server = http.createServer(app);
@@ -68,11 +68,11 @@ app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 
 app.get('/health', async (_req, res) => {
   if (startupState === 'starting') {
-    return res.status(503).json({
-      ok: false,
+    return res.json({
+      ok: true,
+      ready: false,
       service: 'control-enrutador',
       stage: 'startup',
-      error: { code: 'STARTING', message: 'La aplicación está inicializando la base de datos.' },
     });
   }
 
@@ -99,23 +99,29 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
+  // Durante un arranque normal mantenemos abierta la solicitud hasta que la
+  // instancia esté lista. Así nunca se entrega una pantalla STARTING.
+  if (startupState === 'starting' && startupPromise) await startupPromise;
   if (startupState === 'ready') return next();
-  const details = startupState === 'failed'
-    ? publicStartupError(startupError)
-    : { code: 'STARTING', message: 'La aplicación está inicializando la base de datos.' };
+
+  const details = publicStartupError(startupError);
   if (req.originalUrl.startsWith('/api/')) {
-    return res.status(503).json({ error: 'La aplicación todavía no está disponible.', details });
+    return res.status(503).json({ error: 'La aplicación no pudo inicializarse.', details });
   }
   return res.status(503).render('error', {
     title: 'Servicio no disponible',
-    message: `La aplicación todavía no está disponible (${details.code}). Revisá /health para el diagnóstico.`,
+    message: `No se pudo inicializar la aplicación (${details.code}). Revisá /health para el diagnóstico.`,
   });
 });
 
 app.use(sessionMiddleware);
 app.use(attachLocals);
-app.use('/assets', express.static(path.join(root, 'public'), { maxAge: config.env === 'production' ? '7d' : 0 }));
+app.use('/assets', express.static(path.join(root, 'public'), {
+  maxAge: 0,
+  etag: true,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, must-revalidate'),
+}));
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -204,17 +210,18 @@ io.on('connection', (socket) => {
   socket.emit('socket:ready', { connected: true });
 });
 
+startupPromise = initializeApplication();
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`Control Enrutador disponible en el puerto ${config.port}`);
-  initializeApplication();
 });
 
 async function initializeApplication() {
   try {
     validateConfig();
-    await initializeDatabase();
-    await sessionStore.onReady();
-    await cleanupExpiredRecords();
+    await initializeWithRetry(async () => {
+      await initializeDatabase();
+      await cleanupExpiredRecords();
+    });
     startupState = 'ready';
     console.log('Control Enrutador inicializado correctamente.');
 
@@ -227,6 +234,21 @@ async function initializeApplication() {
     startupState = 'failed';
     console.error('Error durante el arranque de Control Enrutador:', error);
   }
+}
+async function initializeWithRetry(task, attempts = 5) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+      const delayMs = Math.min(1000 * (2 ** (attempt - 1)), 8000);
+      console.error(`Inicialización fallida (intento ${attempt}/${attempts}). Reintentando en ${delayMs} ms.`, error);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError;
 }
 
 function cryptoToken() {

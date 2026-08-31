@@ -60,6 +60,13 @@ export async function cleanupExpiredRecords() {
 }
 
 const schemaStatements = [
+  `CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
+    expires INT UNSIGNED NOT NULL,
+    data MEDIUMTEXT COLLATE utf8mb4_bin,
+    PRIMARY KEY (session_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`,
+
   `CREATE TABLE IF NOT EXISTS system_meta (
     meta_key VARCHAR(100) PRIMARY KEY,
     meta_value TEXT NOT NULL,

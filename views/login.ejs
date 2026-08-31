@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#15191f">
+    <title><%= title %> · Control Enrutador</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="auth-card">
+        <div class="brand-panel">
+          <img src="/assets/assets/mas-duenos-logo.svg" alt="Más Dueños" class="brand-logo">
+          <span class="branch-label">Sucursal Liniers</span>
+        </div>
+        <div class="auth-content">
+          <p class="eyebrow">USO INTERNO</p>
+          <h1>Control Enrutador</h1>
+          <p class="muted">Ingresá con la cuenta correspondiente.</p>
+          <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+          <form method="post" action="/login" class="stack-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label>Usuario<input name="username" autocomplete="username" required></label>
+            <label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label>
+            <button class="button button-primary button-block" type="submit">Ingresar</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

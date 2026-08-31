@@ -157,6 +157,11 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgb(
 .priority-tag { grid-column: 1 / -1; width: fit-content; padding: 4px 8px; border-radius: 999px; color: #9a1b27; background: var(--danger-soft); font-size: .72rem; font-weight: 800; }
 .empty-state { padding: 60px 20px; border: 1px dashed #c9ced5; border-radius: var(--radius); color: var(--ink-soft); background: white; text-align: center; }
 
+.router-footer { width: min(860px, 100%); margin: -48px auto 0; padding: 0 20px 32px; text-align: center; }
+.footer-logout { padding: 10px 14px; border: 0; color: var(--ink-soft); background: transparent; font: inherit; font-size: .85rem; text-decoration: underline; text-underline-offset: 4px; }
+.footer-logout:hover { color: var(--red-dark); }
+.footer-logout:focus-visible { outline: 3px solid rgb(185 28 43 / 20%); outline-offset: 3px; border-radius: 6px; }
+
 .modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(15 23 42 / 62%); backdrop-filter: blur(4px); }
 .confirm-modal { position: relative; width: min(460px, 100%); overflow: hidden; padding: 30px; border-radius: 20px; background: white; box-shadow: 0 28px 70px rgb(0 0 0 / 35%); }
 .confirm-modal p { color: var(--ink-soft); line-height: 1.5; }
@@ -226,6 +231,7 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgb(
   .topbar-logo { width: 112px; }
   .operator-pill { overflow: hidden; max-width: 165px; text-overflow: ellipsis; white-space: nowrap; }
   .page-shell { padding: 22px 13px 70px; }
+  .router-footer { margin-top: -44px; padding-inline: 13px; }
   .page-heading { align-items: center; }
   .page-heading h1 { font-size: 1.7rem; }
   .advisor-grid { grid-template-columns: 1fr; }

@@ -23,11 +23,19 @@ test('derivar suma y rechazar como N/A descuenta el contador demo', () => {
 
   store.derive({ leadId: 'demo-1', advisorName: 'Samuel Lee', operatorName: 'Nicole', advisors });
   assert.equal(store.countForAdvisor('Samuel Lee'), before + 1);
+  assert.equal(
+    store.routerSnapshot({ room: 'charla1', advisors }).standby.some((lead) => lead.id === 'demo-1'),
+    true,
+  );
 
   now += 60_000;
   store.answerAssignment({ leadId: 'demo-1', advisorName: 'Samuel Lee', confirmed: false });
   assert.equal(store.countForAdvisor('Samuel Lee'), before);
   assert.equal(store.requireLead('demo-1').status, 'na');
+  assert.equal(
+    store.routerSnapshot({ room: 'charla1', advisors }).standby.some((lead) => lead.id === 'demo-1'),
+    false,
+  );
 });
 
 test('corregir N/A a confirmada vuelve a sumar sin duplicar registros', () => {

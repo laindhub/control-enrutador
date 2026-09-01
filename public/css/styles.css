@@ -247,8 +247,8 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgb(
   .page-shell { padding: 22px 13px 70px; }
   .router-page .router-shell { padding-bottom: 28px; }
   .router-footer-inner {
-    gap: 10px;
-    padding: 18px 16px calc(30px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+    padding: 22px 22px max(38px, calc(18px + env(safe-area-inset-bottom, 0px)));
   }
   .footer-identity { flex: 1 1 auto; min-width: 0; }
   .footer-identity > div { min-width: 0; }

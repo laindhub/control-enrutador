@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#15191f">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title><%= title %> · Control Enrutador</title>
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/styles.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo.css') %>">
+  </head>
+  <body class="demo-page" data-demo-role="<%= role %>">
+    <header class="topbar demo-topbar">
+      <div class="topbar-inner">
+        <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños" class="topbar-logo">
+        <span class="demo-header-badge">ALFA</span>
+        <div class="operator-pill"><%= identity ? 'Operando como:' : 'Perfil:' %> <strong><%= identity ? identity.name : 'Administración' %></strong></div>
+        <% if (identity) { %>
+          <form method="post" action="/demo/change-identity" class="demo-inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Cambiar</button></form>
+        <% } %>
+        <% if (canSwitchRole) { %>
+          <form method="post" action="/demo/change-profile" class="demo-inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Perfil</button></form>
+        <% } %>
+      </div>
+    </header>
+
+    <main class="page-shell demo-shell">
+      <% if (role === 'router') { %>
+        <section class="demo-heading">
+          <div><p class="eyebrow">LINIERS · SEGUIMIENTO EN TIEMPO REAL</p><h1>Personas en charla</h1><p class="muted">Identificá, revisá la potabilidad y derivá al asesor adecuado.</p></div>
+          <span class="demo-data-pill">Datos demo</span>
+        </section>
+        <div class="demo-room-switch" role="tablist" aria-label="Charla a enrutar">
+          <button class="active" data-room="charla1" type="button">Charla 1 <strong id="charla1Count">0</strong></button>
+          <button data-room="charla2" type="button">Charla 2 <strong id="charla2Count">0</strong></button>
+        </div>
+        <section id="demoQueue" class="demo-lead-grid" aria-live="polite"></section>
+        <section id="demoQueueEmpty" class="empty-state" hidden><h2>La charla está al día</h2><p>No hay personas pendientes de derivación en esta sala.</p></section>
+        <section class="demo-balance-panel"><div><p class="eyebrow">EQUILIBRIO DEL DÍA</p><h2>Derivaciones por asesor</h2></div><div id="demoAdvisorBalance" class="demo-balance-list"></div></section>
+      <% } %>
+
+      <% if (role === 'advisor') { %>
+        <section class="demo-heading">
+          <div><p class="eyebrow">LINIERS · CONFIRMACIÓN</p><h1>Personas derivadas</h1><p class="muted">Confirmá si cada persona fue asesorada por vos.</p></div>
+          <div class="demo-advisor-total"><span>Contador</span><strong id="demoAdvisorCount">0</strong></div>
+        </section>
+        <div class="demo-delay-legend"><span><i class="delay-dot green"></i>0–29 min</span><span><i class="delay-dot yellow"></i>30–39 min</span><span><i class="delay-dot red"></i>40–59 min</span><span><i class="delay-dot black"></i>1 h o más</span></div>
+        <section id="demoAssignments" class="demo-assignment-list" aria-live="polite"></section>
+        <section id="demoAssignmentsEmpty" class="empty-state" hidden><h2>Sin confirmaciones pendientes</h2><p>Las nuevas derivaciones aparecerán automáticamente.</p></section>
+        <section class="demo-history-panel"><p class="eyebrow">HISTORIAL DEMO</p><h2>Confirmaciones recientes</h2><div id="demoAdvisorHistory" class="demo-history-list"></div></section>
+      <% } %>
+
+      <% if (role === 'admin') { %>
+        <section class="demo-heading">
+          <div><p class="eyebrow">LINIERS · SUPERVISIÓN ALFA</p><h1>Panel del circuito</h1><p class="muted">Visión unificada desde la charla hasta la confirmación del asesor.</p></div>
+          <button id="demoReset" class="button button-secondary" type="button">Restaurar demo</button>
+        </section>
+        <section id="demoMetrics" class="demo-metric-grid"></section>
+        <div class="demo-admin-grid">
+          <section class="panel"><p class="eyebrow">FUNNEL ACTUAL</p><h2>Estado de las personas</h2><div id="demoFunnel" class="demo-funnel"></div></section>
+          <section class="panel"><p class="eyebrow">ASESORES</p><h2>Derivaciones válidas</h2><div id="demoAdminAdvisors" class="demo-balance-list"></div></section>
+          <section class="panel demo-wide-panel"><p class="eyebrow">OPERACIÓN</p><h2>Personas y resultado</h2><div id="demoAdminLeads" class="demo-admin-leads"></div></section>
+          <section class="panel demo-wide-panel"><p class="eyebrow">AUDITORÍA</p><h2>Últimos movimientos</h2><div id="demoAudit" class="demo-audit-list"></div></section>
+        </div>
+      <% } %>
+    </main>
+
+    <footer class="demo-footer"><span>Más Dueños · Control Enrutador</span><strong>ENTORNO DEMO AISLADO</strong><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Cerrar sesión</button></form></footer>
+
+    <div id="demoModal" class="modal-backdrop" hidden>
+      <section class="demo-modal" role="dialog" aria-modal="true" aria-labelledby="demoModalTitle">
+        <button id="demoModalClose" class="demo-modal-close" type="button" aria-label="Cerrar">×</button>
+        <div id="demoModalContent"></div>
+      </section>
+    </div>
+    <div id="toast" class="toast" hidden></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="<%= assetUrl('js/demo.js') %>" type="module"></script>
+  </body>
+</html>

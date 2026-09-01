@@ -22,6 +22,13 @@ import {
 } from './auth.js';
 import { createApiRouter } from './routes/api.js';
 import { createAdminRouter } from './routes/admin.js';
+import {
+  alphaRoleFor,
+  canAccessAlpha,
+  createDemoRouter,
+  listAlphaPeople,
+  requireAlphaAccess,
+} from './routes/demo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -160,7 +167,7 @@ const loginLimiter = rateLimit({
 });
 
 app.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect(req.session.user.role === 'admin' ? '/admin' : '/');
+  if (req.session.user) return res.redirect(loginDestination(req.session.user));
   return res.render('login', { title: 'Ingresar', error: null });
 });
 
@@ -174,7 +181,7 @@ app.post('/login', loginLimiter, verifyCsrf, async (req, res, next) => {
       req.session.csrfToken = cryptoToken();
       req.session.save((saveError) => {
         if (saveError) return next(saveError);
-        return res.redirect(user.role === 'admin' ? '/admin' : '/operator');
+        return res.redirect(loginDestination(user));
       });
     });
   } catch (error) {
@@ -217,6 +224,67 @@ app.get('/admin', requireAuth, requireRole('admin'), (_req, res) => {
   res.render('admin', { title: 'Panel de administración' });
 });
 
+app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
+  try {
+    const role = alphaRoleFor(req);
+    if (!role) return res.render('demo-role', { title: 'Elegir perfil demo' });
+    if (role === 'router' || role === 'advisor') {
+      if (!req.session.demoIdentity || req.session.demoIdentity.kind !== role) {
+        const people = await listAlphaPeople(role);
+        return res.render('demo-identity', { title: 'Elegir identidad', role, people });
+      }
+    }
+    return res.render('demo', {
+      title: `Alfa · ${role === 'admin' ? 'Administración' : role === 'router' ? 'Enrutadores' : 'Asesores'}`,
+      role,
+      identity: req.session.demoIdentity || null,
+      canSwitchRole: req.session.user.role === 'demo',
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/demo/role', verifyCsrf, requireAuth, requireAlphaAccess, (req, res, next) => {
+  if (req.session.user.role !== 'demo') return res.redirect('/demo');
+  const role = ['admin', 'router', 'advisor'].includes(req.body.role) ? req.body.role : null;
+  if (!role) return res.status(400).render('error', { title: 'Perfil inválido', message: 'Seleccioná un perfil demo válido.' });
+  req.session.demoRole = role;
+  delete req.session.demoIdentity;
+  return saveRequestSession(req).then(() => res.redirect('/demo')).catch(next);
+});
+
+app.post('/demo/identity', verifyCsrf, requireAuth, requireAlphaAccess, async (req, res, next) => {
+  try {
+    const role = alphaRoleFor(req);
+    if (!['router', 'advisor'].includes(role)) return res.redirect('/demo');
+    const people = await listAlphaPeople(role);
+    const selected = people.find((person) => Number(person.id) === Number(req.body.personId));
+    if (!selected) {
+      return res.status(400).render('demo-identity', {
+        title: 'Elegir identidad', role, people, error: 'Seleccioná una persona válida.',
+      });
+    }
+    req.session.demoIdentity = { id: selected.id, name: selected.name, kind: role };
+    await saveRequestSession(req);
+    return res.redirect('/demo');
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/demo/change-profile', verifyCsrf, requireAuth, requireAlphaAccess, (req, res, next) => {
+  delete req.session.demoIdentity;
+  if (req.session.user.role === 'demo') delete req.session.demoRole;
+  return saveRequestSession(req).then(() => res.redirect('/demo')).catch(next);
+});
+
+app.post('/demo/change-identity', verifyCsrf, requireAuth, requireAlphaAccess, (req, res, next) => {
+  delete req.session.demoIdentity;
+  return saveRequestSession(req).then(() => res.redirect('/demo')).catch(next);
+});
+
+app.use('/api/demo', verifyCsrf, createDemoRouter(io));
 app.use('/api', verifyCsrf, createApiRouter(io));
 app.use('/api/admin', verifyCsrf, createAdminRouter(io));
 
@@ -281,6 +349,16 @@ async function initializeWithRetry(task, attempts = 5) {
 
 function cryptoToken() {
   return randomBytes(32).toString('hex');
+}
+
+function loginDestination(user) {
+  if (user.role === 'demo' || user.role === 'advisor') return '/demo';
+  if (config.alphaProductionEnabled && canAccessAlpha({ session: { user } })) return '/demo';
+  return user.role === 'admin' ? '/admin' : '/operator';
+}
+
+function saveRequestSession(req) {
+  return new Promise((resolve, reject) => req.session.save((error) => (error ? reject(error) : resolve())));
 }
 
 function publicStartupError(error) {

@@ -30,7 +30,12 @@ export const config = {
     routerPassword: process.env.ROUTER_PASSWORD,
     adminUsername: process.env.ADMIN_USERNAME,
     adminPassword: process.env.ADMIN_PASSWORD,
+    advisorUsername: process.env.ADVISOR_USERNAME,
+    advisorPassword: process.env.ADVISOR_PASSWORD,
+    demoUsername: process.env.DEMO_USERNAME,
+    demoPassword: process.env.DEMO_PASSWORD,
   },
+  alphaProductionEnabled: process.env.ALPHA_PRODUCTION_ENABLED === 'true',
 };
 
 export function validateConfig() {

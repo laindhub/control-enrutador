@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#15191f">
+    <title><%= title %> · Control Enrutador</title>
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/styles.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo.css') %>">
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="operator-card demo-access-card">
+        <div class="modal-accent"></div>
+        <span class="demo-badge">VERSIÓN ALFA · DATOS FICTICIOS</span>
+        <h1>¿Qué querés probar?</h1>
+        <p class="muted">La cuenta demo permite recorrer el circuito completo sin modificar la operación real de Liniers.</p>
+        <div class="demo-role-grid">
+          <form method="post" action="/demo/role">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="role" value="router">
+            <button class="demo-role-card" type="submit"><span class="demo-role-icon">↗</span><strong>Enrutadores</strong><small>Seguimiento, potabilidad y derivación</small></button>
+          </form>
+          <form method="post" action="/demo/role">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="role" value="advisor">
+            <button class="demo-role-card" type="submit"><span class="demo-role-icon">✓</span><strong>Asesores</strong><small>Confirmación de personas asesoradas</small></button>
+          </form>
+          <form method="post" action="/demo/role">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="role" value="admin">
+            <button class="demo-role-card" type="submit"><span class="demo-role-icon">◎</span><strong>Administración</strong><small>Funnel, estado y auditoría demo</small></button>
+          </form>
+        </div>
+        <form method="post" action="/logout" class="demo-exit-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="button button-secondary button-block" type="submit">Cerrar sesión</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

@@ -27,14 +27,37 @@ async function seedUsers(connection) {
       password: config.bootstrap.adminPassword,
       role: 'admin',
     },
+    {
+      username: config.alphaProductionEnabled ? config.bootstrap.advisorUsername : null,
+      password: config.alphaProductionEnabled ? config.bootstrap.advisorPassword : null,
+      role: 'advisor',
+    },
+    {
+      username: config.bootstrap.demoUsername,
+      password: config.bootstrap.demoPassword,
+      role: 'demo',
+    },
   ].filter(({ username, password }) => username && password);
+
+  if (!config.bootstrap.demoUsername || !config.bootstrap.demoPassword) {
+    await connection.query("UPDATE users SET active = FALSE WHERE role = 'demo'");
+  }
+  if (!config.alphaProductionEnabled || !config.bootstrap.advisorUsername || !config.bootstrap.advisorPassword) {
+    await connection.query("UPDATE users SET active = FALSE WHERE role = 'advisor'");
+  }
 
   for (const user of users) {
     const [existing] = await connection.execute('SELECT id FROM users WHERE username = ? LIMIT 1', [
       user.username,
     ]);
-    if (existing.length) continue;
     const hash = await bcrypt.hash(user.password, 12);
+    if (existing.length) {
+      await connection.execute(
+        'UPDATE users SET password_hash = ?, role = ?, active = TRUE WHERE id = ?',
+        [hash, user.role, existing[0].id],
+      );
+      continue;
+    }
     await connection.execute(
       'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
       [user.username, hash, user.role],
@@ -77,11 +100,14 @@ const schemaStatements = [
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(80) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('router', 'admin') NOT NULL,
+    role ENUM('router', 'admin', 'advisor', 'demo') NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `ALTER TABLE users
+    MODIFY role ENUM('router', 'admin', 'advisor', 'demo') NOT NULL`,
 
   `CREATE TABLE IF NOT EXISTS operators (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

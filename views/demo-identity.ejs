@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#15191f">
+    <title><%= title %> · Control Enrutador</title>
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/styles.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/custom-select.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo.css') %>">
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="operator-card demo-access-card">
+        <div class="modal-accent"></div>
+        <span class="demo-badge">ALFA DEMO · <%= role === 'router' ? 'ENRUTADORES' : 'ASESORES' %></span>
+        <h1>¿Quién está operando?</h1>
+        <p class="muted">Usamos la lista real de personal, pero todas las acciones de esta sección son ficticias.</p>
+        <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+        <% if (people.length) { %>
+          <form method="post" action="/demo/identity" class="stack-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label><%= role === 'router' ? 'Enrutador' : 'Asesor' %>
+              <select name="personId" required>
+                <option value="">Seleccionar…</option>
+                <% people.forEach((person) => { %><option value="<%= person.id %>"><%= person.name %></option><% }) %>
+              </select>
+            </label>
+            <button class="button button-primary button-block" type="submit">Ingresar a la demo</button>
+          </form>
+        <% } else { %>
+          <div class="alert alert-error">No hay personal activo cargado para este perfil.</div>
+        <% } %>
+        <form method="post" action="/demo/change-profile" class="demo-exit-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="button button-secondary button-block" type="submit">Volver a perfiles</button>
+        </form>
+      </section>
+    </main>
+    <script src="<%= assetUrl('js/custom-select.js') %>"></script>
+  </body>
+</html>

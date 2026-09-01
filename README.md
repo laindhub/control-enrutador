@@ -19,6 +19,8 @@ Webapp interna para llevar el conteo de personas o grupos que se sientan con los
 - Filtros rápidos y rangos personalizados.
 - Exportación `.xlsx` con resumen, detalle, enrutadores y correcciones.
 - Retención automática de registros durante un año.
+- Entorno alfa demo completamente aislado, con perfiles de administración, enrutadores y asesores.
+- Seguimiento ficticio por Charla 1/2, potabilidad, recomendación, derivación y confirmación en tiempo real.
 
 ## Tecnología
 
@@ -48,8 +50,13 @@ Copiar los nombres de `.env.example` en el panel de variables de entorno de Host
 | `ROUTER_PASSWORD` | Contraseña inicial de enrutadores |
 | `ADMIN_USERNAME` | Usuario administrativo inicial |
 | `ADMIN_PASSWORD` | Contraseña administrativa inicial |
+| `DEMO_USERNAME` | Usuario opcional de la demo alfa; si falta, la demo queda deshabilitada |
+| `DEMO_PASSWORD` | Contraseña opcional de la demo alfa |
+| `ALPHA_PRODUCTION_ENABLED` | Mantener `false` mientras el circuito alfa sea solamente demo |
+| `ADVISOR_USERNAME` | Usuario futuro de la cuenta compartida de asesores |
+| `ADVISOR_PASSWORD` | Contraseña futura de asesores |
 
-Las cuatro variables de las cuentas se leen durante el primer inicio y las contraseñas se guardan como hashes bcrypt. Nunca se guardan en el repositorio.
+Las variables de las cuentas se leen al iniciar y las contraseñas se guardan como hashes bcrypt. Nunca se guardan en el repositorio. La cuenta demo solamente se habilita cuando existen tanto `DEMO_USERNAME` como `DEMO_PASSWORD`; su información operativa es ficticia, vive separada de las tablas productivas y se restaura al reiniciar la instancia.
 
 ## Despliegue en Hostinger
 

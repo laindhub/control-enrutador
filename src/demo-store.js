@@ -33,10 +33,15 @@ export class DemoStore {
         ...clone(lead),
         recommendation: this.recommendAdvisor(lead, advisorStats),
       }));
+    const standby = this.leads
+      .filter((lead) => lead.status === 'derived')
+      .sort((left, right) => left.derivedAt - right.derivedAt)
+      .map(clone);
 
     return {
       room: normalizedRoom,
       leads,
+      standby,
       advisors: advisorStats,
       totals: {
         charla1: this.leads.filter((lead) => lead.status === 'charla1').length,

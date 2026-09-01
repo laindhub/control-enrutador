@@ -55,6 +55,11 @@ function renderRouter(data) {
   queue.replaceChildren(...data.leads.map(routerCard));
   queue.hidden = data.leads.length === 0;
   empty.hidden = data.leads.length > 0;
+  const standby = data.standby || [];
+  const standbyList = document.querySelector('#demoStandbyList');
+  standbyList.replaceChildren(...standby.map(standbyCard));
+  document.querySelector('#demoStandbyCount').textContent = standby.length;
+  document.querySelector('#demoStandbyEmpty').hidden = standby.length > 0;
   document.querySelector('#demoAdvisorBalance').replaceChildren(...data.advisors.map(balanceItem));
 }
 
@@ -78,6 +83,17 @@ function balanceItem(advisor) {
   item.className = 'demo-balance-item';
   item.innerHTML = `<span>${escapeHtml(advisor.name)}</span><strong>${advisor.count}</strong>`;
   return item;
+}
+
+function standbyCard(lead) {
+  const card = document.createElement('article');
+  card.className = `demo-standby-card delay-${delayLevel(lead.derivedAt)}`;
+  card.innerHTML = `
+    <div class="demo-standby-person"><strong>${escapeHtml(lead.name)}</strong><span>${stageLabel(lead.sourceStage)} · Enrutó ${escapeHtml(lead.routedBy)}</span></div>
+    <div class="demo-standby-advisor"><span>Asesor</span><strong>${escapeHtml(lead.advisorName)}</strong></div>
+    <div class="demo-standby-time"><span>STANDBY</span><strong>${formatElapsed(lead.derivedAt)}</strong></div>
+  `;
+  return card;
 }
 
 function openRouterLead(lead) {
@@ -254,7 +270,7 @@ function renderAdmin(data) {
   const metrics = [
     ['Personas', data.totals.people],
     ['En charlas', data.totals.waiting],
-    ['Esperando asesor', data.totals.pendingAdvisor],
+    ['En standby', data.totals.pendingAdvisor],
     ['Confirmadas', data.totals.confirmed],
     ['N/A y retiradas', data.totals.lost],
   ];
@@ -269,7 +285,7 @@ function renderFunnel(data) {
   const items = [
     ['Charla 1', data.statusCounts.charla1],
     ['Charla 2', data.statusCounts.charla2],
-    ['Derivadas', data.statusCounts.derived],
+    ['Standby', data.statusCounts.derived],
     ['Confirmadas', data.statusCounts.confirmed],
     ['N/A', data.statusCounts.na],
   ];
@@ -309,7 +325,7 @@ function formatClock(timestamp) {
 }
 
 function stageLabel(status) {
-  const labels = { charla1: 'Charla 1', charla2: 'Charla 2', derived: 'Derivada', confirmed: 'Confirmada', na: 'N/A', left_before: 'Se retiró antes', left_during: 'Se retiró durante la charla' };
+  const labels = { charla1: 'Charla 1', charla2: 'Charla 2', derived: 'Standby', confirmed: 'Confirmada', na: 'N/A', left_before: 'Se retiró antes', left_during: 'Se retiró durante la charla' };
   return labels[status] || 'Seguimiento';
 }
 

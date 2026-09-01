@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import express from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -24,6 +25,20 @@ import { createAdminRouter } from './routes/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const publicRoot = path.join(root, 'public');
+const assetHashes = new Map();
+
+function assetUrl(relativePath) {
+  const normalizedPath = String(relativePath).replace(/^\/+/, '');
+  if (normalizedPath.includes('..')) throw new Error('Ruta de recurso inválida.');
+
+  if (!assetHashes.has(normalizedPath)) {
+    const content = readFileSync(path.join(publicRoot, normalizedPath));
+    assetHashes.set(normalizedPath, createHash('sha256').update(content).digest('hex').slice(0, 12));
+  }
+
+  return `/assets/${normalizedPath}?v=${assetHashes.get(normalizedPath)}`;
+}
 
 let startupState = 'starting';
 let startupError = null;
@@ -42,6 +57,7 @@ const io = new SocketIOServer(server, {
 if (config.env === 'production') app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(root, 'views'));
+app.locals.assetUrl = assetUrl;
 app.disable('x-powered-by');
 app.use((_req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
@@ -117,11 +133,23 @@ app.use(async (req, res, next) => {
 
 app.use(sessionMiddleware);
 app.use(attachLocals);
-app.use('/assets', express.static(path.join(root, 'public'), {
-  maxAge: 0,
+app.use('/assets', express.static(publicRoot, {
+  maxAge: '1y',
   etag: true,
-  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, must-revalidate'),
+  immutable: true,
+  setHeaders: (res) => {
+    const version = String(res.req.query.v || '');
+    if (/^[a-f0-9]{12}$/.test(version)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  },
 }));
+app.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

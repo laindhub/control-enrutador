@@ -160,6 +160,8 @@
 .demo-advisor-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 50px; padding: 10px 12px; border: 1px solid #dce0e4; border-radius: 11px; background: white; text-align: left; }
 .demo-advisor-option.recommended { border-color: #56a77f; background: #f2fbf6; }
 .demo-advisor-option span { color: #6b7480; font-size: .75rem; }
+.demo-advisor-option:disabled { cursor: not-allowed; border-color: #e2e4e7; color: #858c95; background: #f1f2f4; opacity: .78; }
+.demo-advisor-option:disabled span { color: #9a5d00; font-weight: 800; }
 .demo-depart-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
 .demo-depart-actions button { min-height: 43px; padding: 8px 10px; border: 1px solid #e3b9bd; border-radius: 10px; color: #861a24; background: #fff5f6; font-weight: 750; }
 .demo-answer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 18px; }

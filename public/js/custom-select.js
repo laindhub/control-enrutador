@@ -192,8 +192,14 @@
     openInstance = null;
   });
 
-  window.addEventListener('scroll', () => {
-    if (openInstance) openInstance.close();
+  window.addEventListener('scroll', (event) => {
+    if (!openInstance) return;
+
+    // Scroll events from the menu reach window during the capture phase. They
+    // must not be treated as page scrolling or the list closes on mobile drag.
+    if (event.target === openInstance.menu || openInstance.menu.contains(event.target)) return;
+
+    openInstance.close();
     openInstance = null;
   }, true);
 

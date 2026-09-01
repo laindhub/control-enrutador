@@ -37,6 +37,11 @@
         </div>
         <section id="demoQueue" class="demo-lead-grid" aria-live="polite"></section>
         <section id="demoQueueEmpty" class="empty-state" hidden><h2>La charla está al día</h2><p>No hay personas pendientes de derivación en esta sala.</p></section>
+        <section class="demo-standby-panel">
+          <div class="demo-section-head"><div><p class="eyebrow">EN ESPERA DE CONFIRMACIÓN</p><h2>Standby</h2></div><strong id="demoStandbyCount" class="demo-standby-count">0</strong></div>
+          <div id="demoStandbyList" class="demo-standby-list" aria-live="polite"></div>
+          <p id="demoStandbyEmpty" class="demo-standby-empty">No hay derivaciones esperando respuesta.</p>
+        </section>
         <section class="demo-balance-panel"><div><p class="eyebrow">EQUILIBRIO DEL DÍA</p><h2>Derivaciones por asesor</h2></div><div id="demoAdvisorBalance" class="demo-balance-list"></div></section>
       <% } %>
 

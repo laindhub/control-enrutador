@@ -104,6 +104,15 @@ export class DemoStore {
     if (!advisors.some((advisor) => advisor.name === advisorName)) {
       throw new DemoStoreError('El asesor seleccionado no está disponible.', 409);
     }
+    const pendingAssignment = this.leads.find(
+      (item) => item.advisorName === advisorName && item.status === 'derived',
+    );
+    if (pendingAssignment) {
+      throw new DemoStoreError(
+        `${advisorName} todavía tiene a ${pendingAssignment.name} en standby.`,
+        409,
+      );
+    }
 
     const previousStage = lead.status;
     const timestamp = this.now();
@@ -206,14 +215,20 @@ export class DemoStore {
 
   advisorStats(advisors) {
     const performanceOrder = performanceRank(advisors);
-    return advisors.map((advisor) => ({
-      id: advisor.id,
-      name: advisor.name,
-      team: advisor.team,
-      count: this.countForAdvisor(advisor.name),
-      performanceRank: performanceOrder.findIndex((name) => name === advisor.name) + 1,
-      available: true,
-    }));
+    return advisors.map((advisor) => {
+      const pendingAssignment = this.leads.find(
+        (lead) => lead.advisorName === advisor.name && lead.status === 'derived',
+      );
+      return {
+        id: advisor.id,
+        name: advisor.name,
+        team: advisor.team,
+        count: this.countForAdvisor(advisor.name),
+        performanceRank: performanceOrder.findIndex((name) => name === advisor.name) + 1,
+        available: !pendingAssignment,
+        standbyLeadName: pendingAssignment?.name || null,
+      };
+    });
   }
 
   countForAdvisor(advisorName) {
@@ -225,7 +240,8 @@ export class DemoStore {
   recommendAdvisor(lead, advisorStats) {
     if (!advisorStats.length) return null;
     const performance = performanceRank(advisorStats);
-    const candidates = [...advisorStats];
+    const candidates = advisorStats.filter((advisor) => advisor.available);
+    if (!candidates.length) return null;
     if (lead.potability >= 64) {
       candidates.sort((left, right) => performance.indexOf(left.name) - performance.indexOf(right.name));
       return {

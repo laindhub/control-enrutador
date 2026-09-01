@@ -143,7 +143,11 @@ function advisorOption(lead, advisor, recommendation) {
   const recommended = recommendation?.name === advisor.name;
   button.className = `demo-advisor-option ${recommended ? 'recommended' : ''}`;
   button.type = 'button';
-  button.innerHTML = `<strong>${escapeHtml(advisor.name)}</strong><span>${recommended ? 'RECOMENDADO · ' : ''}${advisor.count} deriv.</span>`;
+  button.disabled = !advisor.available;
+  const detail = advisor.available
+    ? `${recommended ? 'RECOMENDADO · ' : ''}${advisor.count} deriv.`
+    : `EN STANDBY · ${advisor.standbyLeadName}`;
+  button.innerHTML = `<strong>${escapeHtml(advisor.name)}</strong><span>${escapeHtml(detail)}</span>`;
   button.addEventListener('click', async () => {
     button.disabled = true;
     try {
@@ -155,8 +159,9 @@ function advisorOption(lead, advisor, recommendation) {
       showToast(`${lead.name} fue derivada a ${advisor.name}.`);
       await loadSnapshot();
     } catch (error) {
-      button.disabled = false;
+      closeModal();
       showToast(error.message, true);
+      await loadSnapshot();
     }
   });
   return button;

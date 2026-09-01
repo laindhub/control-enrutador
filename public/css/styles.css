@@ -246,7 +246,15 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgb(
   .operator-pill { overflow: hidden; max-width: 165px; text-overflow: ellipsis; white-space: nowrap; }
   .page-shell { padding: 22px 13px 70px; }
   .router-page .router-shell { padding-bottom: 28px; }
-  .router-footer-inner { padding: 16px 13px; }
+  .router-footer-inner {
+    gap: 10px;
+    padding: 18px 16px calc(30px + env(safe-area-inset-bottom, 0px));
+  }
+  .footer-identity { flex: 1 1 auto; min-width: 0; }
+  .footer-identity > div { min-width: 0; }
+  .footer-identity strong,
+  .footer-identity div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .router-footer-inner form { flex: 0 0 auto; }
   .page-heading { align-items: center; }
   .page-heading h1 { font-size: 1.7rem; }
   .advisor-grid { grid-template-columns: 1fr; }

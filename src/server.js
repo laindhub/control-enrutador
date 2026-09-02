@@ -14,17 +14,19 @@ import { cleanupExpiredRecords, initializeDatabase } from './schema.js';
 import {
   attachLocals,
   authenticate,
+  invalidateSession,
   requireAuth,
   requireOperator,
   requireRole,
   sessionMiddleware,
+  validateSessionUser,
   verifyCsrf,
 } from './auth.js';
+import { destinationForUser } from './navigation.js';
 import { createApiRouter } from './routes/api.js';
 import { createAdminRouter } from './routes/admin.js';
 import {
   alphaRoleFor,
-  canAccessAlpha,
   createDemoRouter,
   listAlphaPeople,
   requireAlphaAccess,
@@ -139,6 +141,7 @@ app.use(async (req, res, next) => {
 });
 
 app.use(sessionMiddleware);
+app.use(validateSessionUser);
 app.use(attachLocals);
 app.use('/assets', express.static(publicRoot, {
   maxAge: '1y',
@@ -166,8 +169,12 @@ const loginLimiter = rateLimit({
   message: 'Demasiados intentos. Esperá unos minutos antes de volver a intentar.',
 });
 
-app.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect(loginDestination(req.session.user));
+app.get('/login', (req, res, next) => {
+  if (req.session.user) {
+    const destination = destinationForUser(req.session.user, { hasOperator: Boolean(req.session.operator) });
+    if (destination === '/login') return invalidateSession(req, res, next);
+    return res.redirect(destination);
+  }
   return res.render('login', { title: 'Ingresar', error: null });
 });
 
@@ -181,7 +188,7 @@ app.post('/login', loginLimiter, verifyCsrf, async (req, res, next) => {
       req.session.csrfToken = cryptoToken();
       req.session.save((saveError) => {
         if (saveError) return next(saveError);
-        return res.redirect(loginDestination(user));
+        return res.redirect(destinationForUser(user));
       });
     });
   } catch (error) {
@@ -349,12 +356,6 @@ async function initializeWithRetry(task, attempts = 5) {
 
 function cryptoToken() {
   return randomBytes(32).toString('hex');
-}
-
-function loginDestination(user) {
-  if (user.role === 'demo' || user.role === 'advisor') return '/demo';
-  if (config.alphaProductionEnabled && canAccessAlpha({ session: { user } })) return '/demo';
-  return user.role === 'admin' ? '/admin' : '/operator';
 }
 
 function saveRequestSession(req) {

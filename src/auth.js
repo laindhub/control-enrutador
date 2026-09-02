@@ -4,6 +4,7 @@ import session from 'express-session';
 import MySQLStoreFactory from 'express-mysql-session';
 import { config } from './config.js';
 import { pool } from './db.js';
+import { destinationForUser } from './navigation.js';
 
 const MySQLStore = MySQLStoreFactory(session);
 
@@ -35,6 +36,39 @@ export const sessionMiddleware = session({
     maxAge: 1000 * 60 * 60 * 24 * 365,
   },
 });
+
+const SESSION_USER_VALIDATION_MS = 60 * 1000;
+
+export async function validateSessionUser(req, res, next) {
+  if (!req.session.user || req.path.startsWith('/assets/')) return next();
+  if (Date.now() - Number(req.session.userValidatedAt || 0) < SESSION_USER_VALIDATION_MS) return next();
+  const userId = Number(req.session.user.id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) return invalidateSession(req, res, next);
+
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, username, role FROM users WHERE id = ? AND active = TRUE LIMIT 1',
+      [userId],
+    );
+    if (!rows.length) return invalidateSession(req, res, next);
+
+    req.session.user = rows[0];
+    req.session.userValidatedAt = Date.now();
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function invalidateSession(req, res, next) {
+  const isApi = req.originalUrl.startsWith('/api/');
+  return req.session.destroy((error) => {
+    if (error) console.error('No se pudo eliminar la sesión inválida del almacén:', error);
+    res.clearCookie('control_enrutador_sid', { path: '/' });
+    if (isApi) return res.status(401).json({ error: 'La sesión venció. Volvé a ingresar.' });
+    return res.redirect('/login');
+  });
+}
 
 export async function authenticate(username, password) {
   const [rows] = await pool.execute(
@@ -78,7 +112,10 @@ export function requireRole(role) {
   return (req, res, next) => {
     if (req.session.user?.role === role) return next();
     if (req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'Acceso no autorizado.' });
-    return res.redirect(req.session.user?.role === 'admin' ? '/admin' : '/');
+    const destination = destinationForUser(req.session.user, { hasOperator: Boolean(req.session.operator) });
+    if (destination === '/login') return invalidateSession(req, res, next);
+    if (destination === req.path) return invalidateSession(req, res, next);
+    return res.redirect(destination);
   };
 }
 

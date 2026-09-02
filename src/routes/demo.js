@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { config } from '../config.js';
 import { pool } from '../db.js';
-import { requireAuth } from '../auth.js';
+import { invalidateSession, requireAuth } from '../auth.js';
+import { destinationForUser } from '../navigation.js';
 import { demoStore } from '../demo-store.js';
 
 const ALPHA_ROLES = new Set(['admin', 'router', 'advisor']);
@@ -23,7 +24,10 @@ export function alphaRoleFor(req) {
 export function requireAlphaAccess(req, res, next) {
   if (canAccessAlpha(req)) return next();
   if (req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'La versión alfa no está habilitada.' });
-  return res.redirect('/');
+  const destination = destinationForUser(req.session.user, { hasOperator: Boolean(req.session.operator) });
+  if (destination === '/login') return invalidateSession(req, res, next);
+  if (destination === req.path) return invalidateSession(req, res, next);
+  return res.redirect(destination);
 }
 
 export function requireAlphaRole(role) {

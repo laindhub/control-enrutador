@@ -257,7 +257,6 @@ function auditItem(item) {
     'attention.voided': 'Atención corregida',
     'attention.admin_voided': 'Atención corregida por administración',
     'schedule.week_replaced': 'Cronograma semanal actualizado',
-    'schedule.week_preset_imported': 'Cronograma semanal cargado',
     'advisors.created': 'Asesor agregado',
     'advisors.updated': 'Asesor modificado',
     'operators.created': 'Enrutador agregado',

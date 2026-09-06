@@ -11,7 +11,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check src/schedule-presets.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js"
+    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

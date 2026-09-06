@@ -1,14 +1,29 @@
 import bcrypt from 'bcryptjs';
+import { createHmac } from 'node:crypto';
 import { pool } from './db.js';
 import { config } from './config.js';
+
+const SCHEMA_VERSION = '2';
+const META_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS system_meta (
+  meta_key VARCHAR(100) PRIMARY KEY,
+  meta_value TEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
 
 export async function initializeDatabase() {
   const connection = await pool.getConnection();
   try {
-    for (const statement of schemaStatements) await connection.query(statement);
-    await connection.query(
-      "INSERT IGNORE INTO app_locks (lock_name) VALUES ('attention_create'), ('retention_cleanup')",
+    await connection.query(META_TABLE_STATEMENT);
+    const [versionRows] = await connection.execute(
+      "SELECT meta_value FROM system_meta WHERE meta_key = 'schema_version' LIMIT 1",
     );
+    if (versionRows[0]?.meta_value !== SCHEMA_VERSION) {
+      for (const statement of schemaStatements) await connection.query(statement);
+      await connection.query(
+        "INSERT IGNORE INTO app_locks (lock_name) VALUES ('attention_create'), ('retention_cleanup')",
+      );
+      await setMeta(connection, 'schema_version', SCHEMA_VERSION);
+    }
     await seedUsers(connection);
   } finally {
     connection.release();
@@ -16,7 +31,7 @@ export async function initializeDatabase() {
 }
 
 async function seedUsers(connection) {
-  const users = [
+  const configuredUsers = [
     {
       username: config.bootstrap.routerUsername,
       password: config.bootstrap.routerPassword,
@@ -37,7 +52,16 @@ async function seedUsers(connection) {
       password: config.bootstrap.demoPassword,
       role: 'demo',
     },
-  ].filter(({ username, password }) => username && password);
+  ];
+  const fingerprint = createHmac('sha256', config.sessionSecret)
+    .update(JSON.stringify({ alphaProductionEnabled: config.alphaProductionEnabled, configuredUsers }))
+    .digest('hex');
+  const [fingerprintRows] = await connection.execute(
+    "SELECT meta_value FROM system_meta WHERE meta_key = 'credential_fingerprint' LIMIT 1",
+  );
+  if (fingerprintRows[0]?.meta_value === fingerprint) return;
+
+  const users = configuredUsers.filter(({ username, password }) => username && password);
 
   if (!config.bootstrap.demoUsername || !config.bootstrap.demoPassword) {
     await connection.query("UPDATE users SET active = FALSE WHERE role = 'demo'");
@@ -47,22 +71,36 @@ async function seedUsers(connection) {
   }
 
   for (const user of users) {
-    const [existing] = await connection.execute('SELECT id FROM users WHERE username = ? LIMIT 1', [
+    const [existing] = await connection.execute('SELECT id, password_hash, role, active FROM users WHERE username = ? LIMIT 1', [
       user.username,
     ]);
-    const hash = await bcrypt.hash(user.password, 12);
     if (existing.length) {
+      const current = existing[0];
+      const passwordMatches = await bcrypt.compare(user.password, current.password_hash);
+      if (passwordMatches && current.role === user.role && Boolean(current.active)) continue;
+      const hash = passwordMatches ? current.password_hash : await bcrypt.hash(user.password, 12);
       await connection.execute(
         'UPDATE users SET password_hash = ?, role = ?, active = TRUE WHERE id = ?',
-        [hash, user.role, existing[0].id],
+        [hash, user.role, current.id],
       );
       continue;
     }
+    const hash = await bcrypt.hash(user.password, 12);
     await connection.execute(
       'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
       [user.username, hash, user.role],
     );
   }
+
+  await setMeta(connection, 'credential_fingerprint', fingerprint);
+}
+
+async function setMeta(connection, key, value) {
+  await connection.execute(
+    `INSERT INTO system_meta (meta_key, meta_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)`,
+    [key, value],
+  );
 }
 
 export async function cleanupExpiredRecords() {
@@ -90,11 +128,7 @@ const schemaStatements = [
     PRIMARY KEY (session_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`,
 
-  `CREATE TABLE IF NOT EXISTS system_meta (
-    meta_key VARCHAR(100) PRIMARY KEY,
-    meta_value TEXT NOT NULL,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  META_TABLE_STATEMENT,
 
   `CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

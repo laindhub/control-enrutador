@@ -11,7 +11,6 @@ import { Server as SocketIOServer } from 'socket.io';
 import { config, validateConfig } from './config.js';
 import { pool } from './db.js';
 import { cleanupExpiredRecords, initializeDatabase } from './schema.js';
-import { applyBundledSchedulePresets } from './schedule-presets.js';
 import {
   attachLocals,
   authenticate,
@@ -328,9 +327,6 @@ async function initializeApplication() {
     await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
     console.log('Control Enrutador inicializado correctamente.');
-
-    initializeWithRetry(() => applyBundledSchedulePresets(), 3)
-      .catch((error) => console.error('No se pudo cargar el cronograma semanal incluido:', error));
 
     cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));
 

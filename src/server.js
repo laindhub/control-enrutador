@@ -52,7 +52,6 @@ function assetUrl(relativePath) {
 let startupState = 'starting';
 let startupError = null;
 let cleanupTimer = null;
-let startupPromise = null;
 
 const app = express();
 const server = http.createServer(app);
@@ -124,10 +123,14 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-app.use(async (req, res, next) => {
-  // Durante un arranque normal mantenemos abierta la solicitud hasta que la
-  // instancia esté lista. Así nunca se entrega una pantalla STARTING.
-  if (startupState === 'starting' && startupPromise) await startupPromise;
+app.use((req, res, next) => {
+  if (startupState === 'starting') {
+    res.setHeader('Retry-After', '2');
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(503).json({ error: 'La aplicación se está conectando. Reintentá en unos segundos.' });
+    }
+    return res.status(200).render('warming', { title: 'Conectando' });
+  }
   if (startupState === 'ready') return next();
 
   const details = publicStartupError(startupError);
@@ -313,7 +316,7 @@ io.on('connection', (socket) => {
   socket.emit('socket:ready', { connected: true });
 });
 
-startupPromise = initializeApplication();
+initializeApplication();
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`Control Enrutador disponible en el puerto ${config.port}`);
 });
@@ -321,12 +324,11 @@ server.listen(config.port, '0.0.0.0', () => {
 async function initializeApplication() {
   try {
     validateConfig();
-    await initializeWithRetry(async () => {
-      await initializeDatabase();
-      await cleanupExpiredRecords();
-    });
+    await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
     console.log('Control Enrutador inicializado correctamente.');
+
+    cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));
 
     cleanupTimer = setInterval(() => {
       cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención:', error));

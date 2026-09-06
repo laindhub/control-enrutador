@@ -8,6 +8,7 @@
     <title><%= title %> · Control Enrutador</title>
     <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
     <link rel="stylesheet" href="<%= assetUrl('css/styles.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/custom-select.css') %>">
     <link rel="stylesheet" href="<%= assetUrl('css/demo.css') %>">
   </head>
   <body class="demo-page" data-demo-role="<%= role %>">
@@ -35,6 +36,14 @@
           <button class="active" data-room="charla1" type="button">Charla 1 <strong id="charla1Count">0</strong></button>
           <button data-room="charla2" type="button">Charla 2 <strong id="charla2Count">0</strong></button>
         </div>
+        <section class="demo-presenter-control">
+          <div><p class="eyebrow">PRESENTADOR ACTUAL</p><h2 id="demoPresenterRoom">Charla 1</h2><p>Se guarda únicamente en este dispositivo.</p></div>
+          <label>Presentador
+            <select id="demoPresenterSelect" aria-label="Presentador de la charla">
+              <option value="">Seleccionar…</option>
+            </select>
+          </label>
+        </section>
         <section id="demoQueue" class="demo-lead-grid" aria-live="polite"></section>
         <section id="demoQueueEmpty" class="empty-state" hidden><h2>La charla está al día</h2><p>No hay personas pendientes de derivación en esta sala.</p></section>
         <section class="demo-standby-panel">
@@ -81,6 +90,7 @@
     </div>
     <div id="toast" class="toast" hidden></div>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="<%= assetUrl('js/custom-select.js') %>"></script>
     <script src="<%= assetUrl('js/demo.js') %>" type="module"></script>
   </body>
 </html>

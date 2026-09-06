@@ -3,6 +3,9 @@ const role = document.body.dataset.demoRole;
 const modal = document.querySelector('#demoModal');
 const modalContent = document.querySelector('#demoModalContent');
 const toast = document.querySelector('#toast');
+const presenterSelect = document.querySelector('#demoPresenterSelect');
+const presenterRoom = document.querySelector('#demoPresenterRoom');
+const localPresenterSelections = { charla1: '', charla2: '' };
 let snapshot = null;
 let currentRoom = 'charla1';
 let loading = false;
@@ -14,8 +17,16 @@ document.querySelectorAll('[data-room]').forEach((button) => {
   button.addEventListener('click', () => {
     currentRoom = button.dataset.room;
     document.querySelectorAll('[data-room]').forEach((item) => item.classList.toggle('active', item === button));
+    renderPresenterControl(snapshot?.presenters || []);
     loadSnapshot();
   });
+});
+
+presenterSelect?.addEventListener('change', () => {
+  savePresenterForRoom(currentRoom, presenterSelect.value);
+  showToast(presenterSelect.value
+    ? `${presenterSelect.value} quedó asignado a ${stageLabel(currentRoom)} en este dispositivo.`
+    : `${stageLabel(currentRoom)} quedó sin presentador.`);
 });
 
 document.querySelector('#demoReset')?.addEventListener('click', async () => {
@@ -48,6 +59,7 @@ async function loadSnapshot() {
 }
 
 function renderRouter(data) {
+  renderPresenterControl(data.presenters || []);
   document.querySelector('#charla1Count').textContent = data.totals.charla1;
   document.querySelector('#charla2Count').textContent = data.totals.charla2;
   const queue = document.querySelector('#demoQueue');
@@ -61,6 +73,42 @@ function renderRouter(data) {
   document.querySelector('#demoStandbyCount').textContent = standby.length;
   document.querySelector('#demoStandbyEmpty').hidden = standby.length > 0;
   document.querySelector('#demoAdvisorBalance').replaceChildren(...data.advisors.map(balanceItem));
+}
+
+function renderPresenterControl(presenters) {
+  if (!presenterSelect || !presenterRoom) return;
+  presenterRoom.textContent = stageLabel(currentRoom);
+  const savedPresenter = presenterForRoom(currentRoom);
+  const validPresenter = presenters.some((presenter) => presenter.name === savedPresenter) ? savedPresenter : '';
+  if (savedPresenter && !validPresenter) savePresenterForRoom(currentRoom, '');
+
+  presenterSelect.replaceChildren(
+    new Option('Seleccionar…', ''),
+    ...presenters.map((presenter) => new Option(presenter.name, presenter.name)),
+  );
+  presenterSelect.value = validPresenter;
+}
+
+function presenterStorageKey(room) {
+  return `control-enrutador:demo:presenter:${room}`;
+}
+
+function presenterForRoom(room) {
+  try {
+    return localStorage.getItem(presenterStorageKey(room)) || localPresenterSelections[room] || '';
+  } catch (_error) {
+    return localPresenterSelections[room] || '';
+  }
+}
+
+function savePresenterForRoom(room, presenterName) {
+  localPresenterSelections[room] = presenterName;
+  try {
+    if (presenterName) localStorage.setItem(presenterStorageKey(room), presenterName);
+    else localStorage.removeItem(presenterStorageKey(room));
+  } catch (_error) {
+    // La selección sigue funcionando durante esta vista aunque el navegador bloquee el almacenamiento.
+  }
 }
 
 function routerCard(lead) {
@@ -98,9 +146,10 @@ function standbyCard(lead) {
 
 function openRouterLead(lead) {
   const recommendation = lead.recommendation;
+  const presenterName = presenterForRoom(lead.status);
   modalContent.innerHTML = `
     <div class="demo-person-head"><div><p class="eyebrow">${stageLabel(lead.status)} · POTABILIDAD ${lead.potability}</p><h2 id="demoModalTitle">${escapeHtml(lead.name)}</h2><p>${escapeHtml(lead.phone)} · Host: ${escapeHtml(lead.host)}</p></div><span class="potability-pill ${lead.potability >= 64 ? 'high' : ''}">${lead.potability}</span></div>
-    ${detailGrid(lead, false)}
+    ${detailGrid({ ...lead, presenter: presenterName || 'Sin seleccionar' }, false)}
     <label class="demo-note-field">Descripción visual<textarea id="demoAppearance" maxlength="240">${escapeHtml(lead.appearance || '')}</textarea></label>
     <button id="saveAppearance" class="button button-secondary button-block" type="button">Guardar descripción</button>
     ${recommendation ? `<div class="demo-recommendation"><strong>Recomendado: ${escapeHtml(recommendation.name)}</strong><br><small>${escapeHtml(recommendation.reason)}</small></div>` : '<div class="alert alert-error">No hay asesores disponibles en la demo.</div>'}
@@ -149,11 +198,16 @@ function advisorOption(lead, advisor, recommendation) {
     : `EN STANDBY · ${advisor.standbyLeadName}`;
   button.innerHTML = `<strong>${escapeHtml(advisor.name)}</strong><span>${escapeHtml(detail)}</span>`;
   button.addEventListener('click', async () => {
+    const presenterName = presenterForRoom(lead.status);
+    if (!presenterName) {
+      showToast(`Elegí el presentador de ${stageLabel(lead.status)} antes de derivar.`, true);
+      return;
+    }
     button.disabled = true;
     try {
       await api(`/api/demo/leads/${lead.id}/derive`, {
         method: 'POST',
-        body: JSON.stringify({ advisorName: advisor.name }),
+        body: JSON.stringify({ advisorName: advisor.name, presenterName }),
       });
       closeModal();
       showToast(`${lead.name} fue derivada a ${advisor.name}.`);

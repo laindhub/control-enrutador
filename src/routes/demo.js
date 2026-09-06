@@ -73,7 +73,8 @@ export function createDemoRouter(io) {
         return res.status(409).json({ error: `Seleccioná qué ${role === 'router' ? 'enrutador' : 'asesor'} está operando.` });
       }
       if (role === 'router') {
-        return res.json(demoStore.routerSnapshot({ room: req.query.room, advisors }));
+        const presenters = await listAlphaPeople('router');
+        return res.json({ ...demoStore.routerSnapshot({ room: req.query.room, advisors }), presenters });
       }
       return res.json(demoStore.advisorSnapshot({ advisorName: identity.name, advisors }));
     } catch (error) {
@@ -97,12 +98,17 @@ export function createDemoRouter(io) {
 
   router.post('/leads/:id/derive', requireAlphaRole('router'), requireAlphaIdentity('router'), async (req, res, next) => {
     try {
-      const advisors = await listAlphaPeople('advisor');
+      const [advisors, presenters] = await Promise.all([
+        listAlphaPeople('advisor'),
+        listAlphaPeople('router'),
+      ]);
       const lead = demoStore.derive({
         leadId: req.params.id,
         advisorName: String(req.body.advisorName || ''),
+        presenterName: String(req.body.presenterName || ''),
         operatorName: req.session.demoIdentity.name,
         advisors,
+        presenters,
       });
       emitChange(io, 'derived');
       return res.status(201).json({ lead });

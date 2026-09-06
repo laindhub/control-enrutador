@@ -95,7 +95,7 @@ export class DemoStore {
     };
   }
 
-  derive({ leadId, advisorName, operatorName, advisors }) {
+  derive({ leadId, advisorName, presenterName, operatorName, advisors, presenters }) {
     this.initializeAdvisorAssignments(advisors);
     const lead = this.requireLead(leadId);
     if (!['charla1', 'charla2'].includes(lead.status)) {
@@ -103,6 +103,9 @@ export class DemoStore {
     }
     if (!advisors.some((advisor) => advisor.name === advisorName)) {
       throw new DemoStoreError('El asesor seleccionado no está disponible.', 409);
+    }
+    if (!presenters.some((presenter) => presenter.name === presenterName)) {
+      throw new DemoStoreError('Elegí quién está presentando esta charla antes de derivar.', 409);
     }
     const pendingAssignment = this.leads.find(
       (item) => item.advisorName === advisorName && item.status === 'derived',
@@ -118,6 +121,7 @@ export class DemoStore {
     const timestamp = this.now();
     lead.status = 'derived';
     lead.advisorName = advisorName;
+    lead.presenter = presenterName;
     lead.routedBy = operatorName;
     lead.derivedAt = timestamp;
     lead.updatedAt = timestamp;
@@ -127,7 +131,7 @@ export class DemoStore {
     this.writeAudit(
       'lead.derived',
       operatorName,
-      `${lead.name} fue derivada a ${advisorName} desde ${stageLabel(previousStage)}.`,
+      `${lead.name} fue derivada a ${advisorName} desde ${stageLabel(previousStage)}. Presentó ${presenterName}.`,
       lead.id,
     );
     return clone(lead);

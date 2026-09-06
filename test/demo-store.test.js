@@ -7,6 +7,10 @@ const advisors = [
   { id: 2, name: 'Matías Gomez', team: 'Ventas', sort_order: 2 },
   { id: 3, name: 'Otra Asesora', team: 'Ventas', sort_order: 1 },
 ];
+const presenters = [
+  { id: 1, name: 'Priscila' },
+  { id: 2, name: 'Nicole' },
+];
 
 test('la demo recomienda a Samuel para potabilidad 64 o superior', () => {
   const store = new DemoStore({ now: () => Date.UTC(2026, 8, 1, 15, 0) });
@@ -23,7 +27,7 @@ test('derivar suma y rechazar como N/A descuenta el contador demo', () => {
   store.routerSnapshot({ room: 'charla1', advisors });
   const before = store.countForAdvisor('Otra Asesora');
 
-  store.derive({ leadId: 'demo-1', advisorName: 'Otra Asesora', operatorName: 'Nicole', advisors });
+  store.derive({ leadId: 'demo-1', advisorName: 'Otra Asesora', presenterName: 'Priscila', operatorName: 'Nicole', advisors, presenters });
   assert.equal(store.countForAdvisor('Otra Asesora'), before + 1);
   assert.equal(
     store.routerSnapshot({ room: 'charla1', advisors }).standby.some((lead) => lead.id === 'demo-1'),
@@ -43,7 +47,7 @@ test('derivar suma y rechazar como N/A descuenta el contador demo', () => {
 test('corregir N/A a confirmada vuelve a sumar sin duplicar registros', () => {
   const store = new DemoStore({ now: () => Date.UTC(2026, 8, 1, 15, 0) });
   store.routerSnapshot({ room: 'charla1', advisors });
-  store.derive({ leadId: 'demo-2', advisorName: 'Otra Asesora', operatorName: 'Keren', advisors });
+  store.derive({ leadId: 'demo-2', advisorName: 'Otra Asesora', presenterName: 'Nicole', operatorName: 'Keren', advisors, presenters });
   store.answerAssignment({ leadId: 'demo-2', advisorName: 'Otra Asesora', confirmed: false });
   const rejectedCount = store.countForAdvisor('Otra Asesora');
 
@@ -55,7 +59,7 @@ test('corregir N/A a confirmada vuelve a sumar sin duplicar registros', () => {
 test('impide que otro asesor responda una derivación ajena', () => {
   const store = new DemoStore({ now: () => Date.UTC(2026, 8, 1, 15, 0) });
   store.routerSnapshot({ room: 'charla1', advisors });
-  store.derive({ leadId: 'demo-1', advisorName: 'Otra Asesora', operatorName: 'Nicole', advisors });
+  store.derive({ leadId: 'demo-1', advisorName: 'Otra Asesora', presenterName: 'Priscila', operatorName: 'Nicole', advisors, presenters });
   assert.throws(
     () => store.answerAssignment({ leadId: 'demo-1', advisorName: 'Matías Gomez', confirmed: true }),
     DemoStoreError,
@@ -70,13 +74,26 @@ test('bloquea nuevas derivaciones mientras el asesor tenga una persona en standb
   assert.equal(matias.available, false);
   assert.equal(matias.standbyLeadName, 'Diego Acosta');
   assert.throws(
-    () => store.derive({ leadId: 'demo-2', advisorName: 'Matías Gomez', operatorName: 'Nicole', advisors }),
+    () => store.derive({ leadId: 'demo-2', advisorName: 'Matías Gomez', presenterName: 'Priscila', operatorName: 'Nicole', advisors, presenters }),
     /Diego Acosta.*standby/,
   );
 
   store.answerAssignment({ leadId: 'demo-6', advisorName: 'Matías Gomez', confirmed: true });
-  store.derive({ leadId: 'demo-2', advisorName: 'Matías Gomez', operatorName: 'Nicole', advisors });
+  store.derive({ leadId: 'demo-2', advisorName: 'Matías Gomez', presenterName: 'Priscila', operatorName: 'Nicole', advisors, presenters });
   assert.equal(store.requireLead('demo-2').status, 'derived');
+});
+
+test('exige y registra el presentador local elegido al derivar', () => {
+  const store = new DemoStore({ now: () => Date.UTC(2026, 8, 1, 15, 0) });
+  store.routerSnapshot({ room: 'charla1', advisors });
+
+  assert.throws(
+    () => store.derive({ leadId: 'demo-2', advisorName: 'Otra Asesora', presenterName: '', operatorName: 'Nicole', advisors, presenters }),
+    /presentando esta charla/,
+  );
+
+  store.derive({ leadId: 'demo-2', advisorName: 'Otra Asesora', presenterName: 'Nicole', operatorName: 'Nicole', advisors, presenters });
+  assert.equal(store.requireLead('demo-2').presenter, 'Nicole');
 });
 
 test('permite cerrar una persona como retirada sin afectar contadores', () => {

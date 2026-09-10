@@ -415,7 +415,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-mobile-reply-v5',
+          diagnosticRevision: 'demo-ai-handoff-wait-v6',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -455,6 +455,7 @@ async function healthDiagnostics(req) {
           generationBadge: true,
           timeSimulation: true,
           mobileReplyComposer: true,
+          handoffWaitSimulation: true,
         },
         warnings,
         hint: authenticated

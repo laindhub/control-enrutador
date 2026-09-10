@@ -30,6 +30,11 @@ test('cada mensaje del agente crea una nota dentro de la oportunidad', async () 
   assert.equal(lead.humanHandoff, true);
   assert.equal(lead.messages.length, 3);
   assert.ok(lead.notes.length >= 4);
+
+  lead = (await store.advanceTime(created.id, 24)).lead;
+  assert.equal(lead.status, 'handoff');
+  assert.equal(lead.humanHandoff, true);
+  assert.equal(lead.messages.filter((item) => item.role === 'advisor').length, 3);
 });
 
 test('simula espera, respeta la cadencia y cierra después de tres seguimientos', async () => {

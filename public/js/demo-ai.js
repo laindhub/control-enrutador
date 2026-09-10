@@ -154,7 +154,7 @@ function renderSelectedLead() {
   elements.chatPhone.textContent = lead.phone;
   elements.replyInput.placeholder = `Responder como ${firstName(lead.name)}`;
   document.querySelectorAll('[data-advance-hours]').forEach((button) => {
-    button.disabled = ['handoff', 'human', 'error', 'cold'].includes(lead.status);
+    button.disabled = ['human', 'error', 'cold'].includes(lead.status);
   });
   elements.chatState.textContent = lead.status === 'thinking' ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
   elements.opportunityName.textContent = lead.name;
@@ -224,7 +224,7 @@ async function advanceTime(button) {
     state.loading = false;
     const currentStatus = selectedLead()?.status;
     buttons.forEach((item) => {
-      item.disabled = ['handoff', 'human', 'error', 'cold'].includes(currentStatus);
+      item.disabled = ['human', 'error', 'cold'].includes(currentStatus);
     });
   }
 }

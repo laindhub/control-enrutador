@@ -165,8 +165,8 @@ export class AiDemoStore {
 
   async advanceTime(id, rawHours) {
     const lead = this.getLead(id);
-    if (['handoff', 'human', 'error', 'cold'].includes(lead.status)) {
-      throw new AiDemoError('Este seguimiento ya requiere intervención humana o está cerrado.', 409);
+    if (['human', 'error', 'cold'].includes(lead.status)) {
+      throw new AiDemoError('Este seguimiento ya fue tomado por una persona o está cerrado.', 409);
     }
 
     const hours = clampNumber(rawHours, 1, 168, 24);
@@ -210,11 +210,13 @@ export class AiDemoStore {
       ));
 
       const closesSequence = lead.followUpCount >= 3;
-      lead.status = closesSequence ? 'cold' : 'following';
+      lead.status = closesSequence ? 'cold' : lead.humanHandoff ? 'handoff' : 'following';
       lead.nextActionAt = closesSequence
         ? null
         : advancedAt + [48, 96][Math.min(lead.followUpCount - 1, 1)] * 60 * 60 * 1000;
       if (closesSequence) {
+        lead.humanHandoff = false;
+        lead.handoffReason = '';
         lead.notes.unshift(note('Agente IA', 'Secuencia automática finalizada sin señales de interés. El lead quedó en pausa para evitar mensajes excesivos.', advancedAt));
       }
       this.emitChange(closesSequence ? 'followup-closed' : 'followup-sent', id);
@@ -446,8 +448,8 @@ function parseModelJson(raw) {
 
 function interestSignals(text) {
   const normalized = text.toLowerCase();
-  const high = ['quiero ir', 'quiero verlo', 'quiero avanzar', 'me interesa', 'reserv', 'agend', 'visita', 'sábado', 'mañana', 'horario', 'llamame', 'llámame', 'asesor', 'cuánto tengo que'];
-  const medium = ['precio', 'cuota', 'ubicación', 'dónde', 'cuando', 'cuándo', 'departamento', 'ambiente'];
+  const high = ['quiero ir', 'quiero verlo', 'quiero avanzar', 'nos vemos', 'reserv', 'agend', 'visita', 'sábado', 'domingo', 'horario', 'llamame', 'llámame', 'asesor', 'cuánto tengo que'];
+  const medium = ['me interesa', 'precio', 'cuota', 'ubicación', 'dónde', 'cuando', 'cuándo', 'mañana', 'departamento', 'ambiente'];
   const highMatch = high.find((term) => normalized.includes(term));
   if (highMatch) return { delta: 28, requiresHuman: true, reason: 'El lead expresó interés concreto en visitar, coordinar o avanzar.' };
   if (medium.some((term) => normalized.includes(term))) return { delta: 14, requiresHuman: false, reason: '' };

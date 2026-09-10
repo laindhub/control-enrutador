@@ -45,6 +45,8 @@ export class AiDemoStore {
       context: clean(input.context, 500),
       status: 'scheduled',
       interest: 36,
+      followUpCount: 0,
+      simulatedAt: createdAt,
       humanHandoff: false,
       handoffReason: '',
       createdAt,
@@ -79,7 +81,7 @@ export class AiDemoStore {
     this.emitChange('ai-thinking', id);
     try {
       const result = await this.generate({ kind: 'initial', lead, history: lead.messages });
-      const createdAt = this.now();
+      const createdAt = this.eventTime(lead);
       lead.messages.push(message('advisor', result.message, createdAt, {
         sender: lead.advisorName,
         generatedBy: result.generatedBy || null,
@@ -93,7 +95,7 @@ export class AiDemoStore {
       }));
       lead.notes.unshift(note('Agente IA', result.note || `Se envió una propuesta para visitar ${lead.buildingName}.`, createdAt));
       lead.status = 'following';
-      lead.nextActionAt = null;
+      lead.nextActionAt = createdAt + 24 * 60 * 60 * 1000;
       lead.updatedAt = createdAt;
       this.emitChange('initial-sent', id);
       return structuredClone(lead);
@@ -111,7 +113,7 @@ export class AiDemoStore {
     const lead = this.getLead(id);
     const text = clean(rawText, 800);
     if (!text) throw new AiDemoError('Escribí una respuesta del lead.', 400);
-    const receivedAt = this.now();
+    const receivedAt = this.eventTime(lead);
     lead.messages.push(message('lead', text, receivedAt, { sender: lead.name }));
     lead.notes.unshift(note('Agente IA', `Mensaje recibido de ${lead.name}: “${text}”`, receivedAt));
     lead.status = 'thinking';
@@ -122,7 +124,7 @@ export class AiDemoStore {
     lead.interest = Math.min(100, lead.interest + signals.delta);
     try {
       const result = await this.generate({ kind: 'reply', lead, history: lead.messages });
-      const repliedAt = this.now();
+      const repliedAt = this.eventTime(lead);
       lead.messages.push(message('advisor', result.message, repliedAt, {
         sender: lead.advisorName,
         generatedBy: result.generatedBy || null,
@@ -135,6 +137,7 @@ export class AiDemoStore {
         ? clean(result.handoffReason, 220) || signals.reason || 'El lead muestra intención concreta de avanzar.'
         : '';
       lead.status = requiresHuman ? 'handoff' : 'following';
+      lead.nextActionAt = requiresHuman ? null : repliedAt + 24 * 60 * 60 * 1000;
       lead.updatedAt = repliedAt;
       if (requiresHuman) {
         lead.notes.unshift(note('Agente IA', `Intervención personal recomendada: ${lead.handoffReason}`, repliedAt, 'priority'));
@@ -153,10 +156,78 @@ export class AiDemoStore {
     const lead = this.getLead(id);
     lead.humanHandoff = false;
     lead.status = 'human';
-    lead.updatedAt = this.now();
+    lead.updatedAt = this.eventTime(lead);
+    lead.nextActionAt = null;
     lead.notes.unshift(note(lead.advisorName, 'El asesor tomó la conversación para intervención personal.', lead.updatedAt, 'success'));
     this.emitChange('handoff-handled', id);
     return structuredClone(lead);
+  }
+
+  async advanceTime(id, rawHours) {
+    const lead = this.getLead(id);
+    if (['handoff', 'human', 'error', 'cold'].includes(lead.status)) {
+      throw new AiDemoError('Este seguimiento ya requiere intervención humana o está cerrado.', 409);
+    }
+
+    const hours = clampNumber(rawHours, 1, 168, 24);
+    const advancedAt = this.eventTime(lead) + hours * 60 * 60 * 1000;
+    lead.simulatedAt = advancedAt;
+    lead.updatedAt = advancedAt;
+    lead.messages.push(message('time', elapsedLabel(hours), advancedAt, { elapsedHours: hours }));
+
+    const lastOutbound = [...lead.messages].reverse().find((item) => item.role === 'advisor');
+    const silentHours = lastOutbound
+      ? Math.floor((advancedAt - Number(lastOutbound.createdAt)) / (60 * 60 * 1000))
+      : hours;
+    const followUpCount = Number(lead.followUpCount || 0);
+    const requiredSilence = [24, 48, 96][Math.min(followUpCount, 2)];
+
+    if (!lastOutbound || silentHours < requiredSilence) {
+      lead.nextActionAt = Number(lastOutbound?.createdAt || advancedAt) + requiredSilence * 60 * 60 * 1000;
+      lead.notes.unshift(note(
+        'Simulación',
+        `${elapsedLabel(hours)}. El agente mantiene la espera para evitar un seguimiento invasivo.`,
+        advancedAt,
+      ));
+      this.emitChange('time-advanced', id);
+      return { lead: structuredClone(lead), outcome: 'waiting', silentHours };
+    }
+
+    lead.status = 'thinking';
+    this.emitChange('ai-thinking', id);
+    try {
+      const result = await this.generate({ kind: 'followup', lead, history: lead.messages, elapsedHours: silentHours });
+      lead.followUpCount = followUpCount + 1;
+      lead.messages.push(message('advisor', result.message, advancedAt, {
+        sender: lead.advisorName,
+        generatedBy: result.generatedBy || null,
+        generationStyle: result.generationStyle || null,
+      }));
+      lead.notes.unshift(note(
+        'Agente IA',
+        result.note || `Se realizó el seguimiento automático ${lead.followUpCount} después de ${silentHours} horas sin respuesta.`,
+        advancedAt,
+      ));
+
+      const closesSequence = lead.followUpCount >= 3;
+      lead.status = closesSequence ? 'cold' : 'following';
+      lead.nextActionAt = closesSequence
+        ? null
+        : advancedAt + [48, 96][Math.min(lead.followUpCount - 1, 1)] * 60 * 60 * 1000;
+      if (closesSequence) {
+        lead.notes.unshift(note('Agente IA', 'Secuencia automática finalizada sin señales de interés. El lead quedó en pausa para evitar mensajes excesivos.', advancedAt));
+      }
+      this.emitChange(closesSequence ? 'followup-closed' : 'followup-sent', id);
+      return { lead: structuredClone(lead), outcome: closesSequence ? 'closed' : 'followup', silentHours };
+    } catch (error) {
+      lead.status = 'error';
+      lead.notes.unshift(note('Sistema', `No se pudo generar el seguimiento: ${publicError(error)}`, advancedAt));
+      throw error;
+    }
+  }
+
+  eventTime(lead) {
+    return Math.max(this.now(), Number(lead?.simulatedAt || 0));
   }
 
   reset() {
@@ -174,11 +245,13 @@ export class AiDemoStore {
         context: 'Visitó la charla. Decide con su pareja y pidió ver una alternativa cerca del tren.',
         status: 'following',
         interest: 58,
+        followUpCount: 0,
+        simulatedAt: createdAt,
         humanHandoff: false,
         handoffReason: '',
         createdAt: createdAt - 26 * 60 * 1000,
         updatedAt: createdAt - 20 * 60 * 1000,
-        nextActionAt: null,
+        nextActionAt: createdAt + 4 * 60 * 60 * 1000,
         messages: [
           message('advisor', 'Hola Lucía, soy Nuria de Más Dueños. Me quedé pensando en lo que nos contaste sobre buscar algo cerca del tren. Quería mostrarte este proyecto en Caseros. ¿Te gustaría conocerlo algún día de esta semana?', createdAt - 24 * 60 * 1000, {
             sender: 'Nuria Pereyra',
@@ -215,7 +288,7 @@ export class AiDemoError extends Error {
   }
 }
 
-async function generateWithGroq({ kind, lead, history }) {
+async function generateWithGroq({ kind, lead, history, elapsedHours = 0 }) {
   if (!config.groq.apiKey) return fallbackGeneration({ kind, lead, history });
   const variation = messageVariation(lead, kind);
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -236,8 +309,19 @@ async function generateWithGroq({ kind, lead, history }) {
         {
           role: 'user',
           content: JSON.stringify({
-            task: kind === 'initial' ? 'Primer contacto después de la charla' : 'Responder el último mensaje del lead',
+            task: kind === 'initial'
+              ? 'Primer contacto después de la charla'
+              : kind === 'followup'
+                ? `Seguimiento después de ${elapsedHours} horas sin respuesta del lead`
+                : 'Responder el último mensaje del lead',
             variation,
+            followUp: kind === 'followup' ? {
+              attempt: Number(lead.followUpCount || 0) + 1,
+              elapsedHours,
+              instruction: Number(lead.followUpCount || 0) >= 2
+                ? 'Es el último intento. Cerrá el contacto con respeto, dejá la puerta abierta y no hagas presión.'
+                : 'No repitas la presentación ni el mensaje anterior. Aportá un ángulo nuevo y hacé una sola pregunta fácil de responder.',
+            } : null,
             lead: {
               name: lead.name,
               advisor: lead.advisorName,
@@ -272,6 +356,21 @@ async function generateWithGroq({ kind, lead, history }) {
 }
 
 function fallbackGeneration({ kind, lead, history }) {
+  if (kind === 'followup') {
+    const finalAttempt = Number(lead.followUpCount || 0) >= 2;
+    return {
+      message: finalAttempt
+        ? `Hola ${firstName(lead.name)}, cierro por acá para no llenarte de mensajes. Si más adelante querés retomar lo de ${lead.buildingName}, escribime y lo vemos sin compromiso.`
+        : `Hola ${firstName(lead.name)}, ¿cómo estás? Te escribo por lo de ${lead.buildingName}. Si ahora no es el momento, no hay problema; ¿preferís que lo retomemos más adelante?`,
+      note: finalAttempt
+        ? 'Se realizó el último contacto automático y se dejó abierta la posibilidad de retomar más adelante.'
+        : 'Se retomó el contacto sin presión y se consultó si prefiere continuar más adelante.',
+      requiresHuman: false,
+      handoffReason: '',
+      generatedBy: 'Modo demo local',
+      generationStyle: 'Seguimiento de respaldo',
+    };
+  }
   if (kind === 'initial') {
     return {
       message: `Hola ${firstName(lead.name)}, soy ${firstName(lead.advisorName)} de Más Dueños. Por lo que conversamos, quería mostrarte ${lead.buildingName}, en ${lead.buildingAddress}. ¿Te interesaría conocerlo en los próximos días?`,
@@ -317,10 +416,24 @@ function messageVariation(lead, kind) {
     { label: 'Calificación suave', instruction: 'Reconocé su respuesta y pedí únicamente el dato más útil que todavía falta.' },
     { label: 'Próximo paso', instruction: 'Contestá con claridad y proponé el próximo paso mínimo, sin presionar.' },
   ];
-  const styles = kind === 'initial' ? initialStyles : replyStyles;
+  const followUpStyles = [
+    { label: 'Retoma sin presión', instruction: 'Retomá el tema con suavidad y ofrecé una salida fácil si no es el momento.' },
+    { label: 'Nuevo ángulo', instruction: 'No repitas el mensaje anterior; conectá con otra prioridad real que figure en el contexto.' },
+    { label: 'Pregunta mínima', instruction: 'Hacé un mensaje muy breve con una pregunta que se pueda responder con pocas palabras.' },
+    { label: 'Puerta abierta', instruction: 'Mostrá disponibilidad y respeto por sus tiempos, sin urgencia artificial.' },
+  ];
+  const styles = kind === 'initial' ? initialStyles : kind === 'followup' ? followUpStyles : replyStyles;
   const source = `${lead.id}:${lead.name}:${lead.objective}`;
   const index = [...source].reduce((sum, character) => sum + character.codePointAt(0), 0) % styles.length;
   return styles[index];
+}
+
+function elapsedLabel(hours) {
+  if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `Pasaron ${days} ${days === 1 ? 'día' : 'días'} sin respuesta`;
+  }
+  return `Pasaron ${hours} ${hours === 1 ? 'hora' : 'horas'} sin respuesta`;
 }
 
 function parseModelJson(raw) {

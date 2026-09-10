@@ -55,6 +55,15 @@ export function createAiDemoRouter() {
     }
   });
 
+  router.post('/leads/:id/advance-time', async (req, res, next) => {
+    try {
+      const result = await withSessionStore(req, (store) => store.advanceTime(req.params.id, req.body?.hours));
+      return res.json(result);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.post('/leads/:id/handle', async (req, res, next) => {
     try {
       const lead = await withSessionStore(req, (store) => store.markHandled(req.params.id));

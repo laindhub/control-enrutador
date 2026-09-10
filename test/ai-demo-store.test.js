@@ -31,3 +31,34 @@ test('cada mensaje del agente crea una nota dentro de la oportunidad', async () 
   assert.equal(lead.messages.length, 3);
   assert.ok(lead.notes.length >= 4);
 });
+
+test('simula espera, respeta la cadencia y cierra después de tres seguimientos', async () => {
+  let clock = 1_800_000_000_000;
+  const generate = async ({ kind }) => ({
+    message: kind === 'initial' ? 'Mensaje inicial.' : 'Seguimiento personalizado.',
+    note: kind === 'initial' ? 'Inicio.' : 'Seguimiento por falta de respuesta.',
+    requiresHuman: false,
+    handoffReason: '',
+    generatedBy: 'Qwen vía Groq',
+  });
+  const store = new AiDemoStore({ now: () => clock, generate });
+  const created = store.createLead({ name: 'Mariano', delaySeconds: 5 });
+  clock += 5_000;
+  await store.processDue();
+
+  let result = await store.advanceTime(created.id, 6);
+  assert.equal(result.outcome, 'waiting');
+  assert.equal(result.lead.messages.filter((item) => item.role === 'advisor').length, 1);
+
+  result = await store.advanceTime(created.id, 18);
+  assert.equal(result.outcome, 'followup');
+  assert.equal(result.lead.followUpCount, 1);
+
+  result = await store.advanceTime(created.id, 48);
+  assert.equal(result.outcome, 'followup');
+  result = await store.advanceTime(created.id, 96);
+  assert.equal(result.outcome, 'closed');
+  assert.equal(result.lead.status, 'cold');
+  assert.equal(result.lead.followUpCount, 3);
+  assert.equal(result.lead.messages.filter((item) => item.role === 'advisor').length, 4);
+});

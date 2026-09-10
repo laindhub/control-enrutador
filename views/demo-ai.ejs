@@ -48,10 +48,19 @@
             <div id="chatState" class="ai-chat-state"></div>
             <button id="showOpportunity" class="ai-icon-button ai-mobile-only" type="button" aria-label="Ver oportunidad">ⓘ</button>
           </header>
+          <div class="ai-time-simulator">
+            <span>⌛ Simular espera</span>
+            <div>
+              <button type="button" data-advance-hours="6">+6 h</button>
+              <button type="button" data-advance-hours="24">+1 día</button>
+              <button type="button" data-advance-hours="72">+3 días</button>
+              <button type="button" data-advance-hours="168">+7 días</button>
+            </div>
+          </div>
           <div id="messageList" class="ai-message-list" aria-live="polite"></div>
           <form id="replyForm" class="ai-composer">
-            <button type="button" class="ai-composer-icon" aria-label="Adjuntar">＋</button>
-            <input id="replyInput" maxlength="800" placeholder="Simular respuesta del lead" autocomplete="off">
+            <span class="ai-reply-role" aria-hidden="true">LEAD</span>
+            <input id="replyInput" maxlength="800" placeholder="Escribí como el lead" autocomplete="off">
             <button class="ai-send-button" type="submit" aria-label="Enviar respuesta">➤</button>
           </form>
         </div>

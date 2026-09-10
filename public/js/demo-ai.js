@@ -61,6 +61,7 @@ function bindEvents() {
   });
   elements.leadForm.addEventListener('submit', createLead);
   elements.replyForm.addEventListener('submit', sendLeadReply);
+  document.querySelectorAll('[data-advance-hours]').forEach((button) => button.addEventListener('click', () => advanceTime(button)));
   elements.handleButton.addEventListener('click', handleHandoff);
   $('#showOpportunity').addEventListener('click', () => setMobileView('opportunity'));
   document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.go)));
@@ -151,6 +152,10 @@ function renderSelectedLead() {
   elements.chatAvatar.textContent = initials(lead.name);
   elements.chatName.textContent = lead.name;
   elements.chatPhone.textContent = lead.phone;
+  elements.replyInput.placeholder = `Responder como ${firstName(lead.name)}`;
+  document.querySelectorAll('[data-advance-hours]').forEach((button) => {
+    button.disabled = ['handoff', 'human', 'error', 'cold'].includes(lead.status);
+  });
   elements.chatState.textContent = lead.status === 'thinking' ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
   elements.opportunityName.textContent = lead.name;
   elements.opportunityStatus.textContent = statusLabel(lead.status);
@@ -174,6 +179,9 @@ function renderMessages(lead) {
     ? `<div class="ai-day-label ai-scheduled-banner">Primer mensaje programado ${escapeHtml(relativeTime(lead.nextActionAt))} · <button id="sendNowButton" type="button">Enviar ahora</button></div>`
     : '';
   const bubbles = lead.messages.map((item) => {
+    if (item.role === 'time') {
+      return `<div class="ai-time-passage"><span>⌛</span>${escapeHtml(item.text)}</div>`;
+    }
     const card = item.card ? `<article class="ai-building-card">
       <img src="${escapeAttr(item.card.imageUrl)}" alt="Edificio residencial de demostración">
       <div><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small><a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a></div>
@@ -189,10 +197,44 @@ function renderMessages(lead) {
   requestAnimationFrame(() => { elements.messageList.scrollTop = elements.messageList.scrollHeight; });
 }
 
+async function advanceTime(button) {
+  const lead = selectedLead();
+  if (!lead || state.loading) return;
+  state.loading = true;
+  const buttons = document.querySelectorAll('[data-advance-hours]');
+  buttons.forEach((item) => { item.disabled = true; });
+  try {
+    const result = await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/advance-time`, {
+      method: 'POST',
+      body: { hours: Number(button.dataset.advanceHours) },
+    });
+    if (state.snapshot) {
+      state.snapshot.leads = state.snapshot.leads.map((item) => item.id === result.lead.id ? result.lead : item);
+      render();
+    }
+    const messages = {
+      waiting: 'El agente decidió esperar para no ser invasivo.',
+      followup: 'Qwen generó un nuevo seguimiento por falta de respuesta.',
+      closed: 'Qwen cerró la secuencia automática y dejó el lead en pausa.',
+    };
+    toast(messages[result.outcome] || 'Tiempo simulado.');
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    state.loading = false;
+    const currentStatus = selectedLead()?.status;
+    buttons.forEach((item) => {
+      item.disabled = ['handoff', 'human', 'error', 'cold'].includes(currentStatus);
+    });
+  }
+}
+
 function renderTimeSensitiveFields() {
   const lead = selectedLead();
   if (!lead) return;
-  elements.detailNextAction.textContent = lead.nextActionAt ? `Primer mensaje ${relativeTime(lead.nextActionAt)}` : nextActionLabel(lead);
+  elements.detailNextAction.textContent = lead.nextActionAt
+    ? `${lead.status === 'scheduled' ? 'Primer mensaje' : 'Próximo seguimiento'} ${relativeTime(lead.nextActionAt, lead.simulatedAt || Date.now())}`
+    : nextActionLabel(lead);
   if (lead.status === 'scheduled') {
     const banner = elements.messageList.querySelector('.ai-scheduled-banner');
     if (banner) banner.childNodes[0].textContent = `Primer mensaje programado ${relativeTime(lead.nextActionAt)} · `;
@@ -281,6 +323,10 @@ function selectedLead() {
   return state.snapshot?.leads.find((lead) => lead.id === state.selectedLeadId) || null;
 }
 
+function firstName(value) {
+  return String(value || '').trim().split(/\s+/)[0] || 'el lead';
+}
+
 function openLeadModal() {
   elements.leadModal.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -324,13 +370,14 @@ function toast(message, isError = false) {
 }
 
 function statusLabel(status) {
-  return ({ scheduled: 'Programado', thinking: 'IA escribiendo', following: 'En seguimiento', handoff: 'Derivar al asesor', human: 'Atención personal', error: 'Revisar error' })[status] || 'Seguimiento';
+  return ({ scheduled: 'Programado', thinking: 'IA escribiendo', following: 'En seguimiento', handoff: 'Derivar al asesor', human: 'Atención personal', cold: 'En pausa', error: 'Revisar error' })[status] || 'Seguimiento';
 }
 
 function nextActionLabel(lead) {
   if (lead.status === 'handoff') return 'Intervención personal del asesor';
   if (lead.status === 'human') return 'Conversación tomada por el asesor';
   if (lead.status === 'thinking') return 'El agente está preparando una respuesta';
+  if (lead.status === 'cold') return 'Secuencia finalizada; puede reactivarse si el lead responde';
   if (lead.status === 'error') return 'Revisar conexión con Groq';
   return 'Esperar respuesta del lead';
 }
@@ -341,12 +388,15 @@ function interestLabel(value) {
   return 'Etapa inicial: aportar información relevante.';
 }
 
-function relativeTime(timestamp) {
+function relativeTime(timestamp, reference = Date.now()) {
   if (!timestamp) return '';
-  const seconds = Math.ceil((timestamp - Date.now()) / 1000);
+  const seconds = Math.ceil((timestamp - reference) / 1000);
   if (seconds <= 0) return 'en unos segundos';
   if (seconds < 60) return `en ${seconds} s`;
-  return `en ${Math.ceil(seconds / 60)} min`;
+  if (seconds < 60 * 60) return `en ${Math.ceil(seconds / 60)} min`;
+  if (seconds < 24 * 60 * 60) return `en ${Math.ceil(seconds / (60 * 60))} h`;
+  const days = Math.ceil(seconds / (24 * 60 * 60));
+  return `en ${days} ${days === 1 ? 'día' : 'días'}`;
 }
 
 function initials(name) {

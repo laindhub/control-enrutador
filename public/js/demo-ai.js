@@ -1,5 +1,5 @@
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-const state = { snapshot: null, selectedLeadId: null, query: '', loading: false };
+const state = { snapshot: null, selectedLeadId: null, query: '', loading: false, refreshing: null };
 const $ = (selector) => document.querySelector(selector);
 
 document.body.dataset.view = 'leads';
@@ -44,10 +44,9 @@ const elements = {
 bindEvents();
 await refresh({ first: true });
 setInterval(renderTimeSensitiveFields, 1_000);
-
-const socket = window.io?.({ transports: ['polling'] });
-socket?.on('demo-ai:changed', () => refresh());
-socket?.on('connect_error', () => {});
+setInterval(() => {
+  if (!state.loading) refresh();
+}, 2_000);
 
 function bindEvents() {
   $('#newLeadButton').addEventListener('click', openLeadModal);
@@ -72,16 +71,24 @@ function bindEvents() {
 }
 
 async function refresh({ first = false } = {}) {
-  try {
-    const snapshot = await api('/api/demo-ai/snapshot');
-    state.snapshot = snapshot;
-    if (!state.selectedLeadId || !snapshot.leads.some((lead) => lead.id === state.selectedLeadId)) {
-      state.selectedLeadId = snapshot.leads[0]?.id || null;
+  if (state.refreshing) return state.refreshing;
+  state.refreshing = (async () => {
+    try {
+      const snapshot = await api('/api/demo-ai/snapshot');
+      state.snapshot = snapshot;
+      if (!state.selectedLeadId || !snapshot.leads.some((lead) => lead.id === state.selectedLeadId)) {
+        state.selectedLeadId = snapshot.leads[0]?.id || null;
+      }
+      render();
+      if (first && window.innerWidth <= 860) setMobileView('leads');
+    } catch (error) {
+      toast(error.message, true);
     }
-    render();
-    if (first && window.innerWidth <= 860) setMobileView('leads');
-  } catch (error) {
-    toast(error.message, true);
+  })();
+  try {
+    return await state.refreshing;
+  } finally {
+    state.refreshing = null;
   }
 }
 
@@ -200,6 +207,10 @@ async function createLead(event) {
     const payload = Object.fromEntries(new FormData(elements.leadForm));
     const response = await api('/api/demo-ai/leads', { method: 'POST', body: payload });
     state.selectedLeadId = response.lead.id;
+    if (state.snapshot) {
+      state.snapshot.leads = [response.lead, ...state.snapshot.leads.filter((lead) => lead.id !== response.lead.id)];
+      render();
+    }
     closeLeadModal();
     await refresh();
     setMobileView('chat');
@@ -279,6 +290,11 @@ function closeLeadModal() {
 }
 
 function setMobileView(view) {
+  if ((view === 'chat' || view === 'opportunity') && !selectedLead() && state.snapshot?.leads.length) {
+    state.selectedLeadId = state.snapshot.leads[0].id;
+    renderLeadList();
+    renderSelectedLead();
+  }
   document.body.dataset.view = view;
   document.querySelectorAll('.ai-mobile-nav [data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
 }

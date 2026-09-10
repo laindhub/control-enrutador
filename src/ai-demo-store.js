@@ -209,8 +209,6 @@ export class AiDemoError extends Error {
   }
 }
 
-export const aiDemoStore = new AiDemoStore();
-
 async function generateWithGroq({ kind, lead, history }) {
   if (!config.groq.apiKey) return fallbackGeneration({ kind, lead, history });
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

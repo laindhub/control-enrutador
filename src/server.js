@@ -302,7 +302,7 @@ app.post('/demo/change-identity', verifyCsrf, requireAuth, requireAlphaAccess, (
 });
 
 app.use('/api/demo', verifyCsrf, createDemoRouter(io));
-app.use('/api/demo-ai', verifyCsrf, createAiDemoRouter(io));
+app.use('/api/demo-ai', verifyCsrf, createAiDemoRouter());
 app.use('/api', verifyCsrf, createApiRouter(io));
 app.use('/api/admin', verifyCsrf, createAdminRouter(io));
 

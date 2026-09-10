@@ -10,12 +10,10 @@ const DEMO_ROLES = new Set([...ALPHA_ROLES, 'ai']);
 
 export function canAccessAlpha(req) {
   if (req.session.user?.role === 'demo') return true;
-  if (req.session.user?.role === 'ai_demo') return true;
   return config.alphaProductionEnabled && ALPHA_ROLES.has(req.session.user?.role);
 }
 
 export function alphaRoleFor(req) {
-  if (req.session.user?.role === 'ai_demo') return 'ai';
   if (req.session.user?.role === 'demo') {
     return DEMO_ROLES.has(req.session.demoRole) ? req.session.demoRole : null;
   }

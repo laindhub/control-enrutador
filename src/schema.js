@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { pool } from './db.js';
 import { config } from './config.js';
 
-const SCHEMA_VERSION = '2';
+const SCHEMA_VERSION = '3';
 const META_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS system_meta (
   meta_key VARCHAR(100) PRIMARY KEY,
   meta_value TEXT NOT NULL,
@@ -52,6 +52,11 @@ async function seedUsers(connection) {
       password: config.bootstrap.demoPassword,
       role: 'demo',
     },
+    {
+      username: config.bootstrap.aiDemoUsername,
+      password: config.bootstrap.aiDemoPassword,
+      role: 'ai_demo',
+    },
   ];
   const fingerprint = createHmac('sha256', config.sessionSecret)
     .update(JSON.stringify({ alphaProductionEnabled: config.alphaProductionEnabled, configuredUsers }))
@@ -65,6 +70,9 @@ async function seedUsers(connection) {
 
   if (!config.bootstrap.demoUsername || !config.bootstrap.demoPassword) {
     await connection.query("UPDATE users SET active = FALSE WHERE role = 'demo'");
+  }
+  if (!config.bootstrap.aiDemoUsername || !config.bootstrap.aiDemoPassword) {
+    await connection.query("UPDATE users SET active = FALSE WHERE role = 'ai_demo'");
   }
   if (!config.alphaProductionEnabled || !config.bootstrap.advisorUsername || !config.bootstrap.advisorPassword) {
     await connection.query("UPDATE users SET active = FALSE WHERE role = 'advisor'");
@@ -134,14 +142,14 @@ const schemaStatements = [
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(80) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('router', 'admin', 'advisor', 'demo') NOT NULL,
+    role ENUM('router', 'admin', 'advisor', 'demo', 'ai_demo') NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
   `ALTER TABLE users
-    MODIFY role ENUM('router', 'admin', 'advisor', 'demo') NOT NULL`,
+    MODIFY role ENUM('router', 'admin', 'advisor', 'demo', 'ai_demo') NOT NULL`,
 
   `CREATE TABLE IF NOT EXISTS operators (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b141a">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title><%= title %> · Más Dueños</title>
+    <link rel="icon" type="image/svg+xml" href="<%= assetUrl('assets/mas-duenos-isotipo.svg') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo-ai.css') %>">
+  </head>
+  <body class="ai-demo-page">
+    <header class="ai-appbar">
+      <a class="ai-brand" href="/demo" aria-label="Volver a perfiles demo">
+        <img src="<%= assetUrl('assets/mas-duenos-isotipo.svg') %>" alt="">
+        <span><strong>Más Dueños</strong><small>Seguimiento inteligente</small></span>
+      </a>
+      <div class="ai-appbar-actions">
+        <span id="aiMode" class="ai-mode"><i></i>Comprobando IA…</span>
+        <% if (canSwitchRole) { %>
+          <form method="post" action="/demo/change-profile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Cambiar perfil</button></form>
+        <% } %>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Salir</button></form>
+      </div>
+    </header>
+
+    <main class="ai-workspace">
+      <aside class="ai-leads-panel" data-mobile-view="leads">
+        <div class="ai-panel-heading">
+          <div><span class="ai-kicker">OPORTUNIDADES</span><h1>Seguimientos</h1></div>
+          <button id="newLeadButton" class="ai-icon-button ai-add-button" type="button" aria-label="Registrar nuevo lead">+</button>
+        </div>
+        <label class="ai-search"><span>⌕</span><input id="leadSearch" type="search" placeholder="Buscar por nombre o teléfono" autocomplete="off"></label>
+        <div class="ai-summary-row">
+          <span><strong id="activeCount">0</strong> activos</span>
+          <span><strong id="handoffCount">0</strong> para asesor</span>
+        </div>
+        <div id="leadList" class="ai-lead-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="ai-chat-panel" data-mobile-view="chat">
+        <div id="chatEmpty" class="ai-empty-screen"><span>✦</span><h2>Elegí una oportunidad</h2><p>Vas a ver la conversación simulada y su seguimiento en tiempo real.</p></div>
+        <div id="chatContent" class="ai-chat-content" hidden>
+          <header class="ai-chat-header">
+            <button class="ai-mobile-back" data-go="leads" type="button" aria-label="Volver a oportunidades">‹</button>
+            <div id="chatAvatar" class="ai-avatar"></div>
+            <div class="ai-chat-person"><strong id="chatName"></strong><small id="chatPhone"></small></div>
+            <div id="chatState" class="ai-chat-state"></div>
+            <button id="showOpportunity" class="ai-icon-button ai-mobile-only" type="button" aria-label="Ver oportunidad">ⓘ</button>
+          </header>
+          <div id="messageList" class="ai-message-list" aria-live="polite"></div>
+          <form id="replyForm" class="ai-composer">
+            <button type="button" class="ai-composer-icon" aria-label="Adjuntar">＋</button>
+            <input id="replyInput" maxlength="800" placeholder="Simular respuesta del lead" autocomplete="off">
+            <button class="ai-send-button" type="submit" aria-label="Enviar respuesta">➤</button>
+          </form>
+        </div>
+      </section>
+
+      <aside class="ai-opportunity-panel" data-mobile-view="opportunity">
+        <div id="opportunityEmpty" class="ai-empty-side"><span>◫</span><p>Seleccioná un lead para revisar su oportunidad.</p></div>
+        <div id="opportunityContent" hidden>
+          <header class="ai-opportunity-heading">
+            <button class="ai-mobile-back" data-go="chat" type="button" aria-label="Volver al chat">‹</button>
+            <div><span class="ai-kicker">OPORTUNIDAD</span><h2 id="opportunityName"></h2></div>
+            <span id="opportunityStatus" class="ai-status-chip"></span>
+          </header>
+          <section class="ai-interest-card">
+            <div><span>Nivel de interés</span><strong id="interestValue">0%</strong></div>
+            <div class="ai-progress"><i id="interestBar"></i></div>
+            <p id="interestLabel"></p>
+          </section>
+          <section id="handoffCard" class="ai-handoff-card" hidden>
+            <span>INTERVENCIÓN RECOMENDADA</span>
+            <strong>El lead está listo para un asesor</strong>
+            <p id="handoffReason"></p>
+            <button id="handleButton" type="button">Tomar conversación</button>
+          </section>
+          <section class="ai-details-card">
+            <div><span>Asesor</span><strong id="detailAdvisor"></strong></div>
+            <div><span>Objetivo</span><strong id="detailObjective"></strong></div>
+            <div><span>Proyecto mostrado</span><strong id="detailBuilding"></strong></div>
+            <div><span>Próxima acción</span><strong id="detailNextAction"></strong></div>
+          </section>
+          <section class="ai-notes-section">
+            <div class="ai-section-title"><div><span class="ai-kicker">REGISTRO AUTOMÁTICO</span><h3>Notas de seguimiento</h3></div><span id="notesCount" class="ai-note-count">0</span></div>
+            <div id="notesList" class="ai-notes-list"></div>
+          </section>
+        </div>
+      </aside>
+    </main>
+
+    <nav class="ai-mobile-nav" aria-label="Secciones de la demo">
+      <button class="active" data-view="leads" type="button"><span>☷</span>Leads</button>
+      <button data-view="chat" type="button"><span>◉</span>Chat</button>
+      <button data-view="opportunity" type="button"><span>◫</span>Oportunidad</button>
+    </nav>
+
+    <div id="leadModal" class="ai-modal-backdrop" hidden>
+      <section class="ai-modal" role="dialog" aria-modal="true" aria-labelledby="leadModalTitle">
+        <button id="closeLeadModal" class="ai-modal-close" type="button" aria-label="Cerrar">×</button>
+        <span class="ai-kicker">NUEVO SEGUIMIENTO</span>
+        <h2 id="leadModalTitle">Registrar un lead</h2>
+        <p>El agente enviará el primer mensaje desde la identidad del asesor y registrará la acción.</p>
+        <form id="leadForm" class="ai-lead-form">
+          <div class="ai-form-grid">
+            <label>Nombre y apellido<input name="name" required value="Martín Sosa"></label>
+            <label>Teléfono<input name="phone" required value="+54 9 11 5234-7788"></label>
+            <label>Asesor<select name="advisorName" id="advisorSelect" required></select></label>
+            <label>Enviar en<select name="delaySeconds"><option value="8">8 segundos</option><option value="20">20 segundos</option><option value="60">1 minuto</option><option value="120">2 minutos</option></select></label>
+            <label class="ai-form-wide">Objetivo del lead<input name="objective" value="Conocer opciones para dejar de alquilar"></label>
+            <label>Proyecto a mostrar<input name="buildingName" value="Proyecto Caseros Centro"></label>
+            <label>Ubicación<input name="buildingAddress" value="Caseros, Buenos Aires"></label>
+            <label class="ai-form-wide">Enlace de Google Maps<input name="mapsUrl" type="url" value="https://www.google.com/maps/search/?api=1&amp;query=Caseros%2C%20Buenos%20Aires"></label>
+            <label class="ai-form-wide">Contexto para el agente<textarea name="context" rows="3">Vino a la charla, decide con su pareja y prioriza cercanía al tren.</textarea></label>
+          </div>
+          <div class="ai-modal-actions"><button id="cancelLeadModal" type="button" class="ai-secondary-button">Cancelar</button><button type="submit" class="ai-primary-button">Iniciar seguimiento</button></div>
+        </form>
+      </section>
+    </div>
+
+    <div id="aiToast" class="ai-toast" hidden></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="<%= assetUrl('js/demo-ai.js') %>" type="module"></script>
+  </body>
+</html>

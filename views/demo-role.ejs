@@ -32,6 +32,11 @@
             <input type="hidden" name="role" value="admin">
             <button class="demo-role-card" type="submit"><span class="demo-role-icon">◎</span><strong>Administración</strong><small>Seguimiento, estado y auditoría demo</small></button>
           </form>
+          <form method="post" action="/demo/role">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="role" value="ai">
+            <button class="demo-role-card demo-role-card-ai" type="submit"><span class="demo-role-icon">✦</span><strong>Demo IA</strong><small>Mensajería, seguimiento y notas automáticas</small></button>
+          </form>
         </div>
         <form method="post" action="/logout" class="demo-exit-form">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">

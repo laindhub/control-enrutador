@@ -4,6 +4,7 @@ import { destinationForUser } from '../src/navigation.js';
 
 test('la cuenta demo que entra a la raíz vuelve a /demo sin crear un bucle', () => {
   assert.equal(destinationForUser({ role: 'demo' }), '/demo');
+  assert.equal(destinationForUser({ role: 'ai_demo' }), '/demo');
   assert.notEqual(destinationForUser({ role: 'demo' }), '/');
 });
 

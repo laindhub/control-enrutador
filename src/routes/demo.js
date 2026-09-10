@@ -6,15 +6,18 @@ import { destinationForUser } from '../navigation.js';
 import { demoStore } from '../demo-store.js';
 
 const ALPHA_ROLES = new Set(['admin', 'router', 'advisor']);
+const DEMO_ROLES = new Set([...ALPHA_ROLES, 'ai']);
 
 export function canAccessAlpha(req) {
   if (req.session.user?.role === 'demo') return true;
+  if (req.session.user?.role === 'ai_demo') return true;
   return config.alphaProductionEnabled && ALPHA_ROLES.has(req.session.user?.role);
 }
 
 export function alphaRoleFor(req) {
+  if (req.session.user?.role === 'ai_demo') return 'ai';
   if (req.session.user?.role === 'demo') {
-    return ALPHA_ROLES.has(req.session.demoRole) ? req.session.demoRole : null;
+    return DEMO_ROLES.has(req.session.demoRole) ? req.session.demoRole : null;
   }
   return config.alphaProductionEnabled && ALPHA_ROLES.has(req.session.user?.role)
     ? req.session.user.role

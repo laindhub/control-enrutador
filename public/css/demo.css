@@ -11,7 +11,7 @@
   letter-spacing: .08em;
 }
 .demo-badge { margin-bottom: 18px; padding: 7px 10px; color: #941b27; background: #fdebed; }
-.demo-role-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+.demo-role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
 .demo-role-card {
   display: grid;
   width: 100%;
@@ -31,6 +31,8 @@
 .demo-role-card strong { font-size: 1rem; }
 .demo-role-card small { color: #69717c; line-height: 1.4; }
 .demo-role-icon { display: grid; width: 42px; height: 42px; place-items: center; margin-bottom: 4px; border-radius: 13px; color: white; background: linear-gradient(145deg, #c52d3d, #921522); font-size: 1.25rem; font-weight: 800; box-shadow: 0 10px 22px rgb(185 28 43 / 20%); }
+.demo-role-card-ai { border-color: #bde6d5; background: linear-gradient(145deg, #f3fcf8, #fff); }
+.demo-role-card-ai .demo-role-icon { background: linear-gradient(145deg, #24b87a, #0a6e49); box-shadow: 0 10px 22px rgb(22 166 106 / 20%); }
 .demo-exit-form { margin-top: 22px; }
 
 .demo-page { display: flex; min-height: 100vh; flex-direction: column; }

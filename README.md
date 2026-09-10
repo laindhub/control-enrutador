@@ -52,11 +52,27 @@ Copiar los nombres de `.env.example` en el panel de variables de entorno de Host
 | `ADMIN_PASSWORD` | Contraseña administrativa inicial |
 | `DEMO_USERNAME` | Usuario opcional de la demo alfa; si falta, la demo queda deshabilitada |
 | `DEMO_PASSWORD` | Contraseña opcional de la demo alfa |
+| `AI_DEMO_USERNAME` | Usuario opcional que abre directamente la demo de seguimiento con IA |
+| `AI_DEMO_PASSWORD` | Contraseña del acceso independiente a Demo IA |
+| `GROQ_API_KEY` | Clave de Groq para generar mensajes con Qwen; nunca debe subirse al repositorio |
+| `GROQ_MODEL` | Modelo de Groq; valor inicial `qwen/qwen3.6-27b` |
 | `ALPHA_PRODUCTION_ENABLED` | Mantener `false` mientras el circuito alfa sea solamente demo |
 | `ADVISOR_USERNAME` | Usuario futuro de la cuenta compartida de asesores |
 | `ADVISOR_PASSWORD` | Contraseña futura de asesores |
 
-Las variables de las cuentas se leen al iniciar y las contraseñas se guardan como hashes bcrypt. Nunca se guardan en el repositorio. La cuenta demo solamente se habilita cuando existen tanto `DEMO_USERNAME` como `DEMO_PASSWORD`; su información operativa es ficticia, vive separada de las tablas productivas y se restaura al reiniciar la instancia.
+Las variables de las cuentas se leen al iniciar y las contraseñas se guardan como hashes bcrypt. Nunca se guardan en el repositorio. La cuenta demo solamente se habilita cuando existen tanto `DEMO_USERNAME` como `DEMO_PASSWORD`; su información operativa es ficticia, vive separada de las tablas productivas y se restaura al reiniciar la instancia. El acceso `AI_DEMO_USERNAME` ingresa directamente al panel de seguimiento inteligente. Si `GROQ_API_KEY` está vacío, esa pantalla utiliza respuestas locales de muestra para que la presentación siga funcionando.
+
+## Demo de seguimiento con IA
+
+El perfil **Demo IA** combina tres superficies en una misma pantalla:
+
+- bandeja de oportunidades;
+- conversación móvil inspirada en WhatsApp;
+- ficha del asesor con nivel de interés y notas automáticas.
+
+Al registrar un lead, se programa un primer contacto desde la identidad del asesor. El mensaje muestra un edificio genérico de demostración, abre su ubicación en Google Maps y propone coordinar una visita. Cada mensaje enviado o recibido crea una nota dentro de la misma oportunidad. Cuando la conversación contiene señales concretas de visita o avance, el sistema recomienda la intervención personal del asesor.
+
+La pantalla es un simulador interno: no se conecta con WhatsApp ni envía mensajes a números reales.
 
 ## Despliegue en Hostinger
 

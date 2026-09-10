@@ -11,7 +11,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js"
+    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check src/ai-demo-store.js && node --check src/routes/ai-demo.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js && node --check public/js/demo-ai.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -25,10 +25,11 @@
     "express-session": "^1.18.2",
     "helmet": "^8.1.0",
     "luxon": "^3.7.2",
-    "mysql2": "^3.14.5",
+    "mysql2": "^3.24.4",
     "socket.io": "^4.8.1"
   },
   "overrides": {
+    "mysql2": "^3.24.4",
     "uuid": "^11.1.0"
   }
 }

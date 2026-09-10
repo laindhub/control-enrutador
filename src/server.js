@@ -31,6 +31,7 @@ import {
   listAlphaPeople,
   requireAlphaAccess,
 } from './routes/demo.js';
+import { createAiDemoRouter } from './routes/ai-demo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -238,6 +239,12 @@ app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
   try {
     const role = alphaRoleFor(req);
     if (!role) return res.render('demo-role', { title: 'Elegir perfil demo' });
+    if (role === 'ai') {
+      return res.render('demo-ai', {
+        title: 'Demo IA · Seguimiento comercial',
+        canSwitchRole: req.session.user.role === 'demo',
+      });
+    }
     if (role === 'router' || role === 'advisor') {
       if (!req.session.demoIdentity || req.session.demoIdentity.kind !== role) {
         const people = await listAlphaPeople(role);
@@ -257,7 +264,7 @@ app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
 
 app.post('/demo/role', verifyCsrf, requireAuth, requireAlphaAccess, (req, res, next) => {
   if (req.session.user.role !== 'demo') return res.redirect('/demo');
-  const role = ['admin', 'router', 'advisor'].includes(req.body.role) ? req.body.role : null;
+  const role = ['admin', 'router', 'advisor', 'ai'].includes(req.body.role) ? req.body.role : null;
   if (!role) return res.status(400).render('error', { title: 'Perfil inválido', message: 'Seleccioná un perfil demo válido.' });
   req.session.demoRole = role;
   delete req.session.demoIdentity;
@@ -295,6 +302,7 @@ app.post('/demo/change-identity', verifyCsrf, requireAuth, requireAlphaAccess, (
 });
 
 app.use('/api/demo', verifyCsrf, createDemoRouter(io));
+app.use('/api/demo-ai', verifyCsrf, createAiDemoRouter(io));
 app.use('/api', verifyCsrf, createApiRouter(io));
 app.use('/api/admin', verifyCsrf, createAdminRouter(io));
 

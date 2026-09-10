@@ -34,8 +34,14 @@ export const config = {
     advisorPassword: process.env.ADVISOR_PASSWORD,
     demoUsername: process.env.DEMO_USERNAME,
     demoPassword: process.env.DEMO_PASSWORD,
+    aiDemoUsername: process.env.AI_DEMO_USERNAME,
+    aiDemoPassword: process.env.AI_DEMO_PASSWORD,
   },
   alphaProductionEnabled: process.env.ALPHA_PRODUCTION_ENABLED === 'true',
+  groq: {
+    apiKey: process.env.GROQ_API_KEY || '',
+    model: process.env.GROQ_MODEL || 'qwen/qwen3.6-27b',
+  },
 };
 
 export function validateConfig() {

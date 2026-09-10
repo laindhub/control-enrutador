@@ -58,15 +58,12 @@ button { cursor: pointer; }
 }
 
 .ai-brand img {
-  width: 38px;
-  height: 38px;
+  width: 155px;
+  height: 40px;
   object-fit: contain;
+  object-position: left center;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .25));
 }
-
-.ai-brand span { display: grid; line-height: 1.15; }
-.ai-brand strong { font-size: 1rem; letter-spacing: .01em; }
-.ai-brand small { margin-top: 3px; color: #aebbc3; font-size: .78rem; }
 
 .ai-appbar-actions { display: flex; align-items: center; gap: 10px; }
 .ai-appbar-actions form { margin: 0; }
@@ -435,8 +432,7 @@ h1, h2, h3, p { margin-top: 0; }
 @media (max-width: 860px) {
   html, body { height: 100dvh; min-height: 100dvh; overflow: hidden; }
   .ai-appbar { height: 60px; }
-  .ai-brand img { width: 34px; height: 34px; }
-  .ai-brand small { display: none; }
+  .ai-brand img { width: 128px; height: 38px; }
   .ai-mode, .ai-appbar-actions .ai-ghost-button { display: none; }
   .ai-appbar-actions form:last-child .ai-ghost-button { display: block; padding: 7px 10px; }
   .ai-workspace { height: calc(100svh - 60px - 61px - env(safe-area-inset-bottom)); height: calc(100dvh - 60px - 61px - env(safe-area-inset-bottom)); min-height: 0; display: block; box-shadow: none; }

@@ -6,14 +6,14 @@
     <meta name="theme-color" content="#0b141a">
     <meta name="csrf-token" content="<%= csrfToken %>">
     <title><%= title %> · Más Dueños</title>
-    <link rel="icon" type="image/svg+xml" href="<%= assetUrl('assets/mas-duenos-isotipo.svg') %>">
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="apple-touch-icon" href="<%= assetUrl('assets/favicon.png') %>">
     <link rel="stylesheet" href="<%= assetUrl('css/demo-ai.css') %>">
   </head>
   <body class="ai-demo-page">
     <header class="ai-appbar">
       <a class="ai-brand" href="/demo" aria-label="Volver a perfiles demo">
-        <img src="<%= assetUrl('assets/mas-duenos-isotipo.svg') %>" alt="">
-        <span><strong>Más Dueños</strong><small>Seguimiento inteligente</small></span>
+        <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños">
       </a>
       <div class="ai-appbar-actions">
         <span id="aiMode" class="ai-mode"><i></i>Comprobando IA…</span>

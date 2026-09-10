@@ -10,10 +10,18 @@ export function createAiDemoRouter() {
   router.get('/snapshot', async (req, res, next) => {
     try {
       const advisors = await listAlphaPeople('advisor');
-      const snapshot = await withSessionStore(req, async (store) => {
-        await store.processDue();
-        return store.snapshot({ advisors });
-      });
+      const store = storeFromSession(req);
+      const beforeProcessing = JSON.stringify(store.leads);
+      await store.processDue();
+
+      // Un GET no debe reescribir la sesión salvo que realmente haya procesado
+      // un mensaje pendiente. En despliegues con más de una instancia, guardar
+      // siempre desde el polling podía pisar el POST que acababa de crear un lead.
+      if (JSON.stringify(store.leads) !== beforeProcessing) {
+        await persistStore(req, store);
+      }
+
+      const snapshot = store.snapshot({ advisors });
       return res.json(snapshot);
     } catch (error) {
       return next(error);
@@ -81,9 +89,13 @@ async function withSessionStore(req, task) {
   try {
     return await task(store);
   } finally {
-    req.session.aiDemoLeads = structuredClone(store.leads);
-    await saveSession(req);
+    await persistStore(req, store);
   }
+}
+
+async function persistStore(req, store) {
+  req.session.aiDemoLeads = structuredClone(store.leads);
+  await saveSession(req);
 }
 
 function saveSession(req) {

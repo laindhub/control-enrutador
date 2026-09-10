@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import { createHash, randomBytes } from 'node:crypto';
 import express from 'express';
 import compression from 'compression';
@@ -91,7 +92,7 @@ app.use(compression());
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 
-app.get('/health', async (_req, res) => {
+app.get('/health', async (req, res, next) => {
   if (startupState === 'starting') {
     return res.json({
       ok: true,
@@ -110,18 +111,14 @@ app.get('/health', async (_req, res) => {
     });
   }
 
-  try {
-    await pool.query('SELECT 1');
-    return res.json({ ok: true, service: 'control-enrutador' });
-  } catch (error) {
-    console.error('Healthcheck MySQL falló:', error);
-    return res.status(503).json({
-      ok: false,
-      service: 'control-enrutador',
-      stage: 'database',
-      error: publicStartupError(error),
-    });
-  }
+  // El diagnóstico completo necesita cargar la misma sesión que usa Demo IA.
+  // Se aplica solo aquí para conservar el healthcheck de arranque aun si MySQL falla.
+  return sessionMiddleware(req, res, (sessionError) => {
+    if (sessionError) return next(sessionError);
+    healthDiagnostics(req)
+      .then(({ status, body }) => res.status(status).json(body))
+      .catch(next);
+  });
 });
 
 app.use((req, res, next) => {
@@ -370,6 +367,159 @@ function cryptoToken() {
 
 function saveRequestSession(req) {
   return new Promise((resolve, reject) => req.session.save((error) => (error ? reject(error) : resolve())));
+}
+
+async function healthDiagnostics(req) {
+  const checkedAt = new Date().toISOString();
+  const startedAt = Date.now();
+  const sessionId = String(req.sessionID || '');
+  const sessionFingerprint = sessionId
+    ? createHash('sha256').update(sessionId).digest('hex').slice(0, 12)
+    : null;
+  const inMemoryLeads = Array.isArray(req.session?.aiDemoLeads) ? req.session.aiDemoLeads : null;
+
+  try {
+    const [[databaseInfo], [sessionRows]] = await Promise.all([
+      pool.query('SELECT DATABASE() AS database_name, UTC_TIMESTAMP() AS database_time'),
+      sessionId
+        ? pool.execute(
+          'SELECT expires, CHAR_LENGTH(data) AS bytes, data FROM user_sessions WHERE session_id = ? LIMIT 1',
+          [sessionId],
+        )
+        : Promise.resolve([[]]),
+    ]);
+
+    const storedSession = sessionRows[0] || null;
+    const storedData = parseStoredSession(storedSession?.data);
+    const storedLeads = Array.isArray(storedData?.aiDemoLeads) ? storedData.aiDemoLeads : null;
+    const authenticated = Boolean(req.session?.user);
+    const demoRole = alphaRoleFor(req);
+    const sessionMatchesDatabase = storedSession
+      ? JSON.stringify(inMemoryLeads) === JSON.stringify(storedLeads)
+      : null;
+    const warnings = [];
+
+    if (!authenticated) warnings.push('Abrí /health en la misma pestaña donde iniciaste sesión para diagnosticar Demo IA.');
+    if (authenticated && !storedSession) warnings.push('La cookie existe, pero la fila de sesión no aparece en MySQL.');
+    if (storedSession && sessionMatchesDatabase === false) warnings.push('La sesión cargada y la fila guardada en MySQL no coinciden.');
+    if (authenticated && demoRole !== 'ai') warnings.push('La sesión no tiene seleccionado el perfil Demo IA.');
+    if (authenticated && inMemoryLeads?.length === 0) warnings.push('La sesión contiene una lista vacía de leads. Usá Reiniciar demo o registrá un lead nuevo.');
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        ready: true,
+        service: 'control-enrutador',
+        checkedAt,
+        release: {
+          version: process.env.npm_package_version || '1.0.0',
+          commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
+        },
+        instance: {
+          fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
+          uptimeSeconds: Math.round(process.uptime()),
+          node: process.version,
+        },
+        database: {
+          connected: true,
+          name: databaseInfo[0]?.database_name || config.db.database,
+          time: databaseInfo[0]?.database_time || null,
+          latencyMs: Date.now() - startedAt,
+        },
+        groq: {
+          configured: Boolean(config.groq.apiKey),
+          model: config.groq.model,
+        },
+        session: {
+          authenticated,
+          idFingerprint: sessionFingerprint,
+          userRole: req.session?.user?.role || null,
+          demoRole,
+          rowPresentInDatabase: Boolean(storedSession),
+          expiresAt: storedSession?.expires ? new Date(Number(storedSession.expires) * 1000).toISOString() : null,
+          storedBytes: Number(storedSession?.bytes || 0),
+          matchesDatabase: sessionMatchesDatabase,
+        },
+        demoAi: {
+          accessible: authenticated && demoRole === 'ai',
+          loadedFromSession: inMemoryLeads !== null,
+          leadCount: inMemoryLeads?.length ?? null,
+          storedLeadCount: storedLeads?.length ?? null,
+          statuses: countLeadStatuses(inMemoryLeads),
+          newestLead: summarizeNewestLead(inMemoryLeads),
+          nextScheduledAt: nextScheduledAt(inMemoryLeads),
+          pollingSafeBuild: true,
+        },
+        warnings,
+        hint: authenticated
+          ? 'Copiá esta respuesta justo después de reproducir el error; no contiene claves, teléfonos ni nombres.'
+          : 'Iniciá sesión, elegí Demo IA y luego abrí /health en esta misma sesión.',
+      },
+    };
+  } catch (error) {
+    console.error('Healthcheck MySQL falló:', error);
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        ready: false,
+        service: 'control-enrutador',
+        checkedAt,
+        stage: 'database-or-session',
+        error: publicStartupError(error),
+      },
+    };
+  }
+}
+
+function parseStoredSession(raw) {
+  if (!raw) return null;
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+}
+
+function countLeadStatuses(leads) {
+  if (!Array.isArray(leads)) return null;
+  return leads.reduce((counts, lead) => {
+    const status = String(lead?.status || 'unknown');
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function summarizeNewestLead(leads) {
+  if (!Array.isArray(leads) || !leads.length) return null;
+  const newest = [...leads].sort((a, b) => Number(b?.createdAt || 0) - Number(a?.createdAt || 0))[0];
+  return {
+    id: newest?.id || null,
+    status: newest?.status || null,
+    messageCount: Array.isArray(newest?.messages) ? newest.messages.length : 0,
+    noteCount: Array.isArray(newest?.notes) ? newest.notes.length : 0,
+    createdAt: numberToIso(newest?.createdAt),
+    updatedAt: numberToIso(newest?.updatedAt),
+  };
+}
+
+function nextScheduledAt(leads) {
+  if (!Array.isArray(leads)) return null;
+  const timestamps = leads
+    .filter((lead) => lead?.status === 'scheduled' && Number.isFinite(Number(lead?.nextActionAt)))
+    .map((lead) => Number(lead.nextActionAt));
+  return timestamps.length ? new Date(Math.min(...timestamps)).toISOString() : null;
+}
+
+function numberToIso(value) {
+  const timestamp = Number(value);
+  return Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp).toISOString() : null;
+}
+
+function firstDefinedEnv(...names) {
+  const value = names.map((name) => process.env[name]).find(Boolean);
+  return value ? String(value).slice(0, 40) : 'unknown';
 }
 
 function publicStartupError(error) {

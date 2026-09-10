@@ -19,6 +19,11 @@
 
 * { box-sizing: border-box; }
 
+/* Las reglas de layout de esta pantalla usan display:grid. Sin esta regla,
+   esas declaraciones pisan el atributo HTML hidden y dejan visible el estado
+   vacío por encima del chat aun cuando el lead ya fue cargado. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {

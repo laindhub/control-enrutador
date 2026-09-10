@@ -82,6 +82,8 @@ export class AiDemoStore {
       const createdAt = this.now();
       lead.messages.push(message('advisor', result.message, createdAt, {
         sender: lead.advisorName,
+        generatedBy: result.generatedBy || null,
+        generationStyle: result.generationStyle || null,
         card: {
           imageUrl: '/assets/demo-ai/edificio-demo.webp',
           title: lead.buildingName,
@@ -121,7 +123,11 @@ export class AiDemoStore {
     try {
       const result = await this.generate({ kind: 'reply', lead, history: lead.messages });
       const repliedAt = this.now();
-      lead.messages.push(message('advisor', result.message, repliedAt, { sender: lead.advisorName }));
+      lead.messages.push(message('advisor', result.message, repliedAt, {
+        sender: lead.advisorName,
+        generatedBy: result.generatedBy || null,
+        generationStyle: result.generationStyle || null,
+      }));
       lead.notes.unshift(note('Agente IA', result.note || `Se respondió a ${lead.name} y se actualizó el seguimiento.`, repliedAt));
       const requiresHuman = Boolean(result.requiresHuman) || signals.requiresHuman || lead.interest >= 78;
       lead.humanHandoff = requiresHuman;
@@ -211,6 +217,7 @@ export class AiDemoError extends Error {
 
 async function generateWithGroq({ kind, lead, history }) {
   if (!config.groq.apiKey) return fallbackGeneration({ kind, lead, history });
+  const variation = messageVariation(lead, kind);
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -219,17 +226,18 @@ async function generateWithGroq({ kind, lead, history }) {
     },
     body: JSON.stringify({
       model: config.groq.model,
-      temperature: 0.35,
+      temperature: 0.72,
       max_completion_tokens: 420,
       messages: [
         {
           role: 'system',
-          content: `Sos un agente de seguimiento comercial de Más Dueños. Escribís en español rioplatense, con calidez y sin presión. No inventes precios, disponibilidad, beneficios ni características. El contacto ya autorizó esta demostración. Respondé exclusivamente JSON válido con: message (máximo 420 caracteres), note (resumen CRM preciso en tercera persona), requiresHuman (boolean) y handoffReason (string). Si el lead quiere visitar, reservar, pagar, recibir una propuesta concreta o hablar con alguien, requiresHuman debe ser true.`,
+          content: `Sos un agente de seguimiento comercial individual de Más Dueños. Escribís mensajes de WhatsApp en español rioplatense, naturales, breves y sin presión. Cada conversación debe sentirse escrita especialmente para esa persona: no uses una plantilla fija ni repitas siempre la misma apertura, estructura o cierre. Usá únicamente los datos relevantes del objetivo y contexto; no enumeres todos. En el primer contacto presentate con el nombre exacto del asesor y Más Dueños, conectá con un detalle concreto del lead y terminá con una sola pregunta útil. No digas solamente “soy de Más Dueños”. No inventes precios, disponibilidad, beneficios, horarios ni características. El contacto ya autorizó esta demostración. Respondé exclusivamente JSON válido con: message (máximo 420 caracteres), note (resumen CRM preciso en tercera persona), requiresHuman (boolean) y handoffReason (string). Si el lead quiere visitar, reservar, pagar, recibir una propuesta concreta o hablar con alguien, requiresHuman debe ser true.`,
         },
         {
           role: 'user',
           content: JSON.stringify({
             task: kind === 'initial' ? 'Primer contacto después de la charla' : 'Responder el último mensaje del lead',
+            variation,
             lead: {
               name: lead.name,
               advisor: lead.advisorName,
@@ -258,6 +266,8 @@ async function generateWithGroq({ kind, lead, history }) {
     note: clean(parsed.note, 600),
     requiresHuman: parsed.requiresHuman === true,
     handoffReason: clean(parsed.handoffReason, 240),
+    generatedBy: 'Qwen vía Groq',
+    generationStyle: variation.label,
   };
 }
 
@@ -268,6 +278,8 @@ function fallbackGeneration({ kind, lead, history }) {
       note: `Se inició el seguimiento y se mostró ${lead.buildingName} con su ubicación. Se consultó disponibilidad para coordinar una visita.`,
       requiresHuman: false,
       handoffReason: '',
+      generatedBy: 'Modo demo local',
+      generationStyle: 'Mensaje de respaldo',
     };
   }
   const latest = history.at(-1)?.text || '';
@@ -278,6 +290,8 @@ function fallbackGeneration({ kind, lead, history }) {
       note: `El lead manifestó intención concreta de avanzar. Se solicitó un horario de contacto y se recomendó intervención personal del asesor.`,
       requiresHuman: true,
       handoffReason: signals.reason,
+      generatedBy: 'Modo demo local',
+      generationStyle: 'Mensaje de respaldo',
     };
   }
   return {
@@ -285,7 +299,28 @@ function fallbackGeneration({ kind, lead, history }) {
     note: `Se respondió la consulta del lead y se realizó una pregunta de calificación para continuar el seguimiento.`,
     requiresHuman: false,
     handoffReason: '',
+    generatedBy: 'Modo demo local',
+    generationStyle: 'Mensaje de respaldo',
   };
+}
+
+function messageVariation(lead, kind) {
+  const initialStyles = [
+    { label: 'Retoma un detalle', instruction: 'Abrí retomando de forma natural un detalle personal o una prioridad que surgió en la charla.' },
+    { label: 'Directo y cercano', instruction: 'Sé directo y conversacional: presentate, explicá por qué escribís y hacé una propuesta simple.' },
+    { label: 'Consultivo', instruction: 'Empezá con una observación sobre lo que busca el lead y formulá una pregunta que confirme si el proyecto encaja.' },
+    { label: 'Breve y espontáneo', instruction: 'Escribí como un WhatsApp breve y espontáneo, sin tono de campaña ni frases comerciales.' },
+    { label: 'Orientado al objetivo', instruction: 'Conectá primero con el objetivo principal del lead y después presentá el proyecto como una opción para evaluar.' },
+  ];
+  const replyStyles = [
+    { label: 'Respuesta empática', instruction: 'Respondé primero a lo que acaba de decir y hacé una sola pregunta para avanzar.' },
+    { label: 'Calificación suave', instruction: 'Reconocé su respuesta y pedí únicamente el dato más útil que todavía falta.' },
+    { label: 'Próximo paso', instruction: 'Contestá con claridad y proponé el próximo paso mínimo, sin presionar.' },
+  ];
+  const styles = kind === 'initial' ? initialStyles : replyStyles;
+  const source = `${lead.id}:${lead.name}:${lead.objective}`;
+  const index = [...source].reduce((sum, character) => sum + character.codePointAt(0), 0) % styles.length;
+  return styles[index];
 }
 
 function parseModelJson(raw) {

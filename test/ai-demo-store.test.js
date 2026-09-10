@@ -14,7 +14,7 @@ test('registra un lead y programa el primer seguimiento', () => {
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {
   let clock = 1_800_000_000_000;
   const generate = async ({ kind }) => kind === 'initial'
-    ? { message: '¿Querés conocer el proyecto?', note: 'Se propuso una visita.' }
+    ? { message: '¿Querés conocer el proyecto?', note: 'Se propuso una visita.', generatedBy: 'Qwen vía Groq' }
     : { message: 'Te contacto con el asesor.', note: 'El lead pidió avanzar.', requiresHuman: true, handoffReason: 'Solicitó una visita.' };
   const store = new AiDemoStore({ now: () => clock, generate });
   const created = store.createLead({ name: 'Martín Sosa', delaySeconds: 5 });
@@ -22,6 +22,7 @@ test('cada mensaje del agente crea una nota dentro de la oportunidad', async () 
   await store.processDue();
   let lead = store.getLead(created.id);
   assert.equal(lead.messages.length, 1);
+  assert.equal(lead.messages[0].generatedBy, 'Qwen vía Groq');
   assert.match(lead.notes[0].text, /visita/i);
   clock += 1_000;
   lead = await store.receiveLeadMessage(created.id, 'Quiero verlo el sábado');

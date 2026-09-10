@@ -178,7 +178,10 @@ function renderMessages(lead) {
       <img src="${escapeAttr(item.card.imageUrl)}" alt="Edificio residencial de demostración">
       <div><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small><a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a></div>
     </article>` : '';
-    return `<article class="ai-bubble ${escapeAttr(item.role)}">${card}<p>${escapeHtml(item.text)}</p><time>${formatTime(item.createdAt)}${item.role === 'advisor' ? '<span class="ai-checks">✓✓</span>' : ''}</time></article>`;
+    const generatedLabel = item.generatedBy
+      ? `<span class="ai-generated-label" title="${escapeAttr(item.generationStyle || 'Generado por IA')}">✦ ${escapeHtml(item.generatedBy)}</span>`
+      : '';
+    return `<article class="ai-bubble ${escapeAttr(item.role)}">${card}<p>${escapeHtml(item.text)}</p><footer>${generatedLabel}<time>${formatTime(item.createdAt)}${item.role === 'advisor' ? '<span class="ai-checks">✓✓</span>' : ''}</time></footer></article>`;
   }).join('');
   const typing = lead.status === 'thinking' ? '<div class="ai-typing" aria-label="El agente está escribiendo"><i></i><i></i><i></i></div>' : '';
   elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${typing}`;

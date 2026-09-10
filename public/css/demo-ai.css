@@ -301,7 +301,9 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-bubble.advisor { align-self: flex-end; background: var(--bubble); border-top-right-radius: 2px; }
 .ai-bubble.lead { align-self: flex-start; border-top-left-radius: 2px; }
 .ai-bubble p { margin: 0; white-space: pre-wrap; }
-.ai-bubble time { display: block; margin-top: 3px; text-align: right; color: #7a898f; font-size: .64rem; }
+.ai-bubble footer { min-height: 15px; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+.ai-bubble time { margin-left: auto; text-align: right; color: #7a898f; font-size: .64rem; }
+.ai-generated-label { color: #187b58; font-size: .59rem; font-weight: 800; letter-spacing: .01em; }
 .ai-checks { margin-left: 3px; color: #2996cf; letter-spacing: -.18em; }
 
 .ai-building-card {

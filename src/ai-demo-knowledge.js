@@ -54,12 +54,23 @@ export const PROJECT_CATALOG = Object.freeze([
   project('HUSER', 'Mercedes 2346', 'Monte Castro', 'Pozo', '2033'),
 ]);
 
-export function promptKnowledge() {
-  return {
-    confirmedFacts: SALES_KNOWLEDGE,
-    projectCatalog: PROJECT_CATALOG,
-    catalogNotice: 'Catálogo interno actualizado el 11/09/2026. Estado, entrega, disponibilidad y valores deben confirmarse con un asesor antes de presentarlos como vigentes.',
-  };
+export function promptKnowledgeText() {
+  const facts = Object.values(SALES_KNOWLEDGE)
+    .map((fact) => `- ${fact}`)
+    .join('\n');
+  const projects = PROJECT_CATALOG
+    .map(({ name, address, locality, status, delivery }) => (
+      `- ${name} | ${address} | ${locality} | Estado: ${status} | Entrega/modalidad: ${delivery}`
+    ))
+    .join('\n');
+
+  return `CONOCIMIENTO COMERCIAL CONFIRMADO (INCLUIDO DIRECTAMENTE EN ESTE PROMPT):
+${facts}
+
+CATÁLOGO DE PROYECTOS DEL PDF “LISTA EDIFICIOS ACTUALIZADA” (39 REGISTROS):
+${projects}
+
+REGLA DEL CATÁLOGO: esta lista interna fue actualizada el 11/09/2026. Podés usar sus nombres, direcciones, localidades, estados y entregas/modalidades para orientar la conversación. No afirmes que una unidad está disponible ni que el estado, la fecha o la modalidad siguen vigentes: antes de presentarlos como definitivos, indicá que debe confirmarlos un asesor. No inventes valores, superficies ni unidades.`;
 }
 
 function project(name, address, locality, status, delivery) {

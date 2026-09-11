@@ -10,6 +10,8 @@ test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () 
   assert.match(prompt, /GREEN I \| Fischetti 4943 \| Caseros \| Estado: Terminado \| Entrega\/modalidad: Semi-contado/);
   assert.match(prompt, /HUSER \| Mercedes 2346 \| Monte Castro \| Estado: Pozo \| Entrega\/modalidad: 2033/);
   assert.match(prompt, /cuota base informada para la demo es de ARS 200\.000/);
+  assert.match(prompt, /puede entregar antes, pero no después/);
+  assert.doesNotMatch(prompt, /la fecha o la modalidad siguen vigentes/);
 });
 
 test('registra un lead y programa el primer seguimiento', () => {

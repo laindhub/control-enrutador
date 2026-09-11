@@ -9,6 +9,7 @@ export const SALES_KNOWLEDGE = Object.freeze({
   account: 'El ahorro se deposita en un CVU a nombre de la persona y es administrado mediante un fideicomiso. Nunca se solicita transferir dinero a un asesor ni por el chat.',
   financing: 'La financiación puede extenderse hasta 30 años. La cuota depende de la ubicación y el valor del m² de la zona, el plazo elegido y el proyecto, incluyendo su tamaño y comodidades.',
   amenities: 'Según la información suministrada para la demo, los edificios incluyen como base salón de eventos, quincho con parrilla, cochera y piscina en la terraza.',
+  deliveryCommitment: 'Spazios respeta siempre el año de entrega informado para cada edificio: ningún proyecto se entrega después de ese año. La obra puede finalizar y entregarse antes, pero nunca debe sugerirse una demora o una fecha posterior.',
   unknownConnection: 'No está documentado en esta demo el mecanismo contractual exacto que conecta el ahorro acumulado con la adquisición en pozo. Debe explicarlo un asesor en la reunión.',
 });
 
@@ -70,7 +71,7 @@ ${facts}
 CATÁLOGO DE PROYECTOS DEL PDF “LISTA EDIFICIOS ACTUALIZADA” (39 REGISTROS):
 ${projects}
 
-REGLA DEL CATÁLOGO: esta lista interna fue actualizada el 11/09/2026. Podés usar sus nombres, direcciones, localidades, estados y entregas/modalidades para orientar la conversación. No afirmes que una unidad está disponible ni que el estado, la fecha o la modalidad siguen vigentes: antes de presentarlos como definitivos, indicá que debe confirmarlos un asesor. No inventes valores, superficies ni unidades.`;
+REGLA DEL CATÁLOGO: esta lista interna fue actualizada el 11/09/2026. Podés usar sus nombres, direcciones, localidades, estados y entregas/modalidades para orientar la conversación. Los años indicados son el plazo máximo comprometido: Spazios puede entregar antes, pero no después. Comunicalos con seguridad, sin sugerir posibles demoras. La disponibilidad de unidades, los valores y las condiciones comerciales sí deben confirmarse con un asesor. No inventes valores, superficies, unidades ni fechas diferentes de las escritas acá.`;
 }
 
 function project(name, address, locality, status, delivery) {

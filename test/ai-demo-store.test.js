@@ -67,3 +67,24 @@ test('simula espera, respeta la cadencia y cierra después de tres seguimientos'
   assert.equal(result.lead.followUpCount, 3);
   assert.equal(result.lead.messages.filter((item) => item.role === 'advisor').length, 4);
 });
+
+test('detiene el seguimiento cuando el lead pide no recibir más mensajes', async () => {
+  let clock = 1_800_000_000_000;
+  const generate = async () => ({
+    message: 'Entiendo, no vuelvo a escribirte.',
+    note: 'El lead pidió finalizar el contacto.',
+    requiresHuman: false,
+    stopFollowUp: true,
+    interestDelta: -25,
+    intent: 'rechazo',
+  });
+  const store = new AiDemoStore({ now: () => clock, generate });
+  const created = store.createLead({ name: 'Mariano', delaySeconds: 5 });
+  clock += 5_000;
+  await store.processDue();
+  const lead = await store.receiveLeadMessage(created.id, 'No me interesa, no me escriban más');
+  assert.equal(lead.status, 'cold');
+  assert.equal(lead.humanHandoff, false);
+  assert.equal(lead.nextActionAt, null);
+  assert.equal(lead.lastIntent, 'rechazo');
+});

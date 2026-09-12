@@ -1,5 +1,15 @@
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-const state = { snapshot: null, selectedLeadId: null, query: '', loading: false, refreshing: null };
+const state = {
+  snapshot: null,
+  selectedLeadId: null,
+  query: '',
+  loading: false,
+  refreshing: null,
+  refreshController: null,
+  reconnectTimer: null,
+  reconnectAttempts: 0,
+  connectionLost: false,
+};
 const $ = (selector) => document.querySelector(selector);
 
 document.body.dataset.view = 'leads';
@@ -45,7 +55,7 @@ bindEvents();
 await refresh({ first: true });
 setInterval(renderTimeSensitiveFields, 1_000);
 setInterval(() => {
-  if (!state.loading) refresh();
+  if (!state.loading && !state.connectionLost && document.visibilityState === 'visible' && navigator.onLine) refresh({ silent: true });
 }, 2_000);
 
 function bindEvents() {
@@ -69,28 +79,75 @@ function bindEvents() {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !elements.leadModal.hidden) closeLeadModal();
   });
+  window.addEventListener('pageshow', () => reconnectNow());
+  window.addEventListener('online', () => reconnectNow());
+  window.addEventListener('focus', () => reconnectNow({ quiet: true }));
+  window.addEventListener('pagehide', () => state.refreshController?.abort());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') reconnectNow({ quiet: true });
+  });
 }
 
-async function refresh({ first = false } = {}) {
-  if (state.refreshing) return state.refreshing;
-  state.refreshing = (async () => {
+async function refresh({ first = false, silent = false, force = false } = {}) {
+  if (state.refreshing && !force) return state.refreshing;
+  if (force) state.refreshController?.abort();
+
+  const controller = new AbortController();
+  state.refreshController = controller;
+  const refreshPromise = (async () => {
     try {
-      const snapshot = await api('/api/demo-ai/snapshot');
+      const snapshot = await api('/api/demo-ai/snapshot', { signal: controller.signal, timeoutMs: 10_000 });
       state.snapshot = snapshot;
       if (!state.selectedLeadId || !snapshot.leads.some((lead) => lead.id === state.selectedLeadId)) {
         state.selectedLeadId = snapshot.leads[0]?.id || null;
       }
       render();
       if (first && window.innerWidth <= 860) setMobileView('leads');
+      markConnected();
     } catch (error) {
-      toast(error.message, true);
+      if (controller.signal.aborted) return;
+      if (error?.isConnectionError || !navigator.onLine) markDisconnected();
+      if (!silent) toast(connectionErrorMessage(error), true);
     }
   })();
+  state.refreshing = refreshPromise;
   try {
-    return await state.refreshing;
+    return await refreshPromise;
   } finally {
-    state.refreshing = null;
+    if (state.refreshing === refreshPromise) state.refreshing = null;
+    if (state.refreshController === controller) state.refreshController = null;
   }
+}
+
+function reconnectNow({ quiet = false } = {}) {
+  clearTimeout(state.reconnectTimer);
+  state.reconnectTimer = null;
+  if (!navigator.onLine) {
+    markDisconnected();
+    if (!quiet) toast('Sin conexión. La demo se reconectará automáticamente cuando vuelva Internet.', true);
+    return;
+  }
+  refresh({ force: true, silent: quiet || state.connectionLost });
+}
+
+function markDisconnected() {
+  state.connectionLost = true;
+  if (state.reconnectTimer || !navigator.onLine) return;
+  const delay = Math.min(15_000, 1_000 * (2 ** Math.min(state.reconnectAttempts, 4)));
+  state.reconnectAttempts += 1;
+  state.reconnectTimer = setTimeout(() => {
+    state.reconnectTimer = null;
+    reconnectNow({ quiet: true });
+  }, delay);
+}
+
+function markConnected() {
+  const recovered = state.connectionLost;
+  clearTimeout(state.reconnectTimer);
+  state.reconnectTimer = null;
+  state.reconnectAttempts = 0;
+  state.connectionLost = false;
+  if (recovered) toast('Conexión restablecida. La demo ya está sincronizada.');
 }
 
 function render() {
@@ -349,15 +406,53 @@ function setMobileView(view) {
 }
 
 async function api(url, options = {}) {
-  const response = await fetch(url, {
-    method: options.method || 'GET',
-    headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  if (response.status === 204) return null;
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'No se pudo completar la acción.');
-  return payload;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs || 25_000);
+  const cancelFromCaller = () => controller.abort();
+  options.signal?.addEventListener('abort', cancelFromCaller, { once: true });
+  try {
+    const response = await fetch(url, {
+      method: options.method || 'GET',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (response.status === 204) return null;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const responseError = new Error(payload.error || 'No se pudo completar la acción.');
+      responseError.isConnectionError = [502, 503, 504].includes(response.status);
+      throw responseError;
+    }
+    return payload;
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
+    if (error?.isConnectionError) {
+      markDisconnected();
+      throw error;
+    }
+    if (error?.name === 'AbortError' || error instanceof TypeError) {
+      markDisconnected();
+      const connectionError = new Error(error?.name === 'AbortError'
+        ? 'La conexión tardó demasiado. Estamos intentando reconectar.'
+        : 'Se perdió la conexión. Estamos intentando reconectar automáticamente.');
+      connectionError.isConnectionError = true;
+      throw connectionError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', cancelFromCaller);
+  }
+}
+
+function connectionErrorMessage(error) {
+  if (error?.isConnectionError || !navigator.onLine) {
+    return 'Se perdió la conexión. La demo se reconectará automáticamente.';
+  }
+  return error?.message || 'No se pudo sincronizar la demo.';
 }
 
 let toastTimer;

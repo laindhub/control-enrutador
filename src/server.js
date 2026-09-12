@@ -307,9 +307,9 @@ app.use('/api/admin', verifyCsrf, createAdminRouter(io));
 
 app.use((_req, res) => res.status(404).render('error', { title: 'No encontrado', message: 'La página solicitada no existe.' }));
 app.use((error, req, res, _next) => {
-  console.error(error);
   const status = error.status || 500;
-  const message = status >= 500 ? 'Ocurrió un error inesperado.' : error.message;
+  const message = error.publicMessage || (status >= 500 ? 'Ocurrió un error inesperado.' : error.message);
+  console.error('Error de aplicación:', { code: error?.code || null, status, message: error?.message || null });
   if (req.originalUrl.startsWith('/api/')) return res.status(status).json({ error: message });
   return res.status(status).render('error', { title: 'Error', message });
 });

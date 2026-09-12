@@ -137,7 +137,7 @@ export function createAdminRouter(io) {
       io.emit('dashboard:changed', { reason: 'schedule-updated' });
       res.json({ monday, saved: normalized.length });
     } catch (error) {
-      next(error);
+      next(mapScheduleSaveError(error));
     }
   });
 
@@ -367,6 +367,31 @@ function cleanTeam(value) {
 function positiveInteger(value) {
   const number = Number(value);
   return Number.isInteger(number) && number > 0 ? number : null;
+}
+
+function mapScheduleSaveError(error) {
+  if (error?.status && error.status < 500) return error;
+
+  const code = String(error?.code || 'SCHEDULE_SAVE_FAILED');
+  const messages = {
+    ER_LOCK_DEADLOCK: 'La base estaba ocupada al guardar los horarios. Reintentá ahora.',
+    ER_LOCK_WAIT_TIMEOUT: 'La base demoró demasiado en liberar los horarios. Reintentá ahora.',
+    ER_NO_REFERENCED_ROW_2: 'Uno de los asesores o la sesión de administración cambió. Recargá Personal y volvé a importar.',
+    ER_DUP_ENTRY: 'Se detectó un horario duplicado. Recargá la página y volvé a importar.',
+    ER_TRUNCATED_WRONG_VALUE: 'La base rechazó uno de los horarios. Revisá el formato e intentá de nuevo.',
+    ER_DATA_TOO_LONG: 'La base rechazó un dato de los horarios.',
+    ER_BAD_NULL_ERROR: 'Falta un dato requerido para guardar los horarios.',
+    ECONNRESET: 'La conexión con la base se interrumpió. Reintentá ahora.',
+    ETIMEDOUT: 'La conexión con la base demoró demasiado. Reintentá ahora.',
+    PROTOCOL_CONNECTION_LOST: 'La conexión con la base se interrumpió. Reintentá ahora.',
+  };
+  const safeCode = /^[A-Z0-9_]{2,80}$/.test(code) ? code : 'SCHEDULE_SAVE_FAILED';
+  const mapped = new Error(
+    messages[safeCode] || `No se pudo guardar la semana. Código de diagnóstico: ${safeCode}.`,
+  );
+  mapped.status = ['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT'].includes(safeCode) ? 409 : 503;
+  mapped.publicMessage = mapped.message;
+  return mapped;
 }
 
 function mapDuplicateError(error) {

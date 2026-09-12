@@ -14,6 +14,19 @@ test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () 
   assert.doesNotMatch(prompt, /la fecha o la modalidad siguen vigentes/);
 });
 
+test('cruza 31 proyectos con Spazios y conserva el PDF como respaldo', () => {
+  assert.equal(PROJECT_CATALOG.filter(({ source }) => source === 'spazios.com.ar').length, 31);
+  assert.equal(PROJECT_CATALOG.filter(({ source }) => source === 'PDF').length, 8);
+  const soderia = PROJECT_CATALOG.find(({ name }) => name === 'SODERIA');
+  assert.equal(soderia.address, 'La Plata 3986');
+  assert.equal(soderia.pdfAddress, 'Av. La Plata 3976');
+  assert.equal(soderia.sourceUrl, 'https://spazios.com.ar/proyecto/spazio-la-soderia/');
+  assert.match(soderia.mapsUrl, /^https:\/\/www\.google\.com\/maps\/search\//);
+  const green = PROJECT_CATALOG.find(({ name }) => name === 'GREEN I');
+  assert.equal(green.source, 'PDF');
+  assert.equal(green.sourceUrl, '');
+});
+
 test('registra un lead y programa el primer seguimiento', () => {
   const now = 1_800_000_000_000;
   const store = new AiDemoStore({ now: () => now });
@@ -21,6 +34,24 @@ test('registra un lead y programa el primer seguimiento', () => {
   assert.equal(lead.status, 'scheduled');
   assert.equal(lead.nextActionAt, now + 8_000);
   assert.equal(lead.notes.length, 1);
+});
+
+test('el servidor resuelve proyecto, ubicación y Maps desde el catálogo', () => {
+  const store = new AiDemoStore({ now: () => 1_800_000_000_000 });
+  const lead = store.createLead({
+    name: 'Martín Sosa',
+    buildingName: 'SODERIA',
+    buildingAddress: 'Dirección manipulada',
+    mapsUrl: 'https://example.com/mapa-falso',
+  });
+  assert.equal(lead.buildingName, 'SODERIA');
+  assert.equal(lead.buildingAddress, 'La Plata 3986, Santos Lugares');
+  assert.match(lead.mapsUrl, /google\.com\/maps\/search/);
+  assert.equal(lead.projectUrl, 'https://spazios.com.ar/proyecto/spazio-la-soderia/');
+  assert.throws(
+    () => store.createLead({ name: 'Otro', buildingName: 'Proyecto inventado' }),
+    /Elegí un proyecto válido/,
+  );
 });
 
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {

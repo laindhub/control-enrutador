@@ -48,6 +48,9 @@ const elements = {
   leadModal: $('#leadModal'),
   leadForm: $('#leadForm'),
   advisorSelect: $('#advisorSelect'),
+  buildingSelect: $('#buildingSelect'),
+  buildingAddress: $('#buildingAddress'),
+  mapsUrl: $('#mapsUrl'),
   toast: $('#aiToast'),
 };
 
@@ -70,6 +73,7 @@ function bindEvents() {
     renderLeadList();
   });
   elements.leadForm.addEventListener('submit', createLead);
+  elements.buildingSelect.addEventListener('change', applySelectedProject);
   elements.replyForm.addEventListener('submit', sendLeadReply);
   document.querySelectorAll('[data-advance-hours]').forEach((button) => button.addEventListener('click', () => advanceTime(button)));
   elements.handleButton.addEventListener('click', handleHandoff);
@@ -86,6 +90,14 @@ function bindEvents() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') reconnectNow({ quiet: true });
   });
+  applySelectedProject();
+}
+
+function applySelectedProject() {
+  const option = elements.buildingSelect.selectedOptions[0];
+  if (!option) return;
+  elements.buildingAddress.value = option.dataset.address || '';
+  elements.mapsUrl.value = option.dataset.mapsUrl || '';
 }
 
 async function refresh({ first = false, silent = false, force = false } = {}) {
@@ -241,7 +253,7 @@ function renderMessages(lead) {
     }
     const card = item.card ? `<article class="ai-building-card">
       <img src="${escapeAttr(item.card.imageUrl)}" alt="Edificio residencial de demostración">
-      <div><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small><a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a></div>
+      <div><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small><a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a>${item.card.projectUrl ? `<a href="${escapeAttr(item.card.projectUrl)}" target="_blank" rel="noopener noreferrer">Ver proyecto en Spazios</a>` : ''}</div>
     </article>` : '';
     const generatedLabel = item.generatedBy
       ? `<span class="ai-generated-label" title="${escapeAttr(item.generationStyle || 'Generado por IA')}">✦ ${escapeHtml(item.generatedBy)}</span>`

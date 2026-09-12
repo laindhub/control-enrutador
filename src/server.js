@@ -33,6 +33,7 @@ import {
   requireAlphaAccess,
 } from './routes/demo.js';
 import { createAiDemoRouter } from './routes/ai-demo.js';
+import { PROJECT_CATALOG } from './ai-demo-knowledge.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -240,6 +241,7 @@ app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
       return res.render('demo-ai', {
         title: 'Demo IA · Seguimiento comercial',
         canSwitchRole: req.session.user.role === 'demo',
+        projectCatalog: PROJECT_CATALOG,
       });
     }
     if (role === 'router' || role === 'advisor') {
@@ -415,7 +417,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-auto-reconnect-v11',
+          diagnosticRevision: 'demo-ai-project-catalog-v12',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -461,6 +463,8 @@ async function healthDiagnostics(req) {
           pdfCatalogInSystemPrompt: true,
           deliveryYearCommitment: true,
           automaticClientReconnect: true,
+          projectSelectorCount: PROJECT_CATALOG.length,
+          spaziosProjectMatches: PROJECT_CATALOG.filter(({ source }) => source === 'spazios.com.ar').length,
         },
         warnings,
         hint: authenticated

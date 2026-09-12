@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { config } from './config.js';
-import { promptKnowledgeText } from './ai-demo-knowledge.js';
+import { PROJECT_CATALOG, promptKnowledgeText } from './ai-demo-knowledge.js';
 
-const DEFAULT_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=Caseros%2C%20Buenos%20Aires';
+const DEFAULT_PROJECT = PROJECT_CATALOG.find(({ name }) => name === 'CUBIK') || PROJECT_CATALOG[0];
 
 export class AiDemoStore {
   constructor({ now = () => Date.now(), generate = generateWithGroq } = {}) {
@@ -34,15 +34,19 @@ export class AiDemoStore {
   createLead(input) {
     const createdAt = this.now();
     const delaySeconds = clampNumber(input.delaySeconds, 5, 300, 12);
+    const selectedProject = resolveProject(input.buildingName);
     const lead = {
       id: randomUUID(),
       name: clean(input.name, 100) || 'Nuevo lead',
       phone: clean(input.phone, 40) || '+54 9 11 0000-0000',
       advisorName: clean(input.advisorName, 100) || 'Asesor demo',
       objective: clean(input.objective, 180) || 'Conocer opciones para acceder a un departamento',
-      buildingName: clean(input.buildingName, 100) || 'Proyecto Caseros Centro',
-      buildingAddress: clean(input.buildingAddress, 160) || 'Caseros, Buenos Aires',
-      mapsUrl: safeMapUrl(input.mapsUrl),
+      buildingName: selectedProject.name,
+      buildingAddress: selectedProject.location,
+      buildingStatus: selectedProject.status,
+      buildingDelivery: selectedProject.delivery,
+      mapsUrl: selectedProject.mapsUrl,
+      projectUrl: selectedProject.sourceUrl,
       context: clean(input.context, 500),
       status: 'scheduled',
       interest: 36,
@@ -92,6 +96,7 @@ export class AiDemoStore {
           title: lead.buildingName,
           address: lead.buildingAddress,
           mapsUrl: lead.mapsUrl,
+          projectUrl: lead.projectUrl,
         },
       }));
       lead.notes.unshift(note('Agente IA', result.note || `Se envió una propuesta para visitar ${lead.buildingName}.`, createdAt));
@@ -251,9 +256,12 @@ export class AiDemoStore {
         phone: '+54 9 11 5555-0182',
         advisorName: 'Nuria Pereyra',
         objective: 'Dejar de alquilar y conocer opciones de dos ambientes',
-        buildingName: 'Proyecto Caseros Centro',
-        buildingAddress: 'Caseros, Buenos Aires',
-        mapsUrl: DEFAULT_MAP_URL,
+        buildingName: DEFAULT_PROJECT.name,
+        buildingAddress: DEFAULT_PROJECT.location,
+        buildingStatus: DEFAULT_PROJECT.status,
+        buildingDelivery: DEFAULT_PROJECT.delivery,
+        mapsUrl: DEFAULT_PROJECT.mapsUrl,
+        projectUrl: DEFAULT_PROJECT.sourceUrl,
         context: 'Visitó la charla. Decide con su pareja y pidió ver una alternativa cerca del tren.',
         status: 'following',
         interest: 58,
@@ -269,9 +277,10 @@ export class AiDemoStore {
             sender: 'Nuria Pereyra',
             card: {
               imageUrl: '/assets/demo-ai/edificio-demo.webp',
-              title: 'Proyecto Caseros Centro',
-              address: 'Caseros, Buenos Aires',
-              mapsUrl: DEFAULT_MAP_URL,
+              title: DEFAULT_PROJECT.name,
+              address: DEFAULT_PROJECT.location,
+              mapsUrl: DEFAULT_PROJECT.mapsUrl,
+              projectUrl: DEFAULT_PROJECT.sourceUrl,
             },
           }),
           message('lead', 'Sí, podría verlo el sábado. ¿Se puede por la mañana?', createdAt - 21 * 60 * 1000, { sender: 'Lucía Fernández' }),
@@ -279,7 +288,7 @@ export class AiDemoStore {
         ],
         notes: [
           note('Agente IA', 'La lead respondió positivamente y propuso visitar el proyecto el sábado por la mañana. Se consultó disponibilidad a las 11:00.', createdAt - 20 * 60 * 1000),
-          note('Agente IA', 'Se mostró Proyecto Caseros Centro con ubicación en Google Maps y se propuso una visita durante la semana.', createdAt - 24 * 60 * 1000),
+          note('Agente IA', `Se mostró ${DEFAULT_PROJECT.name} con ubicación en Google Maps y se propuso una visita durante la semana.`, createdAt - 24 * 60 * 1000),
           note('Sistema', 'Lead incorporado al seguimiento automático.', createdAt - 26 * 60 * 1000),
         ],
       },
@@ -341,6 +350,9 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0 }) {
               context: lead.context,
               building: lead.buildingName,
               address: lead.buildingAddress,
+              projectStatus: lead.buildingStatus,
+              projectDelivery: lead.buildingDelivery,
+              officialProjectUrl: lead.projectUrl,
             },
             history: history.slice(-8).map(({ role, text }) => ({ role, text })),
           }),
@@ -516,14 +528,15 @@ function clampNumber(value, min, max, fallback) {
   return Number.isFinite(number) ? Math.max(min, Math.min(max, Math.round(number))) : fallback;
 }
 
-function safeMapUrl(value) {
-  try {
-    const url = new URL(String(value || DEFAULT_MAP_URL));
-    if (url.protocol !== 'https:') return DEFAULT_MAP_URL;
-    return url.toString();
-  } catch {
-    return DEFAULT_MAP_URL;
-  }
+function resolveProject(value) {
+  const requested = clean(value, 100);
+  if (!requested) return DEFAULT_PROJECT;
+  const normalized = requested.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase();
+  const selected = PROJECT_CATALOG.find(({ name }) => (
+    name.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase() === normalized
+  ));
+  if (!selected) throw new AiDemoError('Elegí un proyecto válido de la lista.', 400);
+  return selected;
 }
 
 function publicError(error) {

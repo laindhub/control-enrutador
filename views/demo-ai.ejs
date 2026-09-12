@@ -118,9 +118,21 @@
             <label>Asesor<select name="advisorName" id="advisorSelect" required></select></label>
             <label>Enviar en<select name="delaySeconds"><option value="8">8 segundos</option><option value="20">20 segundos</option><option value="60">1 minuto</option><option value="120">2 minutos</option></select></label>
             <label class="ai-form-wide">Objetivo del lead<input name="objective" value="Conocer opciones para dejar de alquilar"></label>
-            <label>Proyecto a mostrar<input name="buildingName" value="Proyecto Caseros Centro"></label>
-            <label>Ubicación<input name="buildingAddress" value="Caseros, Buenos Aires"></label>
-            <label class="ai-form-wide">Enlace de Google Maps<input name="mapsUrl" type="url" value="https://www.google.com/maps/search/?api=1&amp;query=Caseros%2C%20Buenos%20Aires"></label>
+            <label>Proyecto a mostrar
+              <select name="buildingName" id="buildingSelect" required>
+                <% projectCatalog.forEach((project) => { %>
+                  <option
+                    value="<%= project.name %>"
+                    data-address="<%= project.location %>"
+                    data-maps-url="<%= project.mapsUrl %>"
+                    data-source-url="<%= project.sourceUrl %>"
+                    <%= project.name === 'CUBIK' ? 'selected' : '' %>
+                  ><%= project.name %> · <%= project.locality %> · <%= project.status %><%= project.delivery !== 'Semi-contado' ? ` · ${project.delivery}` : '' %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Ubicación<input id="buildingAddress" name="buildingAddress" readonly></label>
+            <label class="ai-form-wide">Enlace de Google Maps<input id="mapsUrl" name="mapsUrl" type="url" readonly></label>
             <label class="ai-form-wide">Contexto para el agente<textarea name="context" rows="3">Vino a la charla, decide con su pareja y prioriza cercanía al tren.</textarea></label>
           </div>
           <div class="ai-modal-actions"><button id="cancelLeadModal" type="button" class="ai-secondary-button">Cancelar</button><button type="submit" class="ai-primary-button">Iniciar seguimiento</button></div>

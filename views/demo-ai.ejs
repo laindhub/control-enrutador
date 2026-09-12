@@ -59,8 +59,24 @@
             </div>
           </div>
           <div id="messageList" class="ai-message-list" aria-live="polite"></div>
+          <section id="projectSharePanel" class="ai-project-share" hidden aria-label="Adjuntar proyecto al mensaje">
+            <header><div><span>ASESOR</span><strong>Adjuntar otro proyecto</strong></div><button id="closeProjectShare" type="button" aria-label="Cerrar selector de proyectos">×</button></header>
+            <select id="projectShareSelect" aria-label="Proyecto para compartir">
+              <% projectCatalog.forEach((project) => { %>
+                <option
+                  value="<%= project.name %>"
+                  data-address="<%= project.location %>"
+                  data-status="<%= project.status %>"
+                  data-delivery="<%= project.delivery %>"
+                ><%= project.name %> · <%= project.locality %> · <%= project.status %><%= project.delivery !== 'Semi-contado' ? ` · Entrega ${project.delivery}` : ' · Semi-contado' %></option>
+              <% }) %>
+            </select>
+            <div id="projectShareSummary" class="ai-project-share-summary"></div>
+            <div class="ai-project-share-message"><input id="projectShareMessage" type="text" maxlength="500" placeholder="Mensaje opcional del asesor"><button id="shareProjectButton" type="button">Enviar proyecto</button></div>
+          </section>
           <form id="replyForm" class="ai-composer">
             <span class="ai-reply-role" aria-hidden="true">LEAD</span>
+            <button id="toggleProjectShare" class="ai-attach-button" type="button" aria-label="Adjuntar un proyecto como asesor" title="Adjuntar proyecto">⌕</button>
             <input id="replyInput" type="text" maxlength="800" placeholder="Escribí como el lead" autocomplete="off" enterkeyhint="send" aria-label="Responder como el lead seleccionado">
             <button class="ai-send-button" type="submit" aria-label="Enviar respuesta">➤</button>
           </form>

@@ -86,6 +86,31 @@ test('migra sesiones anteriores para reemplazar la foto genérica por la del pro
   assert.equal(restored.messages[0].card.imageUrl, '/assets/demo-ai/spazio-cubik.webp');
 });
 
+test('el asesor comparte otro proyecto con foto, estado, entrega y nota de seguimiento', () => {
+  const now = 1_800_000_000_000;
+  const store = new AiDemoStore({ now: () => now });
+  const lead = store.getLead('demo-ai-lucia');
+  const shared = store.shareProject(lead.id, 'SENECA', 'Mirá esta otra alternativa que puede servirte.');
+  const message = shared.messages.at(-1);
+  assert.equal(message.role, 'advisor');
+  assert.equal(message.text, 'Mirá esta otra alternativa que puede servirte.');
+  assert.equal(message.card.title, 'SENECA');
+  assert.equal(message.card.imageUrl, '/assets/demo-ai/spazio-seneca.webp');
+  assert.equal(message.card.status, 'Construcción');
+  assert.equal(message.card.delivery, '2027');
+  assert.match(shared.notes[0].text, /SENECA.*Estado: Construcción.*Entrega: 2027/);
+});
+
+test('las alternativas adjuntas sobreviven al recuperar la sesión sin convertirse en el proyecto principal', () => {
+  const store = new AiDemoStore({ now: () => 1_800_000_000_000 });
+  const lead = store.shareProject('demo-ai-lucia', 'SODERIA', 'Otra opción.');
+  store.restore([lead]);
+  const restored = store.getLead('demo-ai-lucia');
+  assert.equal(restored.buildingName, 'CUBIK');
+  assert.equal(restored.messages.at(-1).card.title, 'SODERIA');
+  assert.equal(restored.messages.at(-1).card.delivery, '2028');
+});
+
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {
   let clock = 1_800_000_000_000;
   const generate = async ({ kind }) => kind === 'initial'

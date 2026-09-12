@@ -51,6 +51,11 @@ const elements = {
   buildingSelect: $('#buildingSelect'),
   buildingAddress: $('#buildingAddress'),
   mapsUrl: $('#mapsUrl'),
+  projectSharePanel: $('#projectSharePanel'),
+  projectShareSelect: $('#projectShareSelect'),
+  projectShareSummary: $('#projectShareSummary'),
+  projectShareMessage: $('#projectShareMessage'),
+  shareProjectButton: $('#shareProjectButton'),
   toast: $('#aiToast'),
 };
 
@@ -75,6 +80,10 @@ function bindEvents() {
   elements.leadForm.addEventListener('submit', createLead);
   elements.buildingSelect.addEventListener('change', applySelectedProject);
   elements.replyForm.addEventListener('submit', sendLeadReply);
+  $('#toggleProjectShare').addEventListener('click', toggleProjectShare);
+  $('#closeProjectShare').addEventListener('click', closeProjectShare);
+  elements.projectShareSelect.addEventListener('change', renderProjectShareSummary);
+  elements.shareProjectButton.addEventListener('click', shareProject);
   document.querySelectorAll('[data-advance-hours]').forEach((button) => button.addEventListener('click', () => advanceTime(button)));
   elements.handleButton.addEventListener('click', handleHandoff);
   $('#showOpportunity').addEventListener('click', () => setMobileView('opportunity'));
@@ -222,6 +231,7 @@ function renderSelectedLead() {
   elements.chatName.textContent = lead.name;
   elements.chatPhone.textContent = lead.phone;
   elements.replyInput.placeholder = `Responder como ${firstName(lead.name)}`;
+  if (!elements.projectSharePanel.hidden && elements.projectSharePanel.dataset.leadId !== lead.id) closeProjectShare();
   document.querySelectorAll('[data-advance-hours]').forEach((button) => {
     button.disabled = ['human', 'error', 'cold'].includes(lead.status);
   });
@@ -254,9 +264,13 @@ function renderMessages(lead) {
     const projectMedia = item.card?.imageUrl
       ? `<img src="${escapeAttr(item.card.imageUrl)}" alt="${escapeAttr(`Proyecto ${item.card.title} de Spazios`)}">`
       : `<div class="ai-building-placeholder"><span>PROYECTO SPAZIOS</span><strong>${escapeHtml(item.card?.title || '')}</strong><small>Imagen oficial no disponible</small></div>`;
+    const deliveryLabel = item.card?.delivery === 'Semi-contado' ? 'Modalidad' : 'Entrega';
+    const projectFacts = item.card?.status || item.card?.delivery
+      ? `<div class="ai-building-facts">${item.card.status ? `<span>Estado: ${escapeHtml(item.card.status)}</span>` : ''}${item.card.delivery ? `<span>${deliveryLabel}: ${escapeHtml(item.card.delivery)}</span>` : ''}</div>`
+      : '';
     const card = item.card ? `<article class="ai-building-card">
       ${projectMedia}
-      <div><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small><a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a>${item.card.projectUrl ? `<a href="${escapeAttr(item.card.projectUrl)}" target="_blank" rel="noopener noreferrer">Ver proyecto en Spazios</a>` : ''}</div>
+      <div class="ai-building-copy"><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small>${projectFacts}<a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a>${item.card.projectUrl ? `<a href="${escapeAttr(item.card.projectUrl)}" target="_blank" rel="noopener noreferrer">Ver proyecto en Spazios</a>` : ''}</div>
     </article>` : '';
     const generatedLabel = item.generatedBy
       ? `<span class="ai-generated-label" title="${escapeAttr(item.generationStyle || 'Generado por IA')}">✦ ${escapeHtml(item.generatedBy)}</span>`
@@ -267,6 +281,59 @@ function renderMessages(lead) {
   elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${typing}`;
   $('#sendNowButton')?.addEventListener('click', sendNow);
   requestAnimationFrame(() => { elements.messageList.scrollTop = elements.messageList.scrollHeight; });
+}
+
+function toggleProjectShare() {
+  if (!elements.projectSharePanel.hidden) return closeProjectShare();
+  const lead = selectedLead();
+  if (!lead) return;
+  elements.projectSharePanel.hidden = false;
+  elements.projectSharePanel.dataset.leadId = lead.id;
+  if ([...elements.projectShareSelect.options].some((option) => option.value === lead.buildingName)) {
+    elements.projectShareSelect.value = lead.buildingName;
+    elements.projectShareSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  } else {
+    renderProjectShareSummary();
+  }
+}
+
+function closeProjectShare() {
+  elements.projectSharePanel.hidden = true;
+  elements.projectSharePanel.dataset.leadId = '';
+  elements.projectShareMessage.value = '';
+}
+
+function renderProjectShareSummary() {
+  const option = elements.projectShareSelect.selectedOptions[0];
+  if (!option) return;
+  const deliveryLabel = option.dataset.delivery === 'Semi-contado' ? 'Modalidad' : 'Entrega';
+  elements.projectShareSummary.innerHTML = `<strong>${escapeHtml(option.value)}</strong><span>${escapeHtml(option.dataset.address || '')}</span><small>Estado: ${escapeHtml(option.dataset.status || 'A confirmar')} · ${deliveryLabel}: ${escapeHtml(option.dataset.delivery || 'A confirmar')}</small>`;
+}
+
+async function shareProject() {
+  const lead = selectedLead();
+  const projectName = elements.projectShareSelect.value;
+  const text = elements.projectShareMessage.value.trim();
+  if (!lead || !projectName || state.loading) return;
+  state.loading = true;
+  elements.shareProjectButton.disabled = true;
+  try {
+    const response = await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/share-project`, {
+      method: 'POST',
+      body: { projectName, text },
+    });
+    if (state.snapshot) {
+      state.snapshot.leads = state.snapshot.leads.map((item) => item.id === response.lead.id ? response.lead : item);
+      render();
+    }
+    closeProjectShare();
+    toast(`${projectName} se adjuntó al mensaje del asesor.`);
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    state.loading = false;
+    elements.shareProjectButton.disabled = false;
+  }
 }
 
 async function advanceTime(button) {

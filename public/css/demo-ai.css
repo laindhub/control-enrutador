@@ -323,6 +323,8 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-building-card strong { font-size: .84rem; }
 .ai-building-card small { margin-top: 3px; color: #607078; font-size: .72rem; }
 .ai-building-card a { margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; color: #087d58; font-size: .74rem; font-weight: 800; text-decoration: none; }
+.ai-building-card .ai-building-facts { margin-top: 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+.ai-building-facts span { padding: 4px 6px; border-radius: 999px; color: #3d5a50; background: #e6f4ee; font-size: .61rem; font-weight: 800; }
 .ai-building-card .ai-building-placeholder {
   min-height: 150px;
   padding: 18px;
@@ -357,10 +359,28 @@ h1, h2, h3, p { margin-top: 0; }
   background: #f0f2f5;
 }
 .ai-reply-role { padding: 5px 7px; border-radius: 7px; color: #fff; background: #247184; font-size: .58rem; font-weight: 900; letter-spacing: .07em; }
+.ai-attach-button { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #0b7958; background: #dcece6; font-size: 1.15rem; font-weight: 900; transform: rotate(-18deg); }
 .ai-composer input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; border: 0; border-radius: 24px; outline: 0; background: #fff; color: var(--ink); }
 .ai-composer-icon { width: 36px; height: 36px; border: 0; color: #67777f; background: transparent; font-size: 1.45rem; }
 .ai-send-button { width: 44px; height: 44px; border: 0; border-radius: 50%; color: #fff; background: var(--green); font-size: 1rem; }
 .ai-send-button:disabled { opacity: .5; cursor: wait; }
+
+.ai-project-share { position: absolute; z-index: 22; left: 12px; right: 12px; bottom: 70px; padding: 12px; border: 1px solid rgba(13, 126, 89, .2); border-radius: 14px; background: #fff; box-shadow: 0 16px 40px rgba(19, 34, 42, .2); }
+.ai-project-share header { margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; }
+.ai-project-share header div { display: grid; gap: 2px; }
+.ai-project-share header span { color: var(--green-dark); font-size: .6rem; font-weight: 900; letter-spacing: .1em; }
+.ai-project-share header strong { font-size: .86rem; }
+.ai-project-share header button { width: 30px; height: 30px; border: 0; border-radius: 50%; color: #5e707a; background: #eef2f3; font-size: 1.25rem; }
+.ai-project-share > .custom-select { width: 100%; }
+.ai-project-share .custom-select-trigger { min-height: 42px; border-color: #dbe3e6; border-radius: 9px; box-shadow: none; font-size: .77rem; }
+.ai-project-share-summary { margin: 8px 1px; display: grid; gap: 2px; color: #52656e; }
+.ai-project-share-summary strong { color: var(--ink); font-size: .78rem; }
+.ai-project-share-summary span, .ai-project-share-summary small { font-size: .68rem; }
+.ai-project-share-message { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.ai-project-share-message input { min-width: 0; height: 40px; padding: 0 11px; border: 1px solid #dbe3e6; border-radius: 9px; outline: none; font-size: .78rem; }
+.ai-project-share-message input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 166, 106, .11); }
+.ai-project-share-message button { padding: 0 12px; border: 0; border-radius: 9px; color: #fff; background: var(--green); font-size: .72rem; font-weight: 850; }
+.ai-project-share-message button:disabled { opacity: .55; cursor: wait; }
 
 .ai-status-chip {
   padding: 6px 9px;
@@ -476,6 +496,7 @@ h1, h2, h3, p { margin-top: 0; }
   .ai-time-simulator { align-items: flex-start; flex-direction: column; gap: 5px; padding-block: 6px; }
   .ai-time-simulator > div { width: 100%; }
   body[data-view="chat"] .ai-composer { position: fixed; z-index: 40; left: 0; right: 0; bottom: calc(61px + env(safe-area-inset-bottom)); min-height: 64px; border-top: 1px solid #dce3e6; box-shadow: 0 -8px 24px rgba(19, 34, 42, .12); }
+  body[data-view="chat"] .ai-project-share { position: fixed; z-index: 42; left: 8px; right: 8px; bottom: calc(129px + env(safe-area-inset-bottom)); }
   .ai-composer input { font-size: 16px; }
   .ai-bubble { max-width: 88%; }
   .ai-opportunity-heading { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); }

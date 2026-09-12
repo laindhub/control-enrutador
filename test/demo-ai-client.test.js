@@ -35,3 +35,11 @@ test('el chat muestra la foto asignada al proyecto y no una imagen genérica', (
   assert.match(client, /ai-building-placeholder/);
   assert.doesNotMatch(client, /edificio-demo\.webp/);
 });
+
+test('el chat permite adjuntar otro proyecto desde un selector propio', () => {
+  assert.match(view, /id="projectShareSelect"/);
+  assert.match(view, /data-delivery="<%= project\.delivery %>"/);
+  assert.match(client, /\/share-project/);
+  assert.match(client, /item\.card\.delivery/);
+  assert.match(customSelect, /select\.closest\('\.ai-project-share'\)/);
+});

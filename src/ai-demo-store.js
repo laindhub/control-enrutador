@@ -93,9 +93,12 @@ export class AiDemoStore {
         generatedBy: result.generatedBy || null,
         generationStyle: result.generationStyle || null,
         card: {
+          projectName: lead.buildingName,
           imageUrl: lead.projectImageUrl,
           title: lead.buildingName,
           address: lead.buildingAddress,
+          status: lead.buildingStatus,
+          delivery: lead.buildingDelivery,
           mapsUrl: lead.mapsUrl,
           projectUrl: lead.projectUrl,
         },
@@ -166,6 +169,34 @@ export class AiDemoStore {
       this.emitChange('ai-error', id);
       throw error;
     }
+  }
+
+  shareProject(id, rawProjectName, rawText) {
+    const lead = this.getLead(id);
+    if (['scheduled', 'thinking', 'error', 'cold'].includes(lead.status)) {
+      throw new AiDemoError('Esperá a que termine el mensaje pendiente antes de compartir otro proyecto.', 409);
+    }
+    const selectedProject = resolveProject(rawProjectName);
+    const createdAt = this.eventTime(lead);
+    const customText = clean(rawText, 500);
+    const deliveryText = selectedProject.delivery === 'Semi-contado'
+      ? 'se ofrece bajo modalidad semi-contado'
+      : `tiene entrega prevista para ${selectedProject.delivery}`;
+    const text = customText || `También te quería mostrar ${selectedProject.name}, en ${selectedProject.locality}. Está ${selectedProject.status.toLowerCase()} y ${deliveryText}. Si querés, podemos verlo con más detalle en la reunión.`;
+
+    lead.messages.push(message('advisor', text, createdAt, {
+      sender: lead.advisorName,
+      card: projectCard(selectedProject),
+    }));
+    lead.notes.unshift(note(
+      lead.advisorName,
+      `Compartió ${selectedProject.name}: ${selectedProject.location}. Estado: ${selectedProject.status}. ${selectedProject.delivery === 'Semi-contado' ? 'Modalidad' : 'Entrega'}: ${selectedProject.delivery}.`,
+      createdAt,
+    ));
+    lead.updatedAt = createdAt;
+    if (lead.status === 'following') lead.nextActionAt = createdAt + 24 * 60 * 60 * 1000;
+    this.emitChange('project-shared', id);
+    return structuredClone(lead);
   }
 
   markHandled(id) {
@@ -282,9 +313,12 @@ export class AiDemoStore {
           message('advisor', 'Hola Lucía, soy Nuria de Más Dueños. Me quedé pensando en lo que nos contaste sobre buscar algo cerca del tren. Quería mostrarte este proyecto en Caseros. ¿Te gustaría conocerlo algún día de esta semana?', createdAt - 24 * 60 * 1000, {
             sender: 'Nuria Pereyra',
             card: {
+              projectName: DEFAULT_PROJECT.name,
               imageUrl: DEFAULT_PROJECT.imageUrl,
               title: DEFAULT_PROJECT.name,
               address: DEFAULT_PROJECT.location,
+              status: DEFAULT_PROJECT.status,
+              delivery: DEFAULT_PROJECT.delivery,
               mapsUrl: DEFAULT_PROJECT.mapsUrl,
               projectUrl: DEFAULT_PROJECT.sourceUrl,
             },
@@ -334,17 +368,16 @@ function hydrateProject(lead) {
   lead.projectUrl = selectedProject.sourceUrl;
   lead.projectImageUrl = selectedProject.imageUrl;
   lead.messages = Array.isArray(lead.messages)
-    ? lead.messages.map((item) => item.card ? {
-      ...item,
-      card: {
-        ...item.card,
-        imageUrl: selectedProject.imageUrl,
-        title: selectedProject.name,
-        address: selectedProject.location,
-        mapsUrl: selectedProject.mapsUrl,
-        projectUrl: selectedProject.sourceUrl,
-      },
-    } : item)
+    ? lead.messages.map((item) => {
+      if (!item.card) return item;
+      let cardProject = selectedProject;
+      try {
+        cardProject = resolveProject(item.card.projectName || item.card.title);
+      } catch {
+        // Las tarjetas antiguas sin un proyecto reconocible corresponden al proyecto principal del lead.
+      }
+      return { ...item, card: { ...item.card, ...projectCard(cardProject) } };
+    })
     : [];
   return lead;
 }
@@ -545,6 +578,19 @@ Respondé exclusivamente JSON válido con: message (máximo 420 caracteres), not
 
 function message(role, text, createdAt, extra = {}) {
   return { id: randomUUID(), role, text, createdAt, ...extra };
+}
+
+function projectCard(project) {
+  return {
+    projectName: project.name,
+    imageUrl: project.imageUrl,
+    title: project.name,
+    address: project.location,
+    status: project.status,
+    delivery: project.delivery,
+    mapsUrl: project.mapsUrl,
+    projectUrl: project.sourceUrl,
+  };
 }
 
 function note(author, text, createdAt, tone = 'neutral') {

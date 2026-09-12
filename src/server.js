@@ -417,7 +417,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-custom-project-select-v13',
+          diagnosticRevision: 'demo-ai-project-photos-v14',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -465,7 +465,11 @@ async function healthDiagnostics(req) {
           automaticClientReconnect: true,
           projectSelectorCount: PROJECT_CATALOG.length,
           spaziosProjectMatches: PROJECT_CATALOG.filter(({ source }) => source === 'spazios.com.ar').length,
+          spaziosProjectPages: new Set(PROJECT_CATALOG.map(({ sourceUrl }) => sourceUrl).filter(Boolean)).size,
+          officialProjectImages: PROJECT_CATALOG.filter(({ imageUrl }) => imageUrl).length,
+          projectImageFallbacks: PROJECT_CATALOG.filter(({ imageUrl }) => !imageUrl).length,
           customProjectSelector: true,
+          projectSpecificPhotos: true,
         },
         warnings,
         hint: authenticated

@@ -251,8 +251,11 @@ function renderMessages(lead) {
     if (item.role === 'time') {
       return `<div class="ai-time-passage"><span>⌛</span>${escapeHtml(item.text)}</div>`;
     }
+    const projectMedia = item.card?.imageUrl
+      ? `<img src="${escapeAttr(item.card.imageUrl)}" alt="${escapeAttr(`Proyecto ${item.card.title} de Spazios`)}">`
+      : `<div class="ai-building-placeholder"><span>PROYECTO SPAZIOS</span><strong>${escapeHtml(item.card?.title || '')}</strong><small>Imagen oficial no disponible</small></div>`;
     const card = item.card ? `<article class="ai-building-card">
-      <img src="${escapeAttr(item.card.imageUrl)}" alt="Edificio residencial de demostración">
+      ${projectMedia}
       <div><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small><a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a>${item.card.projectUrl ? `<a href="${escapeAttr(item.card.projectUrl)}" target="_blank" rel="noopener noreferrer">Ver proyecto en Spazios</a>` : ''}</div>
     </article>` : '';
     const generatedLabel = item.generatedBy

@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { AiDemoStore } from '../src/ai-demo-store.js';
 import { PROJECT_CATALOG, promptKnowledgeText } from '../src/ai-demo-knowledge.js';
 
@@ -14,9 +17,10 @@ test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () 
   assert.doesNotMatch(prompt, /la fecha o la modalidad siguen vigentes/);
 });
 
-test('cruza 31 proyectos con Spazios y conserva el PDF como respaldo', () => {
-  assert.equal(PROJECT_CATALOG.filter(({ source }) => source === 'spazios.com.ar').length, 31);
-  assert.equal(PROJECT_CATALOG.filter(({ source }) => source === 'PDF').length, 8);
+test('cruza 33 registros con 31 fichas de Spazios y conserva el PDF como respaldo', () => {
+  assert.equal(PROJECT_CATALOG.filter(({ source }) => source === 'spazios.com.ar').length, 33);
+  assert.equal(new Set(PROJECT_CATALOG.map(({ sourceUrl }) => sourceUrl).filter(Boolean)).size, 31);
+  assert.equal(PROJECT_CATALOG.filter(({ source }) => source === 'PDF').length, 6);
   const soderia = PROJECT_CATALOG.find(({ name }) => name === 'SODERIA');
   assert.equal(soderia.address, 'La Plata 3986');
   assert.equal(soderia.pdfAddress, 'Av. La Plata 3976');
@@ -25,6 +29,22 @@ test('cruza 31 proyectos con Spazios y conserva el PDF como respaldo', () => {
   const green = PROJECT_CATALOG.find(({ name }) => name === 'GREEN I');
   assert.equal(green.source, 'PDF');
   assert.equal(green.sourceUrl, '');
+});
+
+test('cada ficha oficial usa su foto local específica y los proyectos agrupados comparten la correcta', () => {
+  const repoRoot = fileURLToPath(new URL('../', import.meta.url));
+  const projectsWithImage = PROJECT_CATALOG.filter(({ imageUrl }) => imageUrl);
+  assert.equal(projectsWithImage.length, 33);
+  for (const project of projectsWithImage) {
+    assert.ok(
+      existsSync(path.join(repoRoot, 'public', project.imageUrl.replace(/^\//, ''))),
+      `Falta la imagen de ${project.name}: ${project.imageUrl}`,
+    );
+  }
+  const find = (name) => PROJECT_CATALOG.find((project) => project.name === name);
+  assert.equal(find('MIRAGE SABATTINI').imageUrl, find('MIRAGE ALBERDI').imageUrl);
+  assert.equal(find('ECLIPSE DORREGO').imageUrl, find('ECLIPSE ALMAFUERTE').imageUrl);
+  assert.notEqual(find('CUBIK').imageUrl, find('SODERIA').imageUrl);
 });
 
 test('registra un lead y programa el primer seguimiento', () => {
@@ -48,10 +68,22 @@ test('el servidor resuelve proyecto, ubicación y Maps desde el catálogo', () =
   assert.equal(lead.buildingAddress, 'La Plata 3986, Santos Lugares');
   assert.match(lead.mapsUrl, /google\.com\/maps\/search/);
   assert.equal(lead.projectUrl, 'https://spazios.com.ar/proyecto/spazio-la-soderia/');
+  assert.equal(lead.projectImageUrl, '/assets/demo-ai/spazio-la-soderia.webp');
   assert.throws(
     () => store.createLead({ name: 'Otro', buildingName: 'Proyecto inventado' }),
     /Elegí un proyecto válido/,
   );
+});
+
+test('migra sesiones anteriores para reemplazar la foto genérica por la del proyecto', () => {
+  const store = new AiDemoStore({ now: () => 1_800_000_000_000 });
+  const legacy = store.createLead({ name: 'Lucía', buildingName: 'CUBIK' });
+  legacy.projectImageUrl = '/assets/demo-ai/edificio-demo.webp';
+  legacy.messages = [{ role: 'advisor', text: 'Mensaje', card: { imageUrl: '/assets/demo-ai/edificio-demo.webp' } }];
+  store.restore([legacy]);
+  const restored = store.getLead(legacy.id);
+  assert.equal(restored.projectImageUrl, '/assets/demo-ai/spazio-cubik.webp');
+  assert.equal(restored.messages[0].card.imageUrl, '/assets/demo-ai/spazio-cubik.webp');
 });
 
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {

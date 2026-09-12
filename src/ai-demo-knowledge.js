@@ -24,6 +24,7 @@ const SPAZIOS_PROJECTS = Object.freeze({
   BLACK: official('Allende 4442', 'Villa Devoto, CABA', 'spazio-black'),
   POETAS: official('Calderón de La Barca 3065', 'Villa Devoto, CABA', 'spazio-poetas'),
   GOLF: official('San Pedro 1426', 'Sáenz Peña, Tres de Febrero', 'spazio-golf'),
+  'MIRAGE SABATTINI': official('Sabattini 4560', 'Caseros', 'mirage'),
   'MIRAGE ALBERDI': official('Juan Bautista Alberdi 4551', 'Caseros', 'mirage'),
   LUMIA: official('Nahuel Huapi 5246', 'Villa Urquiza, CABA', 'spazio-lumia'),
   ZEN: official('Belgrano 4445', 'Caseros', 'spazio-zen'),
@@ -39,6 +40,7 @@ const SPAZIOS_PROJECTS = Object.freeze({
   PALMS: official('Bonifacini 4179', 'Santos Lugares', 'spazio-palms'),
   CAPRI: official('General Alvear 1171', 'Ituzaingó', 'spazio-capri'),
   'ECLIPSE ALMAFUERTE': official('Almafuerte 3521', 'Santos Lugares', 'spazio-eclipse'),
+  'ECLIPSE DORREGO': official('Dorrego 3543', 'Santos Lugares', 'spazio-eclipse'),
   BOTTEGA: official('Beazley 570', 'Sáenz Peña', 'spazio-bottega'),
   GARDEN: official('Lisandro Medina 2176', 'Caseros', 'spazio-garden'),
   CERASO: official('Dr. A. Carbone 3481', 'Santos Lugares', 'spazio-ceraso'),
@@ -108,7 +110,7 @@ ${facts}
 CATÁLOGO CONSOLIDADO DE PROYECTOS (39 REGISTROS DEL PDF; DIRECCIONES OFICIALES DE SPAZIOS CUANDO EXISTE COINCIDENCIA):
 ${projects}
 
-REGLA DEL CATÁLOGO: esta lista interna fue consolidada el 12/09/2026. Los nombres, estados y entregas/modalidades provienen del PDF suministrado; en 31 coincidencias directas, la dirección se contrastó con la ficha pública de Spazios y se priorizó esa versión. Podés usar estos datos para orientar la conversación. Los años indicados son el plazo máximo comprometido: Spazios puede entregar antes, pero no después. Comunicalos con seguridad, sin sugerir posibles demoras. La disponibilidad de unidades, los valores y las condiciones comerciales sí deben confirmarse con un asesor. No inventes valores, superficies, unidades ni fechas diferentes de las escritas acá.`;
+REGLA DEL CATÁLOGO: esta lista interna fue consolidada el 12/09/2026. Los nombres, estados y entregas/modalidades provienen del PDF suministrado; 33 registros se vincularon con 31 fichas públicas de Spazios (Mirage y Eclipse agrupan dos direcciones cada uno) y se priorizó la dirección oficial cuando estaba disponible. Podés usar estos datos para orientar la conversación. Los años indicados son el plazo máximo comprometido: Spazios puede entregar antes, pero no después. Comunicalos con seguridad, sin sugerir posibles demoras. La disponibilidad de unidades, los valores y las condiciones comerciales sí deben confirmarse con un asesor. No inventes valores, superficies, unidades ni fechas diferentes de las escritas acá.`;
 }
 
 function project(name, address, locality, status, delivery) {
@@ -126,11 +128,17 @@ function project(name, address, locality, status, delivery) {
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${location}, Buenos Aires, Argentina`)}`,
     source: website ? 'spazios.com.ar' : 'PDF',
     sourceUrl: website?.url || '',
+    imageUrl: website?.imageUrl || '',
     pdfAddress: address,
     pdfLocality: locality,
   });
 }
 
 function official(address, locality, slug) {
-  return Object.freeze({ address, locality, url: `https://spazios.com.ar/proyecto/${slug}/` });
+  return Object.freeze({
+    address,
+    locality,
+    url: `https://spazios.com.ar/proyecto/${slug}/`,
+    imageUrl: `/assets/demo-ai/${slug}.webp`,
+  });
 }

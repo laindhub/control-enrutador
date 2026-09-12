@@ -88,7 +88,7 @@ export function createAiDemoRouter() {
 function storeFromSession(req) {
   const store = new AiDemoStore();
   if (Array.isArray(req.session.aiDemoLeads)) {
-    store.leads = structuredClone(req.session.aiDemoLeads);
+    store.restore(req.session.aiDemoLeads);
   }
   return store;
 }

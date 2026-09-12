@@ -29,3 +29,9 @@ test('la Demo IA reemplaza los selectores nativos por el componente propio', () 
   assert.match(view, /assetUrl\('js\/custom-select\.js'\)/);
   assert.match(customSelect, /menu\.classList\.add\('ai-custom-select-menu'\)/);
 });
+
+test('el chat muestra la foto asignada al proyecto y no una imagen genérica', () => {
+  assert.match(client, /item\.card\?\.imageUrl/);
+  assert.match(client, /ai-building-placeholder/);
+  assert.doesNotMatch(client, /edificio-demo\.webp/);
+});

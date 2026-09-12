@@ -323,6 +323,18 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-building-card strong { font-size: .84rem; }
 .ai-building-card small { margin-top: 3px; color: #607078; font-size: .72rem; }
 .ai-building-card a { margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; color: #087d58; font-size: .74rem; font-weight: 800; text-decoration: none; }
+.ai-building-card .ai-building-placeholder {
+  min-height: 150px;
+  padding: 18px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  color: #fff;
+  background: linear-gradient(145deg, #0b202a, #0c8466);
+}
+.ai-building-placeholder span { font-size: .62rem; font-weight: 900; letter-spacing: .12em; opacity: .78; }
+.ai-building-placeholder strong { font-size: 1.05rem; }
+.ai-building-placeholder small { color: rgba(255, 255, 255, .75); }
 
 .ai-typing {
   align-self: flex-end;

@@ -47,6 +47,7 @@ export class AiDemoStore {
       buildingDelivery: selectedProject.delivery,
       mapsUrl: selectedProject.mapsUrl,
       projectUrl: selectedProject.sourceUrl,
+      projectImageUrl: selectedProject.imageUrl,
       context: clean(input.context, 500),
       status: 'scheduled',
       interest: 36,
@@ -92,7 +93,7 @@ export class AiDemoStore {
         generatedBy: result.generatedBy || null,
         generationStyle: result.generationStyle || null,
         card: {
-          imageUrl: '/assets/demo-ai/edificio-demo.webp',
+          imageUrl: lead.projectImageUrl,
           title: lead.buildingName,
           address: lead.buildingAddress,
           mapsUrl: lead.mapsUrl,
@@ -247,6 +248,10 @@ export class AiDemoStore {
     return Math.max(this.now(), Number(lead?.simulatedAt || 0));
   }
 
+  restore(leads) {
+    this.leads = structuredClone(Array.isArray(leads) ? leads : []).map(hydrateProject);
+  }
+
   reset() {
     const createdAt = this.now();
     this.leads = [
@@ -262,6 +267,7 @@ export class AiDemoStore {
         buildingDelivery: DEFAULT_PROJECT.delivery,
         mapsUrl: DEFAULT_PROJECT.mapsUrl,
         projectUrl: DEFAULT_PROJECT.sourceUrl,
+        projectImageUrl: DEFAULT_PROJECT.imageUrl,
         context: 'Visitó la charla. Decide con su pareja y pidió ver una alternativa cerca del tren.',
         status: 'following',
         interest: 58,
@@ -276,7 +282,7 @@ export class AiDemoStore {
           message('advisor', 'Hola Lucía, soy Nuria de Más Dueños. Me quedé pensando en lo que nos contaste sobre buscar algo cerca del tren. Quería mostrarte este proyecto en Caseros. ¿Te gustaría conocerlo algún día de esta semana?', createdAt - 24 * 60 * 1000, {
             sender: 'Nuria Pereyra',
             card: {
-              imageUrl: '/assets/demo-ai/edificio-demo.webp',
+              imageUrl: DEFAULT_PROJECT.imageUrl,
               title: DEFAULT_PROJECT.name,
               address: DEFAULT_PROJECT.location,
               mapsUrl: DEFAULT_PROJECT.mapsUrl,
@@ -307,6 +313,40 @@ export class AiDemoError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+function hydrateProject(lead) {
+  const legacyName = lead?.buildingName === 'Proyecto Caseros Centro'
+    ? DEFAULT_PROJECT.name
+    : lead?.buildingName;
+  let selectedProject;
+  try {
+    selectedProject = resolveProject(legacyName);
+  } catch {
+    return lead;
+  }
+
+  lead.buildingName = selectedProject.name;
+  lead.buildingAddress = selectedProject.location;
+  lead.buildingStatus = selectedProject.status;
+  lead.buildingDelivery = selectedProject.delivery;
+  lead.mapsUrl = selectedProject.mapsUrl;
+  lead.projectUrl = selectedProject.sourceUrl;
+  lead.projectImageUrl = selectedProject.imageUrl;
+  lead.messages = Array.isArray(lead.messages)
+    ? lead.messages.map((item) => item.card ? {
+      ...item,
+      card: {
+        ...item.card,
+        imageUrl: selectedProject.imageUrl,
+        title: selectedProject.name,
+        address: selectedProject.location,
+        mapsUrl: selectedProject.mapsUrl,
+        projectUrl: selectedProject.sourceUrl,
+      },
+    } : item)
+    : [];
+  return lead;
 }
 
 async function generateWithGroq({ kind, lead, history, elapsedHours = 0 }) {

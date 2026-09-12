@@ -1,9 +1,11 @@
 export const SALES_KNOWLEDGE = Object.freeze({
   brand: 'Más Dueños es una marca comercial de Spazios para el acompañamiento mediante Metroterra.',
-  metroterra: 'Metroterra acompaña a personas que todavía no reúnen el anticipo para llegar a su departamento de Spazios mediante un plan de ahorro adaptado.',
+  metroterra: 'Metroterra acompaña a personas que todavía no reúnen el anticipo obligatorio mediante un plan de ahorro adaptado. Mientras ahorran no están comprando, eligiendo ni reservando un departamento.',
   segment: 'Los leads de este seguimiento no cuentan actualmente con el anticipo de USD 10.000. Quienes ya lo tienen se derivan directamente al sector de asesores de POZO.',
   goal: 'El objetivo comercial es coordinar una reunión presencial para que la persona comprenda el plan y, si decide avanzar, realice su primer aporte por canales oficiales.',
-  firstPayment: 'La cuota base informada para la demo es de ARS 200.000. La primera tiene una bonificación de ARS 100.000, por lo que se puede comenzar con ARS 100.000.',
+  firstPayment: 'La cuota base informada para la demo es de ARS 200.000. La primera tiene una bonificación de ARS 100.000, por lo que se puede comenzar con ARS 100.000. Esos aportes son ahorro para alcanzar el anticipo obligatorio; no son cuotas de un departamento ni pagos de una financiación inmobiliaria.',
+  purchaseGate: 'El anticipo completo de USD 10.000 es condición obligatoria para recién poder ingresar a la financiación de una propiedad en pozo. Antes de alcanzar ese monto no se elige ni reserva una unidad, no se ingresa a la financiación y no se firma ningún boleto de compraventa.',
+  afterDownPayment: 'Al alcanzar el anticipo de USD 10.000, la persona puede pasar al proceso de adquisición en pozo y debe ser derivada a un asesor de POZO para revisar opciones y formalización. Tener el anticipo no significa mudanza inmediata, vivienda entregada ni dejar de alquilar: la entrega depende del año informado para el proyecto.',
   adjustment: 'La cuota base se actualiza mes a mes según el índice CAC. No se conoce de antemano el importe exacto de meses futuros.',
   contributions: 'Después de cubrir la base vigente, la persona decide si aporta más. Puede realizar aportes adicionales o más de un depósito en el mismo mes.',
   account: 'El ahorro se deposita en un CVU a nombre de la persona y es administrado mediante un fideicomiso. Nunca se solicita transferir dinero a un asesor ni por el chat.',

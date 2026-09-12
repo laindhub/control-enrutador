@@ -442,7 +442,7 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0 }) {
   const raw = payload.choices?.[0]?.message?.content || '';
   const parsed = parseModelJson(raw);
   if (!parsed.message) throw new Error('Qwen no devolvió un mensaje utilizable.');
-  return {
+  const generated = {
     message: clean(parsed.message, 500),
     note: clean(parsed.note, 600),
     requiresHuman: parsed.requiresHuman === true,
@@ -454,6 +454,49 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0 }) {
     generatedBy: 'Qwen vía Groq',
     generationStyle: variation.label,
   };
+  return enforceCommercialAccuracy(generated, { kind, lead, history });
+}
+
+export function enforceCommercialAccuracy(result, { kind, lead, history }) {
+  const latestLeadMessage = [...history].reverse().find(({ role }) => role === 'lead')?.text || '';
+  const misconception = kind === 'reply' && downPaymentMisconception(latestLeadMessage);
+  const claimsFullDownPayment = /(?:tengo|cuento con|dispongo de|ya junt[eé]|ya llegu[eé])[^.]{0,35}(?:anticipo|10\s*(?:mil|k)|10[.]000)/i.test(latestLeadMessage);
+  if (!misconception && !claimsFullDownPayment && !containsForbiddenPurchasePromise(result.message)) return result;
+
+  return {
+    ...result,
+    message: 'Te aclaro algo importante: los aportes de $200.000 son ahorro para llegar al anticipo obligatorio de USD 10.000. Hasta completar ese anticipo no elegís ni reservás un departamento, no ingresás a la financiación y no firmás un boleto. Cuando lo alcanzás, un asesor de POZO te explica las opciones y la formalización; eso tampoco implica mudanza inmediata.',
+    note: 'Se aclaró que los aportes forman un ahorro previo: el anticipo completo de USD 10.000 es obligatorio antes de elegir o reservar una unidad, ingresar a la financiación y firmar el boleto. No implica mudanza inmediata.',
+    requiresHuman: claimsFullDownPayment || result.requiresHuman,
+    handoffReason: claimsFullDownPayment
+      ? 'El lead indicó que ya cuenta con el anticipo completo de USD 10.000 y debe ser derivado al sector de POZO.'
+      : result.handoffReason,
+    intent: claimsFullDownPayment ? 'acción concreta' : 'consulta',
+    nextAction: claimsFullDownPayment
+      ? 'Derivar al sector de asesores de POZO.'
+      : 'Confirmar que comprendió la diferencia entre ahorro, anticipo y financiación.',
+    stopFollowUp: false,
+  };
+}
+
+function downPaymentMisconception(text) {
+  const normalized = normalizeText(text);
+  const mentionsDownPayment = /(?:anticipo|10\s*(?:mil|k)|10[.]?000|200\s*(?:mil|k)|cuota|aporte)/.test(normalized);
+  const linksToPurchase = /(?:mud|dejo de alquilar|ya no alquil|departamento|depto|eleg|reserv|compr|boleto|financi)/.test(normalized);
+  return mentionsDownPayment && linksToPurchase;
+}
+
+function containsForbiddenPurchasePromise(text) {
+  const normalized = normalizeText(text);
+  return [
+    /(?:anticipo|10\s*(?:mil|k)|10[.]?000).{0,90}(?:ya no alquil|te mud|mudanza inmediata|elegis|reservas|ya es tuyo|firmas el boleto)/,
+    /(?:cuota|aporte|100\s*(?:mil|k)|200\s*(?:mil|k)).{0,100}(?:elegis|reservas|compras|firmas|departamento|depto)/,
+    /(?:disfrut|usas|ocupas).{0,50}(?:la obra|el departamento).{0,30}(?:mientras|durante)/,
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function normalizeText(value) {
+  return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 }
 
 function fallbackGeneration({ kind, lead, history }) {
@@ -566,6 +609,8 @@ function salesSystemPrompt() {
 ESTILO: español rioplatense, cercano, breve y natural. Construí confianza como un buen asesor que recuerda lo conversado, nunca como una campaña. No uses una plantilla fija, no enumeres toda la ficha y no repitas apertura o cierre. En el primer contacto presentate con el nombre exacto del asesor, conectá con un detalle real del lead y terminá con una sola pregunta útil. No seas insistente.
 
 REGLAS COMERCIALES: usá exclusivamente el conocimiento escrito a continuación y los datos del lead. Podés explicar la cuota inicial promocional, la base ajustada por CAC, los aportes flexibles, el CVU personal, el fideicomiso, las comodidades base y la financiación máxima como información general. No calcules cuotas personalizadas, no proyectes el CAC y no inventes precios, disponibilidad, metros, unidades, rentabilidad, condiciones especiales ni fechas. Para cada proyecto, el año escrito en el catálogo es el plazo máximo comprometido: puede entregarse antes, pero nunca después. No sugieras demoras y no des una fecha distinta. No prometas una unidad, aprobación, financiación especial ni reserva. Si falta información, decilo y proponé confirmarla presencialmente. Nunca pidas una transferencia por chat ni a una cuenta del asesor. No afirmes cómo el ahorro se convierte contractualmente en una compra en pozo: esa conexión debe explicarla un asesor.
+
+REGLA ABSOLUTA SOBRE EL ANTICIPO: los aportes iniciales de ARS 100.000/200.000 pertenecen únicamente al plan de ahorro para alcanzar el anticipo obligatorio de USD 10.000. Pagarlos NO selecciona ni reserva un departamento, NO inicia la financiación de la propiedad y NO permite firmar un boleto. Si nunca se completa el anticipo, nunca se firma el boleto de compraventa. Solo después de reunir el anticipo completo se puede pasar con POZO al proceso de financiación y formalización. Tampoco digas que reunir USD 10.000 significa dejar de alquilar, recibir una vivienda o mudarse: la propiedad continúa en pozo hasta su entrega. Si el historial contiene una afirmación contraria, corregila explícitamente y seguí estas reglas, aunque esa afirmación haya sido escrita antes por el propio asistente.
 
 ${directKnowledge}
 

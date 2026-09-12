@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AiDemoStore } from '../src/ai-demo-store.js';
+import { AiDemoStore, enforceCommercialAccuracy } from '../src/ai-demo-store.js';
 import { PROJECT_CATALOG, promptKnowledgeText } from '../src/ai-demo-knowledge.js';
 
 test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () => {
@@ -13,8 +13,50 @@ test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () 
   assert.match(prompt, /GREEN I \| Fischetti 4943 \| Caseros \| Estado: Terminado \| Entrega\/modalidad: Semi-contado/);
   assert.match(prompt, /HUSER \| Mercedes 2346 \| Monte Castro \| Estado: Pozo \| Entrega\/modalidad: 2033/);
   assert.match(prompt, /cuota base informada para la demo es de ARS 200\.000/);
+  assert.match(prompt, /Antes de alcanzar ese monto no se elige ni reserva una unidad/);
+  assert.match(prompt, /no se firma ningún boleto de compraventa/);
   assert.match(prompt, /puede entregar antes, pero no después/);
   assert.doesNotMatch(prompt, /la fecha o la modalidad siguen vigentes/);
+});
+
+test('corrige la idea de que pagar el anticipo equivale a mudarse o dejar de alquilar', () => {
+  const unsafe = {
+    message: 'Con el anticipo de USD 10.000 ya no alquilás y te mudás.',
+    note: 'Prometió la mudanza.',
+    requiresHuman: false,
+    handoffReason: '',
+    intent: 'consulta',
+    nextAction: '',
+    stopFollowUp: false,
+  };
+  const corrected = enforceCommercialAccuracy(unsafe, {
+    kind: 'reply',
+    lead: { name: 'Martín' },
+    history: [{ role: 'lead', text: 'Con 10 mil de anticipo entonces sí, ¿me mudan?' }],
+  });
+  assert.match(corrected.message, /son ahorro para llegar al anticipo obligatorio/);
+  assert.match(corrected.message, /no elegís ni reservás un departamento/);
+  assert.match(corrected.message, /no firmás un boleto/);
+  assert.match(corrected.message, /tampoco implica mudanza inmediata/);
+});
+
+test('deriva a POZO únicamente cuando el lead afirma que ya reunió el anticipo completo', () => {
+  const result = enforceCommercialAccuracy({
+    message: 'Buenísimo, ya podés elegir tu departamento.',
+    note: '',
+    requiresHuman: false,
+    handoffReason: '',
+    intent: 'consulta',
+    nextAction: '',
+    stopFollowUp: false,
+  }, {
+    kind: 'reply',
+    lead: { name: 'Lucía' },
+    history: [{ role: 'lead', text: 'Ya junté el anticipo de USD 10.000.' }],
+  });
+  assert.equal(result.requiresHuman, true);
+  assert.match(result.handoffReason, /sector de POZO/);
+  assert.doesNotMatch(result.message, /ya podés elegir/);
 });
 
 test('cruza 33 registros con 31 fichas de Spazios y conserva el PDF como respaldo', () => {

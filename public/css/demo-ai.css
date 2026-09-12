@@ -411,6 +411,15 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-form-grid label { display: grid; gap: 6px; color: #53646e; font-size: .73rem; font-weight: 750; }
 .ai-form-grid input, .ai-form-grid select, .ai-form-grid textarea { width: 100%; border: 1px solid #dbe3e6; border-radius: 9px; padding: 10px 11px; outline: none; color: var(--ink); background: #fbfcfc; font-size: .86rem; }
 .ai-form-grid input:focus, .ai-form-grid select:focus, .ai-form-grid textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 166, 106, .11); }
+.ai-lead-form .custom-select-trigger { min-height: 40px; padding: 9px 11px; border-color: #dbe3e6; border-radius: 9px; color: var(--ink); background: #fbfcfc; font-size: .86rem; font-weight: 500; box-shadow: none; }
+.ai-lead-form .custom-select-trigger:hover { border-color: #b7c7cd; }
+.ai-lead-form .custom-select-trigger:focus-visible,
+.ai-lead-form .custom-select.open .custom-select-trigger { border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 166, 106, .11); }
+.ai-custom-select-menu { max-width: calc(100vw - 24px); border-color: rgba(13, 126, 89, .2); border-radius: 12px; }
+.ai-custom-select-menu .custom-select-option { min-height: 40px; padding: 8px 10px; font-size: .82rem; font-weight: 650; }
+.ai-custom-select-menu .custom-select-option:hover,
+.ai-custom-select-menu .custom-select-option.highlighted { background: #eef8f4; }
+.ai-custom-select-menu .custom-select-option.selected { color: var(--green-dark); background: #e1f4ec; }
 .ai-form-wide { grid-column: 1 / -1; }
 .ai-modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 9px; }
 .ai-primary-button, .ai-secondary-button { padding: 10px 15px; border-radius: 9px; font-weight: 800; }
@@ -464,6 +473,7 @@ h1, h2, h3, p { margin-top: 0; }
   .ai-modal-backdrop { padding: 0; place-items: end center; }
   .ai-modal { width: 100%; max-height: 92vh; border-radius: 20px 20px 0 0; padding: 24px 18px calc(22px + env(safe-area-inset-bottom)); }
   .ai-form-grid { grid-template-columns: 1fr; }
+  .ai-custom-select-menu .custom-select-option { min-height: 44px; font-size: 14px; }
   .ai-form-wide { grid-column: auto; }
   .ai-modal-actions { position: sticky; bottom: 0; padding-top: 12px; background: #fff; }
   .ai-modal-actions button { flex: 1; }

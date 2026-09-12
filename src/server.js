@@ -417,7 +417,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-project-catalog-v12',
+          diagnosticRevision: 'demo-ai-custom-project-select-v13',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -465,6 +465,7 @@ async function healthDiagnostics(req) {
           automaticClientReconnect: true,
           projectSelectorCount: PROJECT_CATALOG.length,
           spaziosProjectMatches: PROJECT_CATALOG.filter(({ source }) => source === 'spazios.com.ar').length,
+          customProjectSelector: true,
         },
         warnings,
         hint: authenticated

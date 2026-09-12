@@ -32,6 +32,7 @@
 
     const menu = document.createElement('div');
     menu.className = 'custom-select-menu';
+    if (select.closest('.ai-lead-form')) menu.classList.add('ai-custom-select-menu');
     menu.setAttribute('role', 'listbox');
     menu.hidden = true;
     document.body.append(menu);

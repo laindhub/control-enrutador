@@ -245,6 +245,33 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
   await assert.rejects(() => store.sendWelcomeVideo(before.id), /todos los videos disponibles/);
 });
 
+test('un video puede reintentarse sobre el mismo lead después de una falla', async () => {
+  let attempts = 0;
+  const generate = async ({ videos }) => {
+    attempts += 1;
+    if (attempts === 1) {
+      const error = new Error('Límite temporal de Groq');
+      error.groqStatus = 429;
+      throw error;
+    }
+    return {
+      message: 'Hola Lucía, te comparto esta historia porque conecta con tus ganas de dejar de alquilar. ¿Qué te genera verla?',
+      note: 'El video se envió correctamente después de recuperar una falla temporal.',
+      selectedVideoId: videos[0].id,
+      generatedBy: 'Qwen vía Groq',
+    };
+  };
+  const store = new AiDemoStore({ now: () => 1_800_000_000_000, generate });
+  const id = 'demo-ai-lucia';
+  await assert.rejects(() => store.sendWelcomeVideo(id), /Límite temporal de Groq/);
+  assert.equal(store.getLead(id).status, 'error');
+
+  const recovered = await store.sendWelcomeVideo(id);
+  assert.equal(attempts, 2);
+  assert.equal(recovered.status, 'following');
+  assert.equal(recovered.messages.filter((item) => item.video).length, 1);
+});
+
 test('reintentar una respuesta fallida no duplica el mensaje del lead ni la respuesta de IA', async () => {
   let attempts = 0;
   const generate = async ({ kind }) => {

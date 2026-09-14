@@ -12,6 +12,9 @@ const state = {
   mediaActive: false,
   renderedChatSignature: '',
   pendingReply: null,
+  styleDirty: false,
+  styleEditingAdvisor: null,
+  syncingStyleControls: false,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -104,7 +107,7 @@ function bindEvents() {
   elements.handleButton.addEventListener('click', handleHandoff);
   elements.saveAdvisorStyle.addEventListener('click', saveAdvisorStyle);
   [elements.advisorTone, elements.advisorEmojiUsage, elements.advisorParagraphSpacing]
-    .forEach((select) => select.addEventListener('change', renderAdvisorStylePreview));
+    .forEach((select) => select.addEventListener('change', handleAdvisorStyleInput));
   $('#showOpportunity').addEventListener('click', () => setMobileView('opportunity'));
   document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.go)));
   document.querySelectorAll('.ai-mobile-nav [data-view]').forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.view)));
@@ -538,15 +541,23 @@ function createClientRequestId() {
 }
 
 function renderAdvisorStyle(lead) {
+  elements.advisorStyleOwner.textContent = lead.advisorName;
+  if (state.styleDirty && state.styleEditingAdvisor === lead.advisorName) {
+    renderAdvisorStylePreview();
+    return;
+  }
   const profile = lead.agentStyle || {
     tone: 'friendly',
     emojiUsage: 'moderate',
     paragraphSpacing: 'spaced',
   };
-  elements.advisorStyleOwner.textContent = lead.advisorName;
+  state.styleEditingAdvisor = lead.advisorName;
+  state.styleDirty = false;
+  state.syncingStyleControls = true;
   setStyleSelect(elements.advisorTone, profile.tone);
   setStyleSelect(elements.advisorEmojiUsage, profile.emojiUsage);
   setStyleSelect(elements.advisorParagraphSpacing, profile.paragraphSpacing);
+  state.syncingStyleControls = false;
   renderAdvisorStylePreview();
 }
 
@@ -554,6 +565,14 @@ function setStyleSelect(select, value) {
   if (select.value === value) return;
   select.value = value;
   select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function handleAdvisorStyleInput() {
+  if (!state.syncingStyleControls) {
+    state.styleDirty = true;
+    state.styleEditingAdvisor = selectedLead()?.advisorName || null;
+  }
+  renderAdvisorStylePreview();
 }
 
 function renderAdvisorStylePreview() {
@@ -588,6 +607,7 @@ async function saveAdvisorStyle() {
         paragraphSpacing: elements.advisorParagraphSpacing.value,
       },
     });
+    state.styleDirty = false;
     await refresh();
     toast(`Personalidad guardada para ${lead.advisorName}.`);
   } catch (error) {

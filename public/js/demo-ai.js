@@ -11,6 +11,7 @@ const state = {
   connectionLost: false,
   mediaActive: false,
   renderedChatSignature: '',
+  pendingReply: null,
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -494,21 +495,36 @@ async function sendLeadReply(event) {
   const lead = selectedLead();
   const text = elements.replyInput.value.trim();
   if (!lead || !text || state.loading) return;
+  const previousAttempt = state.pendingReply;
+  const requestId = previousAttempt?.leadId === lead.id && previousAttempt.text === text
+    ? previousAttempt.requestId
+    : createClientRequestId();
+  state.pendingReply = { leadId: lead.id, text, requestId };
   state.loading = true;
   const button = elements.replyForm.querySelector('[type="submit"]');
   button.disabled = true;
   elements.replyInput.value = '';
   try {
-    await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/reply`, { method: 'POST', body: { text } });
+    await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/reply`, {
+      method: 'POST',
+      body: { text, requestId },
+      timeoutMs: 50_000,
+    });
+    state.pendingReply = null;
     await refresh();
   } catch (error) {
     elements.replyInput.value = text;
-    toast(error.message, true);
+    toast(`${error.message} Podés tocar enviar otra vez: no se duplicará.`, true);
   } finally {
     state.loading = false;
     button.disabled = false;
     elements.replyInput.focus();
   }
+}
+
+function createClientRequestId() {
+  return globalThis.crypto?.randomUUID?.()
+    || `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 async function handleHandoff() {

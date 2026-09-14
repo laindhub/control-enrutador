@@ -417,7 +417,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-idempotent-replies-v23',
+          diagnosticRevision: 'demo-ai-advisor-personality-v24',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -483,6 +483,10 @@ async function healthDiagnostics(req) {
           groqTransientRetries: 3,
           idempotentLeadReplies: true,
           replyTimeoutSeconds: 50,
+          advisorPersonalityProfiles: true,
+          advisorToneOptions: 3,
+          advisorEmojiOptions: 3,
+          advisorParagraphOptions: 2,
         },
         warnings,
         hint: authenticated

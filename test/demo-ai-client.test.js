@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 
 const client = readFileSync(new URL('../public/js/demo-ai.js', import.meta.url), 'utf8');
 const view = readFileSync(new URL('../views/demo-ai.ejs', import.meta.url), 'utf8');
+const areaView = readFileSync(new URL('../views/demo-ai-area.ejs', import.meta.url), 'utf8');
+const welcomeView = readFileSync(new URL('../views/demo-welcome.ejs', import.meta.url), 'utf8');
+const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
 const customSelect = readFileSync(new URL('../public/js/custom-select.js', import.meta.url), 'utf8');
 
 test('la Demo IA se reconecta al volver a la página o recuperar Internet', () => {
@@ -79,4 +82,18 @@ test('la oportunidad permite personalizar la voz de cada asesor', () => {
   assert.match(client, /Personalidad guardada para/);
   assert.match(client, /state\.styleDirty && state\.styleEditingAdvisor/);
   assert.match(client, /syncingStyleControls/);
+});
+
+test('la Demo IA separa asesoramiento de leads y seguimiento de bienvenida', () => {
+  assert.match(server, /if \(area === 'leads'\)/);
+  assert.match(server, /if \(area === 'welcome'\)/);
+  assert.match(server, /res\.render\('demo-ai-area'/);
+  assert.match(areaView, /Asesorar leads/);
+  assert.match(areaView, /Equipo de bienvenida/);
+  assert.match(areaView, /Los historiales y criterios de la IA se mantienen separados/);
+  assert.match(welcomeView, /RETENCIÓN PROMEDIO/);
+  assert.match(welcomeView, /RIESGO DE BAJA/);
+  assert.match(welcomeView, /Personas que ya forman parte del plan de ahorro/);
+  assert.doesNotMatch(welcomeView, /porcentaje de oportunidad/i);
+  assert.match(view, /Cambiar área/);
 });

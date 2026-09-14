@@ -234,6 +234,36 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
   await assert.rejects(() => store.sendWelcomeVideo(before.id), /todos los videos disponibles/);
 });
 
+test('reintentar una respuesta fallida no duplica el mensaje del lead ni la respuesta de IA', async () => {
+  let attempts = 0;
+  const generate = async ({ kind }) => {
+    if (kind !== 'reply') return { message: 'Mensaje inicial.', note: 'Inicio.' };
+    attempts += 1;
+    if (attempts === 1) throw new Error('Falla transitoria de Groq');
+    return {
+      message: 'Te explico la diferencia entre el ahorro y el anticipo.',
+      note: 'Se respondió la consulta tras reintentar.',
+      interestDelta: 3,
+      intent: 'consulta',
+      nextAction: 'Continuar el seguimiento.',
+    };
+  };
+  const store = new AiDemoStore({ now: () => 1_800_000_000_000, generate });
+  const id = 'demo-ai-lucia';
+  await assert.rejects(
+    () => store.receiveLeadMessage(id, 'No entendí cómo funciona.', 'reply-fixed-id'),
+    /Falla transitoria/,
+  );
+  let lead = store.getLead(id);
+  assert.equal(lead.messages.filter((item) => item.clientRequestId === 'reply-fixed-id').length, 1);
+  lead = await store.receiveLeadMessage(id, 'No entendí cómo funciona.', 'reply-fixed-id');
+  assert.equal(lead.messages.filter((item) => item.clientRequestId === 'reply-fixed-id').length, 1);
+  assert.equal(lead.messages.filter((item) => item.replyToRequestId === 'reply-fixed-id').length, 1);
+  const replayed = await store.receiveLeadMessage(id, 'No entendí cómo funciona.', 'reply-fixed-id');
+  assert.equal(attempts, 2);
+  assert.equal(replayed.messages.filter((item) => item.replyToRequestId === 'reply-fixed-id').length, 1);
+});
+
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {
   let clock = 1_800_000_000_000;
   const generate = async ({ kind }) => kind === 'initial'

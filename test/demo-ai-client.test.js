@@ -52,3 +52,11 @@ test('el simulador ofrece el video de bienvenida y el chat lo reproduce en líne
   assert.match(client, /videoFollowUpCount/);
   assert.match(client, /El agente eligió y personalizó/);
 });
+
+test('el polling conserva el elemento de video y se pausa durante la reproducción', () => {
+  assert.match(client, /renderedChatSignature/);
+  assert.match(client, /signature === state\.renderedChatSignature/);
+  assert.match(client, /!state\.mediaActive/);
+  assert.match(client, /addEventListener\('play', updateVideoPlaybackState, true\)/);
+  assert.match(client, /event\.type === 'play' \|\| event\.type === 'playing'/);
+});

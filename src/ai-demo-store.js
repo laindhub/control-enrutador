@@ -170,16 +170,30 @@ export class AiDemoStore {
     }
   }
 
-  async receiveLeadMessage(id, rawText) {
+  async receiveLeadMessage(id, rawText, rawRequestId = '') {
     const lead = this.getLead(id);
-    const text = clean(rawText, 800);
+    const requestId = clean(rawRequestId, 100);
+    const existingLeadMessage = requestId
+      ? lead.messages.find((item) => item.role === 'lead' && item.clientRequestId === requestId)
+      : null;
+    const existingReply = requestId
+      ? lead.messages.find((item) => item.role === 'advisor' && item.replyToRequestId === requestId)
+      : null;
+    if (existingReply) return structuredClone(lead);
+
+    const text = existingLeadMessage?.text || clean(rawText, 800);
     if (!text) throw new AiDemoError('Escribí una respuesta del lead.', 400);
-    const receivedAt = this.eventTime(lead);
-    lead.messages.push(message('lead', text, receivedAt, { sender: lead.name }));
-    lead.notes.unshift(note('Agente IA', `Mensaje recibido de ${lead.name}: “${text}”`, receivedAt));
+    const receivedAt = existingLeadMessage?.createdAt || this.eventTime(lead);
+    if (!existingLeadMessage) {
+      lead.messages.push(message('lead', text, receivedAt, {
+        sender: lead.name,
+        clientRequestId: requestId || null,
+      }));
+      lead.notes.unshift(note('Agente IA', `Mensaje recibido de ${lead.name}: “${text}”`, receivedAt));
+    }
     lead.status = 'thinking';
     lead.updatedAt = receivedAt;
-    this.emitChange('lead-replied', id);
+    this.emitChange(existingLeadMessage ? 'ai-retrying' : 'lead-replied', id);
 
     const signals = interestSignals(text);
     try {
@@ -195,6 +209,7 @@ export class AiDemoStore {
         sender: lead.advisorName,
         generatedBy: result.generatedBy || null,
         generationStyle: result.generationStyle || null,
+        replyToRequestId: requestId || null,
       }));
       lead.notes.unshift(note('Agente IA', result.note || `Se respondió a ${lead.name} y se actualizó el seguimiento.`, repliedAt));
       const stopFollowUp = Boolean(result.stopFollowUp) || signals.stopFollowUp;
@@ -216,7 +231,7 @@ export class AiDemoStore {
       return structuredClone(lead);
     } catch (error) {
       lead.status = 'error';
-      lead.notes.unshift(note('Sistema', `No se pudo responder: ${publicError(error)}`, this.now()));
+      lead.notes.unshift(note('Sistema', `No se pudo responder: ${publicError(error)}. El mismo mensaje puede reintentarse sin duplicarlo.`, this.now()));
       this.emitChange('ai-error', id);
       throw error;
     }
@@ -497,75 +512,59 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     return fallback;
   }
   const variation = messageVariation(lead, kind);
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.groq.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: config.groq.model,
-      temperature: 0.72,
-      max_completion_tokens: 560,
-      messages: [
-        {
-          role: 'system',
-          content: salesSystemPrompt(),
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            task: kind === 'initial'
-              ? 'Primer contacto después de la charla'
-              : kind === 'followup'
-                ? `Seguimiento después de ${elapsedHours} horas sin respuesta del lead`
-                : kind === 'video'
-                  ? 'Escribir el mensaje que acompaña un video testimonial después de una semana sin respuesta'
-                  : 'Responder el último mensaje del lead',
-            variation,
-            followUp: kind === 'followup' ? {
-              attempt: Number(lead.followUpCount || 0) + 1,
-              elapsedHours,
-              instruction: Number(lead.followUpCount || 0) >= 2
-                ? 'Es el último intento. Cerrá el contacto con respeto, dejá la puerta abierta y no hagas presión.'
-                : 'No repitas la presentación ni el mensaje anterior. Aportá un ángulo nuevo y hacé una sola pregunta fácil de responder.',
-            } : null,
-            videoFollowUp: kind === 'video' ? {
-              instruction: 'Elegí UN solo video, el más pertinente para el contexto y el historial de este lead. Devolvé su id exacto en selectedVideoId y escribí el mensaje que lo acompaña. No elijas por orden ni al azar. Personalizá con datos reales, resumí sin copiar literalmente y no atribuyas al lead circunstancias que no figuren en sus datos.',
-              availableVideos: videos.map(({ id, title, contentBrief, requiredInstruction, commercialClarification }) => ({
-                id,
-                title,
-                contentBrief,
-                requiredInstruction,
-                commercialClarification,
-              })),
-            } : null,
-            lead: {
-              name: lead.name,
-              advisor: lead.advisorName,
-              objective: lead.objective,
-              context: lead.context,
-              building: lead.buildingName,
-              address: lead.buildingAddress,
-              projectStatus: lead.buildingStatus,
-              projectDelivery: lead.buildingDelivery,
-              officialProjectUrl: lead.projectUrl,
-            },
-            history: history.slice(-8).map(({ role, text }) => ({ role, text })),
-          }),
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(15_000),
+  const parsed = await requestGroqJson({
+    model: config.groq.model,
+    temperature: 0.72,
+    max_completion_tokens: 560,
+    messages: [
+      {
+        role: 'system',
+        content: salesSystemPrompt(),
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          task: kind === 'initial'
+            ? 'Primer contacto después de la charla'
+            : kind === 'followup'
+              ? `Seguimiento después de ${elapsedHours} horas sin respuesta del lead`
+              : kind === 'video'
+                ? 'Escribir el mensaje que acompaña un video testimonial después de una semana sin respuesta'
+                : 'Responder el último mensaje del lead',
+          variation,
+          followUp: kind === 'followup' ? {
+            attempt: Number(lead.followUpCount || 0) + 1,
+            elapsedHours,
+            instruction: Number(lead.followUpCount || 0) >= 2
+              ? 'Es el último intento. Cerrá el contacto con respeto, dejá la puerta abierta y no hagas presión.'
+              : 'No repitas la presentación ni el mensaje anterior. Aportá un ángulo nuevo y hacé una sola pregunta fácil de responder.',
+          } : null,
+          videoFollowUp: kind === 'video' ? {
+            instruction: 'Elegí UN solo video, el más pertinente para el contexto y el historial de este lead. Devolvé su id exacto en selectedVideoId y escribí el mensaje que lo acompaña. No elijas por orden ni al azar. Personalizá con datos reales, resumí sin copiar literalmente y no atribuyas al lead circunstancias que no figuren en sus datos.',
+            availableVideos: videos.map(({ id, title, contentBrief, requiredInstruction, commercialClarification }) => ({
+              id,
+              title,
+              contentBrief,
+              requiredInstruction,
+              commercialClarification,
+            })),
+          } : null,
+          lead: {
+            name: lead.name,
+            advisor: lead.advisorName,
+            objective: lead.objective,
+            context: lead.context,
+            building: lead.buildingName,
+            address: lead.buildingAddress,
+            projectStatus: lead.buildingStatus,
+            projectDelivery: lead.buildingDelivery,
+            officialProjectUrl: lead.projectUrl,
+          },
+          history: history.slice(-8).map(({ role, text }) => ({ role, text })),
+        }),
+      },
+    ],
   });
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Groq respondió ${response.status}: ${details.slice(0, 180)}`);
-  }
-  const payload = await response.json();
-  const raw = payload.choices?.[0]?.message?.content || '';
-  const parsed = parseModelJson(raw);
-  if (!parsed.message) throw new Error('Qwen no devolvió un mensaje utilizable.');
   const generated = {
     message: clean(parsed.message, kind === 'video' ? 700 : 500),
     note: clean(parsed.note, 600),
@@ -848,6 +847,46 @@ function elapsedLabel(hours) {
     return `Pasaron ${days} ${days === 1 ? 'día' : 'días'} sin respuesta`;
   }
   return `Pasaron ${hours} ${hours === 1 ? 'hora' : 'horas'} sin respuesta`;
+}
+
+async function requestGroqJson(body) {
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.groq.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!response.ok) {
+        const details = await response.text();
+        const error = new Error(`Groq respondió ${response.status}: ${details.slice(0, 180)}`);
+        error.groqStatus = response.status;
+        throw error;
+      }
+      const payload = await response.json();
+      const raw = payload.choices?.[0]?.message?.content || '';
+      const parsed = parseModelJson(raw);
+      if (!parsed.message) throw new Error('Qwen no devolvió un mensaje utilizable.');
+      return parsed;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= 3 || !isRetryableGroqError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 450));
+    }
+  }
+  throw lastError;
+}
+
+function isRetryableGroqError(error) {
+  return error?.name === 'TimeoutError'
+    || error instanceof TypeError
+    || [429, 500, 502, 503, 504].includes(Number(error?.groqStatus))
+    || /Respuesta JSON inválida|no devolvió un mensaje utilizable/i.test(String(error?.message || ''));
 }
 
 function parseModelJson(raw) {

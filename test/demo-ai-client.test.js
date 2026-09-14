@@ -8,6 +8,7 @@ const areaView = readFileSync(new URL('../views/demo-ai-area.ejs', import.meta.u
 const welcomeView = readFileSync(new URL('../views/demo-welcome.ejs', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
 const customSelect = readFileSync(new URL('../public/js/custom-select.js', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../public/css/demo-ai.css', import.meta.url), 'utf8');
 
 test('la Demo IA se reconecta al volver a la página o recuperar Internet', () => {
   assert.match(client, /addEventListener\('pageshow', \(\) => reconnectNow\(\)\)/);
@@ -96,4 +97,7 @@ test('la Demo IA separa asesoramiento de leads y seguimiento de bienvenida', () 
   assert.match(welcomeView, /Personas que ya forman parte del plan de ahorro/);
   assert.doesNotMatch(welcomeView, /porcentaje de oportunidad/i);
   assert.match(view, /Cambiar área/);
+  assert.match(areaView, /<html lang="es" class="ai-scroll-page">/);
+  assert.match(welcomeView, /<html lang="es" class="ai-scroll-page">/);
+  assert.match(styles, /html\.ai-scroll-page body[\s\S]{0,180}overflow-y: auto/);
 });

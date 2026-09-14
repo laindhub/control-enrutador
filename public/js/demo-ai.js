@@ -9,6 +9,8 @@ const state = {
   reconnectTimer: null,
   reconnectAttempts: 0,
   connectionLost: false,
+  mediaActive: false,
+  renderedChatSignature: '',
 };
 const $ = (selector) => document.querySelector(selector);
 
@@ -64,7 +66,7 @@ bindEvents();
 await refresh({ first: true });
 setInterval(renderTimeSensitiveFields, 1_000);
 setInterval(() => {
-  if (!state.loading && !state.connectionLost && document.visibilityState === 'visible' && navigator.onLine) refresh({ silent: true });
+  if (!state.loading && !state.mediaActive && !state.connectionLost && document.visibilityState === 'visible' && navigator.onLine) refresh({ silent: true });
 }, 2_000);
 
 function bindEvents() {
@@ -82,6 +84,11 @@ function bindEvents() {
   elements.buildingSelect.addEventListener('change', applySelectedProject);
   elements.replyForm.addEventListener('submit', sendLeadReply);
   elements.sendWelcomeVideo.addEventListener('click', sendWelcomeVideo);
+  elements.messageList.addEventListener('play', updateVideoPlaybackState, true);
+  elements.messageList.addEventListener('playing', updateVideoPlaybackState, true);
+  elements.messageList.addEventListener('pause', updateVideoPlaybackState, true);
+  elements.messageList.addEventListener('ended', updateVideoPlaybackState, true);
+  elements.messageList.addEventListener('error', updateVideoPlaybackState, true);
   $('#toggleProjectShare').addEventListener('click', toggleProjectShare);
   $('#closeProjectShare').addEventListener('click', closeProjectShare);
   elements.projectShareSelect.addEventListener('change', renderProjectShareSummary);
@@ -227,7 +234,11 @@ function renderSelectedLead() {
   elements.chatContent.hidden = !lead;
   elements.opportunityEmpty.hidden = Boolean(lead);
   elements.opportunityContent.hidden = !lead;
-  if (!lead) return;
+  if (!lead) {
+    state.mediaActive = false;
+    state.renderedChatSignature = '';
+    return;
+  }
 
   elements.chatAvatar.textContent = initials(lead.name);
   elements.chatName.textContent = lead.name;
@@ -258,6 +269,24 @@ function renderSelectedLead() {
 }
 
 function renderMessages(lead) {
+  const signature = JSON.stringify({
+    leadId: lead.id,
+    status: lead.status,
+    nextActionAt: lead.nextActionAt,
+    messages: lead.messages.map(({ id, role, text, createdAt, generatedBy, video, card }) => ({
+      id,
+      role,
+      text,
+      createdAt,
+      generatedBy,
+      videoId: video?.id || '',
+      cardTitle: card?.title || '',
+    })),
+  });
+  if (signature === state.renderedChatSignature) return;
+  state.renderedChatSignature = signature;
+  state.mediaActive = false;
+
   const pending = lead.status === 'scheduled'
     ? `<div class="ai-day-label ai-scheduled-banner">Primer mensaje programado ${escapeHtml(relativeTime(lead.nextActionAt))} · <button id="sendNowButton" type="button">Enviar ahora</button></div>`
     : '';
@@ -286,6 +315,11 @@ function renderMessages(lead) {
   elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${typing}`;
   $('#sendNowButton')?.addEventListener('click', sendNow);
   requestAnimationFrame(() => { elements.messageList.scrollTop = elements.messageList.scrollHeight; });
+}
+
+function updateVideoPlaybackState(event) {
+  if (!(event.target instanceof HTMLVideoElement)) return;
+  state.mediaActive = event.type === 'play' || event.type === 'playing';
 }
 
 async function sendWelcomeVideo() {

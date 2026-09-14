@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AiDemoStore, enforceCommercialAccuracy } from '../src/ai-demo-store.js';
+import { AiDemoStore, enforceCommercialAccuracy, sanitizeContextEcho } from '../src/ai-demo-store.js';
 import { PROJECT_CATALOG, promptKnowledgeText } from '../src/ai-demo-knowledge.js';
 
 test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () => {
@@ -38,6 +38,19 @@ test('corrige la idea de que pagar el anticipo equivale a mudarse o dejar de alq
   assert.match(corrected.message, /no elegís ni reservás un departamento/);
   assert.match(corrected.message, /no firmás un boleto/);
   assert.match(corrected.message, /tampoco implica mudanza inmediata/);
+});
+
+test('interpreta los apuntes internos sin copiarlos textualmente al mensaje', () => {
+  const rawContext = 'vive solo, tiene pareja y se quiere mudar con ella, no tienen apuro pero mejor si se mudan lo antes posible';
+  const draft = 'Hola Martín, te comparto esta historia. Pensé en lo que me contaste sobre vive solo, tiene pareja y se quiere mudar con ella, no tienen apuro pero mejor si se mudan lo antes posible. ¿Qué parte te resonó más?';
+  const sanitized = sanitizeContextEcho(draft, {
+    context: rawContext,
+    objective: 'Dejar de alquilar',
+  });
+  assert.doesNotMatch(sanitized, /vive solo, tiene pareja/);
+  assert.doesNotMatch(sanitized, /no tienen apuro/);
+  assert.match(sanitized, /tu proyecto de construir un hogar con tu pareja/);
+  assert.match(sanitized, /¿Qué parte te resonó más?/);
 });
 
 test('deriva a POZO únicamente cuando el lead afirma que ya reunió el anticipo completo', () => {

@@ -264,6 +264,34 @@ test('reintentar una respuesta fallida no duplica el mensaje del lead ni la resp
   assert.equal(replayed.messages.filter((item) => item.replyToRequestId === 'reply-fixed-id').length, 1);
 });
 
+test('la personalidad del asesor se aplica a todos sus leads y se hereda en los nuevos', async () => {
+  const store = new AiDemoStore({ now: () => 1_800_000_000_000 });
+  const updated = store.updateAdvisorStyle('Nuria Pereyra', {
+    tone: 'professional',
+    emojiUsage: 'none',
+    paragraphSpacing: 'compact',
+  });
+  assert.equal(updated.updatedLeads, 1);
+  assert.deepEqual(store.getLead('demo-ai-lucia').agentStyle, {
+    tone: 'professional',
+    emojiUsage: 'none',
+    paragraphSpacing: 'compact',
+  });
+  const created = store.createLead({
+    name: 'Segundo lead',
+    advisorName: 'Nuria Pereyra',
+    buildingName: 'CUBIK',
+  });
+  assert.deepEqual(created.agentStyle, store.getLead('demo-ai-lucia').agentStyle);
+  const changedAgain = store.updateAdvisorStyle('Nuria Pereyra', {
+    tone: 'friendly',
+    emojiUsage: 'expressive',
+    paragraphSpacing: 'spaced',
+  });
+  assert.equal(changedAgain.updatedLeads, 2);
+  assert.equal(store.getLead(created.id).agentStyle.emojiUsage, 'expressive');
+});
+
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {
   let clock = 1_800_000_000_000;
   const generate = async ({ kind }) => kind === 'initial'

@@ -238,11 +238,27 @@ app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
     const role = alphaRoleFor(req);
     if (!role) return res.render('demo-role', { title: 'Elegir perfil demo' });
     if (role === 'ai') {
-      return res.render('demo-ai', {
-        title: 'Demo IA · Seguimiento comercial',
-        canSwitchRole: req.session.user.role === 'demo',
-        projectCatalog: PROJECT_CATALOG,
-      });
+      const area = String(req.query.area || '').toLowerCase();
+      if (!area) {
+        return res.render('demo-ai-area', {
+          title: 'Elegir área de seguimiento',
+          canSwitchRole: req.session.user.role === 'demo',
+        });
+      }
+      if (area === 'leads') {
+        return res.render('demo-ai', {
+          title: 'Demo IA · Seguimiento comercial',
+          canSwitchRole: req.session.user.role === 'demo',
+          projectCatalog: PROJECT_CATALOG,
+        });
+      }
+      if (area === 'welcome') {
+        return res.render('demo-welcome', {
+          title: 'Demo IA · Equipo de bienvenida',
+          canSwitchRole: req.session.user.role === 'demo',
+        });
+      }
+      return res.redirect('/demo');
     }
     if (role === 'router' || role === 'advisor') {
       if (!req.session.demoIdentity || req.session.demoIdentity.kind !== role) {
@@ -417,7 +433,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-advisor-personality-v24',
+          diagnosticRevision: 'demo-ai-area-separation-v25',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -487,6 +503,9 @@ async function healthDiagnostics(req) {
           advisorToneOptions: 3,
           advisorEmojiOptions: 3,
           advisorParagraphOptions: 2,
+          aiAreaChooser: true,
+          welcomeTeamWorkspace: true,
+          welcomeRetentionMetric: true,
         },
         warnings,
         hint: authenticated

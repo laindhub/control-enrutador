@@ -48,7 +48,7 @@ export function createAiDemoRouter() {
 
   router.post('/leads/:id/reply', async (req, res, next) => {
     try {
-      const lead = await withSessionStore(req, (store) => store.receiveLeadMessage(req.params.id, req.body?.text));
+      const lead = await withSessionStore(req, (store) => store.receiveLeadMessage(req.params.id, req.body?.text, req.body?.requestId));
       return res.json({ lead });
     } catch (error) {
       return next(error);

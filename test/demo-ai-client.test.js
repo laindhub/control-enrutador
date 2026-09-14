@@ -68,3 +68,13 @@ test('los reenvíos del lead conservan una identidad y esperan los reintentos in
   assert.match(client, /createClientRequestId/);
   assert.match(client, /no se duplicará/);
 });
+
+test('la oportunidad permite personalizar la voz de cada asesor', () => {
+  assert.match(view, /id="advisorTone"/);
+  assert.match(view, /id="advisorEmojiUsage"/);
+  assert.match(view, /id="advisorParagraphSpacing"/);
+  assert.match(view, /Se aplica a todos los seguimientos de este asesor/);
+  assert.match(client, /\/api\/demo-ai\/advisor-style/);
+  assert.match(client, /renderAdvisorStylePreview/);
+  assert.match(client, /Personalidad guardada para/);
+});

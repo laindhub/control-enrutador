@@ -1,10 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AiDemoStore, enforceCommercialAccuracy, sanitizeContextEcho } from '../src/ai-demo-store.js';
 import { PROJECT_CATALOG, promptKnowledgeText } from '../src/ai-demo-knowledge.js';
+
+const storeSource = readFileSync(new URL('../src/ai-demo-store.js', import.meta.url), 'utf8');
+
+test('los videos usan un prompt compacto y continúan con respaldo ante el límite 429', () => {
+  assert.match(storeSource, /kind === 'video' \? videoSystemPrompt\(\) : salesSystemPrompt\(\)/);
+  assert.match(storeSource, /slice\(kind === 'video' \? -4 : -8\)/);
+  assert.match(storeSource, /story: requiredInstruction/);
+  assert.match(storeSource, /Number\(error\?\.groqStatus\) === 429/);
+  assert.match(storeSource, /fallback\.generatedBy = 'Respaldo automático'/);
+  assert.match(storeSource, /groqStatus\) === 429\) return 'Groq alcanzó temporalmente su límite de uso\.'/);
+});
 
 test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () => {
   const prompt = promptKnowledgeText();

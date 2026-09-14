@@ -60,3 +60,11 @@ test('el polling conserva el elemento de video y se pausa durante la reproducci�
   assert.match(client, /addEventListener\('play', updateVideoPlaybackState, true\)/);
   assert.match(client, /event\.type === 'play' \|\| event\.type === 'playing'/);
 });
+
+test('los reenvíos del lead conservan una identidad y esperan los reintentos internos', () => {
+  assert.match(client, /pendingReply/);
+  assert.match(client, /body: \{ text, requestId \}/);
+  assert.match(client, /timeoutMs: 50_000/);
+  assert.match(client, /createClientRequestId/);
+  assert.match(client, /no se duplicará/);
+});

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b141a">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title><%= title %> · Más Dueños</title>
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="apple-touch-icon" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo-ai.css') %>">
+  </head>
+  <body class="ai-demo-page ai-area-page">
+    <header class="ai-appbar">
+      <a class="ai-brand" href="/demo" aria-label="Más Dueños">
+        <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños">
+      </a>
+      <div class="ai-appbar-actions">
+        <% if (canSwitchRole) { %>
+          <form method="post" action="/demo/change-profile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Cambiar perfil</button></form>
+        <% } %>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Salir</button></form>
+      </div>
+    </header>
+    <main class="ai-area-shell">
+      <section class="ai-area-dialog">
+        <span class="ai-kicker">DEMO IA · DATOS FICTICIOS</span>
+        <h1>¿Qué tipo de seguimiento querés probar?</h1>
+        <p>Cada equipo tiene objetivos, métricas y una forma de acompañamiento diferente.</p>
+        <div class="ai-area-options">
+          <a href="/demo?area=leads" class="ai-area-option leads">
+            <span class="ai-area-icon">↗</span>
+            <span><strong>Asesorar leads</strong><small>Interés, oportunidades y derivación a un asesor.</small></span>
+            <i>›</i>
+          </a>
+          <a href="/demo?area=welcome" class="ai-area-option welcome">
+            <span class="ai-area-icon">♥</span>
+            <span><strong>Equipo de bienvenida</strong><small>Retención y acompañamiento de personas que ya ingresaron al plan.</small></span>
+            <i>›</i>
+          </a>
+        </div>
+        <aside class="ai-area-note">Los historiales y criterios de la IA se mantienen separados entre las dos áreas.</aside>
+      </section>
+    </main>
+  </body>
+</html>

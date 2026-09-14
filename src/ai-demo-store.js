@@ -563,6 +563,7 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     ? videos.find(({ id }) => id === generated.selectedVideoId) || chooseBestVideo(lead, history, videos)
     : null;
   generated.selectedVideoId = selectedVideo?.id || '';
+  generated.message = sanitizeContextEcho(generated.message, lead);
   return enforceCommercialAccuracy(generated, { kind, lead, history, video: selectedVideo });
 }
 
@@ -633,6 +634,49 @@ function containsForbiddenVideoPromise(text) {
 
 function normalizeText(value) {
   return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+}
+
+export function sanitizeContextEcho(messageText, lead) {
+  const messageTextClean = clean(messageText, 700);
+  const rawContext = clean(lead?.context, 500);
+  if (!rawContext || !sharesRawSequence(messageTextClean, rawContext)) return messageTextClean;
+
+  const sentences = messageTextClean.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [messageTextClean];
+  const retained = sentences
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => !sharesRawSequence(sentence, rawContext));
+  const base = retained.join(' ').trim();
+  const insight = interpretedContextInsight(lead);
+  if (!base) return `Me acordé de ${insight}. ¿Querés que lo conversemos?`;
+  const questionIndex = base.lastIndexOf('¿');
+  const rewritten = questionIndex >= 0
+    ? `${base.slice(0, questionIndex).trim()} Me acordé de ${insight}. ${base.slice(questionIndex).trim()}`
+    : `${base} Me acordé de ${insight}.`;
+  return clean(rewritten, 700);
+}
+
+function sharesRawSequence(candidate, source) {
+  const candidateWords = normalizeText(candidate).match(/[a-z0-9]+/g) || [];
+  const sourceWords = normalizeText(source).match(/[a-z0-9]+/g) || [];
+  if (sourceWords.length < 3) return false;
+  const windowSize = Math.min(6, sourceWords.length);
+  const candidateJoined = candidateWords.join(' ');
+  for (let index = 0; index <= sourceWords.length - windowSize; index += 1) {
+    if (candidateJoined.includes(sourceWords.slice(index, index + windowSize).join(' '))) return true;
+  }
+  return false;
+}
+
+function interpretedContextInsight(lead) {
+  const context = normalizeText(`${lead?.context || ''} ${lead?.objective || ''}`);
+  if (/pareja/.test(context) && /mud|viv|hogar|depto|departamento/.test(context)) return 'tu proyecto de construir un hogar con tu pareja';
+  if (/enfermer|medic|salud|guardia|hospital/.test(context)) return 'el esfuerzo que hacés todos los días y tus ganas de transformarlo en algo propio';
+  if (/hij|familia|mama|madre|padre/.test(context)) return 'el futuro que querés construir para tu familia';
+  if (/alquil/.test(context)) return 'tus ganas de dejar de alquilar y avanzar hacia algo propio';
+  if (/tren|subte|colectivo|ubicacion|cerca/.test(context)) return 'la importancia que tiene para vos encontrar un lugar bien conectado';
+  if (/ahorr|cuota|aporte|ingreso|gasto/.test(context)) return 'tu intención de organizar el ahorro a un ritmo que puedas sostener';
+  if (/sin apuro|no.*apuro|tranquil/.test(context)) return 'que querés evaluar este paso con tranquilidad';
+  return 'tu objetivo de acercarte a un hogar propio';
 }
 
 function fallbackGeneration({ kind, lead, history, videos = [] }) {
@@ -798,6 +842,8 @@ function salesSystemPrompt() {
   return `Sos el asistente virtual de seguimiento comercial que escribe desde la cuenta de un asesor de Más Dueños/Metroterra, marcas vinculadas a Spazios. Tu objetivo es acompañar sin presión y coordinar una reunión presencial para explicar el plan; el primer aporte solo ocurre si la persona decide avanzar y siempre por canales oficiales.
 
 ESTILO: español rioplatense, cercano, breve y natural. Construí confianza como un buen asesor que recuerda lo conversado, nunca como una campaña. No uses una plantilla fija, no enumeres toda la ficha y no repitas apertura o cierre. En el primer contacto presentate con el nombre exacto del asesor, conectá con un detalle real del lead y terminá con una sola pregunta útil. No seas insistente.
+
+CONTEXTO INTERNO: el campo context contiene apuntes privados y desordenados del asesor, no texto para reenviar. Interpretá su significado y convertí como máximo una motivación relevante en una frase natural. Nunca copies una secuencia, enumeración ni redacción del campo context; tampoco escribas “me contaste sobre” seguido de esos apuntes. Ejemplo: “vive solo, tiene pareja y quiere mudarse con ella” se interpreta como “tu proyecto de construir un hogar con tu pareja”.
 
 REGLAS COMERCIALES: usá exclusivamente el conocimiento escrito a continuación y los datos del lead. Podés explicar la cuota inicial promocional, la base ajustada por CAC, los aportes flexibles, el CVU personal, el fideicomiso, las comodidades base y la financiación máxima como información general. No calcules cuotas personalizadas, no proyectes el CAC y no inventes precios, disponibilidad, metros, unidades, rentabilidad, condiciones especiales ni fechas. Para cada proyecto, el año escrito en el catálogo es el plazo máximo comprometido: puede entregarse antes, pero nunca después. No sugieras demoras y no des una fecha distinta. No prometas una unidad, aprobación, financiación especial ni reserva. Si falta información, decilo y proponé confirmarla presencialmente. Nunca pidas una transferencia por chat ni a una cuenta del asesor. No afirmes cómo el ahorro se convierte contractualmente en una compra en pozo: esa conexión debe explicarla un asesor.
 

@@ -109,6 +109,37 @@
             <div><span>Proyecto mostrado</span><strong id="detailBuilding"></strong></div>
             <div><span>Próxima acción</span><strong id="detailNextAction"></strong></div>
           </section>
+          <section class="ai-advisor-style-card" aria-labelledby="advisorStyleTitle">
+            <div class="ai-section-title">
+              <div><span class="ai-kicker">VOZ DEL AGENTE</span><h3 id="advisorStyleTitle">Personalidad del asesor</h3></div>
+              <span id="advisorStyleOwner" class="ai-style-owner"></span>
+            </div>
+            <p>Se aplica a todos los seguimientos de este asesor.</p>
+            <div class="ai-style-grid">
+              <label>Tono
+                <select id="advisorTone">
+                  <option value="friendly">Amigable</option>
+                  <option value="balanced">Equilibrado</option>
+                  <option value="professional">Profesional</option>
+                </select>
+              </label>
+              <label>Emojis
+                <select id="advisorEmojiUsage">
+                  <option value="none">Sin emojis</option>
+                  <option value="moderate">Moderados</option>
+                  <option value="expressive">Expresivos</option>
+                </select>
+              </label>
+              <label>Formato
+                <select id="advisorParagraphSpacing">
+                  <option value="compact">Mensaje compacto</option>
+                  <option value="spaced">Párrafos separados</option>
+                </select>
+              </label>
+            </div>
+            <div id="advisorStylePreview" class="ai-style-preview"></div>
+            <button id="saveAdvisorStyle" class="ai-secondary-button" type="button">Guardar personalidad</button>
+          </section>
           <section class="ai-notes-section">
             <div class="ai-section-title"><div><span class="ai-kicker">REGISTRO AUTOMÁTICO</span><h3>Notas de seguimiento</h3></div><span id="notesCount" class="ai-note-count">0</span></div>
             <div id="notesList" class="ai-notes-list"></div>

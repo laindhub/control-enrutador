@@ -77,6 +77,15 @@ export function createAiDemoRouter() {
     }
   });
 
+  router.post('/leads/:id/send-welcome-video', async (req, res, next) => {
+    try {
+      const lead = await withSessionStore(req, (store) => store.sendWelcomeVideo(req.params.id));
+      return res.json({ lead });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.post('/leads/:id/handle', async (req, res, next) => {
     try {
       const lead = await withSessionStore(req, (store) => store.markHandled(req.params.id));

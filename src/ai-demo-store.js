@@ -3,6 +3,12 @@ import { config } from './config.js';
 import { PROJECT_CATALOG, promptKnowledgeText } from './ai-demo-knowledge.js';
 
 const DEFAULT_PROJECT = PROJECT_CATALOG.find(({ name }) => name === 'CUBIK') || PROJECT_CATALOG[0];
+const WELCOME_VIDEO = Object.freeze({
+  id: 'melissa-story-v1',
+  src: '/assets/demo-ai/videos/melissa-historia.mp4',
+  title: 'La historia de Melissa',
+  durationLabel: '0:40',
+});
 
 export class AiDemoStore {
   constructor({ now = () => Date.now(), generate = generateWithGroq } = {}) {
@@ -207,6 +213,48 @@ export class AiDemoStore {
     lead.nextActionAt = null;
     lead.notes.unshift(note(lead.advisorName, 'El asesor tomó la conversación para intervención personal.', lead.updatedAt, 'success'));
     this.emitChange('handoff-handled', id);
+    return structuredClone(lead);
+  }
+
+  sendWelcomeVideo(id) {
+    const lead = this.getLead(id);
+    if (['scheduled', 'thinking', 'human', 'error', 'cold'].includes(lead.status)) {
+      throw new AiDemoError('El video solo se puede enviar en un seguimiento activo y sin mensajes pendientes.', 409);
+    }
+    if (lead.messages.some((item) => item.video?.id === WELCOME_VIDEO.id)) {
+      throw new AiDemoError('Este video ya fue enviado en este seguimiento.', 409);
+    }
+
+    const lastOutbound = [...lead.messages].reverse().find((item) => item.role === 'advisor');
+    if (!lastOutbound) throw new AiDemoError('Primero tiene que existir un mensaje del asesor.', 409);
+    const lastLeadReply = [...lead.messages].reverse().find((item) => item.role === 'lead');
+    if (lastLeadReply && Number(lastLeadReply.createdAt) > Number(lastOutbound.createdAt)) {
+      throw new AiDemoError('El lead ya respondió. Este video está pensado solo para una semana de silencio.', 409);
+    }
+
+    const targetAt = Number(lastOutbound.createdAt) + 7 * 24 * 60 * 60 * 1000;
+    const previousAt = this.eventTime(lead);
+    const sentAt = Math.max(previousAt, targetAt);
+    const waitedHours = Math.max(0, Math.round((sentAt - previousAt) / (60 * 60 * 1000)));
+    if (waitedHours > 0) lead.messages.push(message('time', elapsedLabel(waitedHours), sentAt, { elapsedHours: waitedHours }));
+
+    const summary = `Te comparto la historia de Melissa ❤️🏡. Es el testimonio de una mamá que, aun con muchas responsabilidades, sostuvo un proceso de ahorro hasta poder avanzar hacia su primera propiedad. No fue de un día para otro; lo importante fue no abandonar el camino. Cuando quieras, podemos ver qué alternativa tendría sentido para vos.`;
+    lead.messages.push(message('advisor', summary, sentAt, {
+      sender: lead.advisorName,
+      video: WELCOME_VIDEO,
+      generatedBy: 'Seguimiento de bienvenida',
+      generationStyle: 'Video de historia real',
+    }));
+    lead.followUpCount = Number(lead.followUpCount || 0) + 1;
+    lead.simulatedAt = sentAt;
+    lead.updatedAt = sentAt;
+    lead.nextActionAt = sentAt + 96 * 60 * 60 * 1000;
+    lead.notes.unshift(note(
+      'Agente IA',
+      'Tras una semana sin respuesta se compartió el video de Melissa como seguimiento de bienvenida. El mensaje resume resiliencia y ahorro sin prometer una unidad, financiación ni mudanza.',
+      sentAt,
+    ));
+    this.emitChange('welcome-video-sent', id);
     return structuredClone(lead);
   }
 

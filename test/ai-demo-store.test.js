@@ -153,6 +153,23 @@ test('las alternativas adjuntas sobreviven al recuperar la sesión sin convertir
   assert.equal(restored.messages.at(-1).card.delivery, '2028');
 });
 
+test('el video de Melissa simula siete días sin respuesta y se envía una sola vez', () => {
+  const now = 1_800_000_000_000;
+  const store = new AiDemoStore({ now: () => now });
+  const before = store.getLead('demo-ai-lucia');
+  const lastOutbound = before.messages.at(-1);
+  const sent = store.sendWelcomeVideo(before.id);
+  const videoMessage = sent.messages.find((item) => item.video?.id === 'melissa-story-v1');
+  assert.equal(videoMessage.role, 'advisor');
+  assert.equal(videoMessage.video.src, '/assets/demo-ai/videos/melissa-historia.mp4');
+  assert.equal(videoMessage.video.durationLabel, '0:40');
+  assert.ok(videoMessage.createdAt >= lastOutbound.createdAt + 7 * 24 * 60 * 60 * 1000);
+  assert.match(videoMessage.text, /proceso de ahorro/);
+  assert.doesNotMatch(videoMessage.text, /te mudás|financiación en 120 cuotas/i);
+  assert.match(sent.notes[0].text, /semana sin respuesta/);
+  assert.throws(() => store.sendWelcomeVideo(before.id), /ya fue enviado/);
+});
+
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {
   let clock = 1_800_000_000_000;
   const generate = async ({ kind }) => kind === 'initial'

@@ -417,7 +417,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-down-payment-guard-v16',
+          diagnosticRevision: 'demo-ai-welcome-video-v17',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -472,6 +472,7 @@ async function healthDiagnostics(req) {
           projectSpecificPhotos: true,
           projectChatAttachments: true,
           downPaymentPurchaseGuard: true,
+          welcomeVideoFollowUp: true,
         },
         warnings,
         hint: authenticated

@@ -56,6 +56,7 @@ const elements = {
   projectShareSummary: $('#projectShareSummary'),
   projectShareMessage: $('#projectShareMessage'),
   shareProjectButton: $('#shareProjectButton'),
+  sendWelcomeVideo: $('#sendWelcomeVideo'),
   toast: $('#aiToast'),
 };
 
@@ -80,6 +81,7 @@ function bindEvents() {
   elements.leadForm.addEventListener('submit', createLead);
   elements.buildingSelect.addEventListener('change', applySelectedProject);
   elements.replyForm.addEventListener('submit', sendLeadReply);
+  elements.sendWelcomeVideo.addEventListener('click', sendWelcomeVideo);
   $('#toggleProjectShare').addEventListener('click', toggleProjectShare);
   $('#closeProjectShare').addEventListener('click', closeProjectShare);
   elements.projectShareSelect.addEventListener('change', renderProjectShareSummary);
@@ -235,6 +237,8 @@ function renderSelectedLead() {
   document.querySelectorAll('[data-advance-hours]').forEach((button) => {
     button.disabled = ['human', 'error', 'cold'].includes(lead.status);
   });
+  elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'error', 'cold'].includes(lead.status)
+    || lead.messages.some((item) => item.video?.id === 'melissa-story-v1');
   elements.chatState.textContent = lead.status === 'thinking' ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
   elements.opportunityName.textContent = lead.name;
   elements.opportunityStatus.textContent = statusLabel(lead.status);
@@ -272,15 +276,44 @@ function renderMessages(lead) {
       ${projectMedia}
       <div class="ai-building-copy"><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small>${projectFacts}<a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a>${item.card.projectUrl ? `<a href="${escapeAttr(item.card.projectUrl)}" target="_blank" rel="noopener noreferrer">Ver proyecto en Spazios</a>` : ''}</div>
     </article>` : '';
+    const video = item.video ? `<figure class="ai-video-card"><video controls playsinline preload="metadata" aria-label="${escapeAttr(item.video.title)}"><source src="${escapeAttr(item.video.src)}" type="video/mp4">Tu navegador no puede reproducir este video.</video><figcaption><strong>▶ ${escapeHtml(item.video.title)}</strong><span>Video de bienvenida · ${escapeHtml(item.video.durationLabel || '')}</span></figcaption></figure>` : '';
     const generatedLabel = item.generatedBy
       ? `<span class="ai-generated-label" title="${escapeAttr(item.generationStyle || 'Generado por IA')}">✦ ${escapeHtml(item.generatedBy)}</span>`
       : '';
-    return `<article class="ai-bubble ${escapeAttr(item.role)}">${card}<p>${escapeHtml(item.text)}</p><footer>${generatedLabel}<time>${formatTime(item.createdAt)}${item.role === 'advisor' ? '<span class="ai-checks">✓✓</span>' : ''}</time></footer></article>`;
+    return `<article class="ai-bubble ${escapeAttr(item.role)}">${video}${card}<p>${escapeHtml(item.text)}</p><footer>${generatedLabel}<time>${formatTime(item.createdAt)}${item.role === 'advisor' ? '<span class="ai-checks">✓✓</span>' : ''}</time></footer></article>`;
   }).join('');
   const typing = lead.status === 'thinking' ? '<div class="ai-typing" aria-label="El agente está escribiendo"><i></i><i></i><i></i></div>' : '';
   elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${typing}`;
   $('#sendNowButton')?.addEventListener('click', sendNow);
   requestAnimationFrame(() => { elements.messageList.scrollTop = elements.messageList.scrollHeight; });
+}
+
+async function sendWelcomeVideo() {
+  const lead = selectedLead();
+  if (!lead || state.loading) return;
+  state.loading = true;
+  const controls = [...document.querySelectorAll('[data-advance-hours]'), elements.sendWelcomeVideo];
+  controls.forEach((button) => { button.disabled = true; });
+  try {
+    const response = await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/send-welcome-video`, { method: 'POST' });
+    if (state.snapshot) {
+      state.snapshot.leads = state.snapshot.leads.map((item) => item.id === response.lead.id ? response.lead : item);
+      render();
+    }
+    toast('Se simuló una semana sin respuesta y se envió el video de Melissa.');
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    state.loading = false;
+    const current = selectedLead();
+    document.querySelectorAll('[data-advance-hours]').forEach((button) => {
+      button.disabled = ['human', 'error', 'cold'].includes(current?.status);
+    });
+    if (current) {
+      elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'error', 'cold'].includes(current.status)
+        || current.messages.some((item) => item.video?.id === 'melissa-story-v1');
+    }
+  }
 }
 
 function toggleProjectShare() {

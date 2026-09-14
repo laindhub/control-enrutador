@@ -43,3 +43,10 @@ test('el chat permite adjuntar otro proyecto desde un selector propio', () => {
   assert.match(client, /item\.card\.delivery/);
   assert.match(customSelect, /select\.closest\('\.ai-project-share'\)/);
 });
+
+test('el simulador ofrece el video de bienvenida y el chat lo reproduce en línea', () => {
+  assert.match(view, /id="sendWelcomeVideo"/);
+  assert.match(client, /send-welcome-video/);
+  assert.match(client, /ai-video-card/);
+  assert.match(client, /melissa-story-v1/);
+});

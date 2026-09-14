@@ -544,15 +544,17 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     return fallback;
   }
   const variation = messageVariation(lead, kind);
-  const parsed = await requestGroqJson({
-    model: config.groq.model,
-    temperature: 0.72,
-    max_completion_tokens: 560,
-    messages: [
-      {
-        role: 'system',
-        content: salesSystemPrompt(),
-      },
+  let parsed;
+  try {
+    parsed = await requestGroqJson({
+      model: config.groq.model,
+      temperature: 0.72,
+      max_completion_tokens: kind === 'video' ? 480 : 560,
+      messages: [
+        {
+          role: 'system',
+          content: kind === 'video' ? videoSystemPrompt() : salesSystemPrompt(),
+        },
       {
         role: 'user',
         content: JSON.stringify({
@@ -573,31 +575,40 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
           } : null,
           videoFollowUp: kind === 'video' ? {
             instruction: 'Elegí UN solo video, el más pertinente para el contexto y el historial de este lead. Devolvé su id exacto en selectedVideoId y escribí el mensaje que lo acompaña. No elijas por orden ni al azar. Personalizá con datos reales, resumí sin copiar literalmente y no atribuyas al lead circunstancias que no figuren en sus datos.',
-            availableVideos: videos.map(({ id, title, contentBrief, requiredInstruction, commercialClarification }) => ({
+            availableVideos: videos.map(({ id, title, requiredInstruction, commercialClarification }) => ({
               id,
               title,
-              contentBrief,
-              requiredInstruction,
-              commercialClarification,
+              story: requiredInstruction,
+              guardrail: commercialClarification,
             })),
           } : null,
           advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
           lead: {
             name: lead.name,
             advisor: lead.advisorName,
-            objective: lead.objective,
-            context: lead.context,
+            objective: kind === 'video' ? clean(lead.objective, 180) : lead.objective,
+            context: kind === 'video' ? clean(lead.context, 280) : lead.context,
             building: lead.buildingName,
             address: lead.buildingAddress,
             projectStatus: lead.buildingStatus,
             projectDelivery: lead.buildingDelivery,
             officialProjectUrl: lead.projectUrl,
           },
-          history: history.slice(-8).map(({ role, text }) => ({ role, text })),
+          history: history
+            .slice(kind === 'video' ? -4 : -8)
+            .map(({ role, text }) => ({ role, text: kind === 'video' ? clean(text, 260) : text })),
         }),
       },
     ],
-  });
+    });
+  } catch (error) {
+    if (!isRecoverableGroqOutage(error)) throw error;
+    const fallback = fallbackGeneration({ kind, lead, history, videos });
+    fallback.message = sanitizeContextEcho(fallback.message, lead);
+    fallback.generatedBy = 'Respaldo automático';
+    fallback.generationStyle = `${variation.label} · respaldo temporal`;
+    return fallback;
+  }
   const generated = {
     message: cleanGeneratedMessage(parsed.message, kind === 'video' ? 700 : 500, lead.agentStyle),
     note: clean(parsed.note, 600),
@@ -921,8 +932,15 @@ async function requestGroqJson(body) {
 function isRetryableGroqError(error) {
   return error?.name === 'TimeoutError'
     || error instanceof TypeError
-    || [429, 500, 502, 503, 504].includes(Number(error?.groqStatus))
+    || [500, 502, 503, 504].includes(Number(error?.groqStatus))
     || /Respuesta JSON inválida|no devolvió un mensaje utilizable/i.test(String(error?.message || ''));
+}
+
+function isRecoverableGroqOutage(error) {
+  return Number(error?.groqStatus) === 429
+    || error?.name === 'TimeoutError'
+    || error instanceof TypeError
+    || [500, 502, 503, 504].includes(Number(error?.groqStatus));
 }
 
 function parseModelJson(raw) {
@@ -945,6 +963,18 @@ function interestSignals(text) {
   if (highMatch) return { delta: 28, requiresHuman: true, stopFollowUp: false, intent: 'acción concreta', reason: 'El lead expresó interés concreto en visitar, coordinar o avanzar.' };
   if (medium.some((term) => normalized.includes(term))) return { delta: 14, requiresHuman: false, stopFollowUp: false, intent: 'consulta', reason: '' };
   return { delta: 3, requiresHuman: false, stopFollowUp: false, intent: 'conversación', reason: '' };
+}
+
+function videoSystemPrompt() {
+  return `Sos el asistente virtual de un asesor de Más Dueños/Metroterra, marcas vinculadas a Spazios. Tenés que elegir el video testimonial más pertinente y escribir el WhatsApp que lo acompaña después de una semana sin respuesta.
+
+ESTILO: español rioplatense, cercano, breve y sin presión. Respetá advisorCommunicationStyle. El campo context son apuntes privados: interpretá como máximo una motivación, nunca copies su redacción ni enumeres la ficha. Usá el nombre y una sola pregunta final.
+
+SELECCIÓN: evaluá motivaciones, objeciones e historial; no elijas al azar ni por posición. Conservá los hechos importantes de story, sin copiarlos literalmente, y devolvé el id exacto en selectedVideoId. No atribuyas al lead la vida del protagonista.
+
+VERACIDAD: el plan de ahorro sirve únicamente para reunir el anticipo obligatorio de USD 10.000. La primera cuota promocional puede ser ARS 100.000 y la base posterior ARS 200.000 ajustada por CAC. Esos aportes no eligen ni reservan un departamento, no inician su financiación y no permiten firmar boleto. Solo al completar el anticipo se deriva a POZO para financiación y formalización. Las cuotas o resultados del testimonio son solo de ese caso. No prometas propiedad, entrega inmediata, condiciones especiales ni el mismo resultado. Si no hace falta explicar el plan, no lo fuerces; pero nunca lo contradigas.
+
+Respondé solo JSON válido con: message (máximo 650 caracteres), note, requiresHuman, handoffReason, interestDelta, intent, nextAction, stopFollowUp y selectedVideoId.`;
 }
 
 function salesSystemPrompt() {
@@ -1052,6 +1082,7 @@ function resolveProject(value) {
 }
 
 function publicError(error) {
+  if (Number(error?.groqStatus) === 429) return 'Groq alcanzó temporalmente su límite de uso.';
   if (error?.name === 'TimeoutError') return 'Groq demoró demasiado en responder.';
   return String(error?.message || 'Error inesperado').slice(0, 220);
 }

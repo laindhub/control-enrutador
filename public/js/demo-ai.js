@@ -238,7 +238,7 @@ function renderSelectedLead() {
     button.disabled = ['human', 'error', 'cold'].includes(lead.status);
   });
   elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'error', 'cold'].includes(lead.status)
-    || lead.messages.some((item) => item.video?.id === 'melissa-story-v1');
+    || lead.messages.filter((item) => item.video?.id).length >= Number(state.snapshot.ai.videoFollowUpCount || 1);
   elements.chatState.textContent = lead.status === 'thinking' ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
   elements.opportunityName.textContent = lead.name;
   elements.opportunityStatus.textContent = statusLabel(lead.status);
@@ -300,7 +300,8 @@ async function sendWelcomeVideo() {
       state.snapshot.leads = state.snapshot.leads.map((item) => item.id === response.lead.id ? response.lead : item);
       render();
     }
-    toast('Se simuló una semana sin respuesta y se envió el video de Melissa.');
+    const selectedVideo = [...response.lead.messages].reverse().find((item) => item.video)?.video;
+    toast(`El agente eligió y personalizó ${selectedVideo?.title || 'el video más pertinente'}.`);
   } catch (error) {
     toast(error.message, true);
   } finally {
@@ -311,7 +312,7 @@ async function sendWelcomeVideo() {
     });
     if (current) {
       elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'error', 'cold'].includes(current.status)
-        || current.messages.some((item) => item.video?.id === 'melissa-story-v1');
+        || current.messages.filter((item) => item.video?.id).length >= Number(state.snapshot?.ai?.videoFollowUpCount || 1);
     }
   }
 }

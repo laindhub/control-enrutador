@@ -46,7 +46,9 @@ test('el chat permite adjuntar otro proyecto desde un selector propio', () => {
 
 test('el simulador ofrece el video de bienvenida y el chat lo reproduce en línea', () => {
   assert.match(view, /id="sendWelcomeVideo"/);
+  assert.match(view, /agente elija el mejor video/);
   assert.match(client, /send-welcome-video/);
   assert.match(client, /ai-video-card/);
-  assert.match(client, /melissa-story-v1/);
+  assert.match(client, /videoFollowUpCount/);
+  assert.match(client, /El agente eligió y personalizó/);
 });

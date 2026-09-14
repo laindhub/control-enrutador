@@ -3,6 +3,11 @@ import { config } from './config.js';
 import { PROJECT_CATALOG, promptKnowledgeText } from './ai-demo-knowledge.js';
 
 const DEFAULT_PROJECT = PROJECT_CATALOG.find(({ name }) => name === 'CUBIK') || PROJECT_CATALOG[0];
+const DEFAULT_ADVISOR_STYLE = Object.freeze({
+  tone: 'friendly',
+  emojiUsage: 'moderate',
+  paragraphSpacing: 'spaced',
+});
 const VIDEO_FOLLOW_UPS = Object.freeze([
   Object.freeze({
     id: 'melissa-story-v1',
@@ -86,11 +91,14 @@ export class AiDemoStore {
     const createdAt = this.now();
     const delaySeconds = clampNumber(input.delaySeconds, 5, 300, 12);
     const selectedProject = resolveProject(input.buildingName);
+    const advisorName = clean(input.advisorName, 100) || 'Asesor demo';
+    const advisorStyle = this.advisorStyle(advisorName);
     const lead = {
       id: randomUUID(),
       name: clean(input.name, 100) || 'Nuevo lead',
       phone: clean(input.phone, 40) || '+54 9 11 0000-0000',
-      advisorName: clean(input.advisorName, 100) || 'Asesor demo',
+      advisorName,
+      agentStyle: advisorStyle,
       objective: clean(input.objective, 180) || 'Conocer opciones para acceder a un departamento',
       buildingName: selectedProject.name,
       buildingAddress: selectedProject.location,
@@ -265,6 +273,28 @@ export class AiDemoStore {
     return structuredClone(lead);
   }
 
+  advisorStyle(advisorName) {
+    const normalizedName = clean(advisorName, 100);
+    const existing = this.leads.find((lead) => lead.advisorName === normalizedName)?.agentStyle;
+    return normalizeAdvisorStyle(existing);
+  }
+
+  updateAdvisorStyle(advisorName, input = {}) {
+    const normalizedName = clean(advisorName, 100);
+    if (!normalizedName) throw new AiDemoError('Seleccioná un asesor para personalizar.', 400);
+    const profile = normalizeAdvisorStyle(input);
+    let updated = 0;
+    for (const lead of this.leads) {
+      if (lead.advisorName !== normalizedName) continue;
+      lead.agentStyle = profile;
+      lead.updatedAt = this.eventTime(lead);
+      updated += 1;
+    }
+    if (!updated) throw new AiDemoError('El asesor todavía no tiene oportunidades en esta demo.', 404);
+    this.emitChange('advisor-style-updated', null);
+    return { advisorName: normalizedName, profile: structuredClone(profile), updatedLeads: updated };
+  }
+
   markHandled(id) {
     const lead = this.getLead(id);
     lead.humanHandoff = false;
@@ -414,6 +444,7 @@ export class AiDemoStore {
         name: 'Lucía Fernández',
         phone: '+54 9 11 5555-0182',
         advisorName: 'Nuria Pereyra',
+        agentStyle: structuredClone(DEFAULT_ADVISOR_STYLE),
         objective: 'Dejar de alquilar y conocer opciones de dos ambientes',
         buildingName: DEFAULT_PROJECT.name,
         buildingAddress: DEFAULT_PROJECT.location,
@@ -473,6 +504,7 @@ export class AiDemoError extends Error {
 }
 
 function hydrateProject(lead) {
+  lead.agentStyle = normalizeAdvisorStyle(lead?.agentStyle);
   const legacyName = lead?.buildingName === 'Proyecto Caseros Centro'
     ? DEFAULT_PROJECT.name
     : lead?.buildingName;
@@ -549,6 +581,7 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
               commercialClarification,
             })),
           } : null,
+          advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
           lead: {
             name: lead.name,
             advisor: lead.advisorName,
@@ -566,7 +599,7 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     ],
   });
   const generated = {
-    message: clean(parsed.message, kind === 'video' ? 700 : 500),
+    message: cleanGeneratedMessage(parsed.message, kind === 'video' ? 700 : 500, lead.agentStyle),
     note: clean(parsed.note, 600),
     requiresHuman: parsed.requiresHuman === true,
     handoffReason: clean(parsed.handoffReason, 240),
@@ -583,7 +616,9 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     : null;
   generated.selectedVideoId = selectedVideo?.id || '';
   generated.message = sanitizeContextEcho(generated.message, lead);
-  return enforceCommercialAccuracy(generated, { kind, lead, history, video: selectedVideo });
+  const accurate = enforceCommercialAccuracy(generated, { kind, lead, history, video: selectedVideo });
+  accurate.message = cleanGeneratedMessage(accurate.message, kind === 'video' ? 700 : 500, lead.agentStyle);
+  return accurate;
 }
 
 export function enforceCommercialAccuracy(result, { kind, lead, history, video = null }) {
@@ -656,7 +691,7 @@ function normalizeText(value) {
 }
 
 export function sanitizeContextEcho(messageText, lead) {
-  const messageTextClean = clean(messageText, 700);
+  const messageTextClean = cleanGeneratedMessage(messageText, 700, lead?.agentStyle);
   const rawContext = clean(lead?.context, 500);
   if (!rawContext || !sharesRawSequence(messageTextClean, rawContext)) return messageTextClean;
 
@@ -671,7 +706,7 @@ export function sanitizeContextEcho(messageText, lead) {
   const rewritten = questionIndex >= 0
     ? `${base.slice(0, questionIndex).trim()} Me acordé de ${insight}. ${base.slice(questionIndex).trim()}`
     : `${base} Me acordé de ${insight}.`;
-  return clean(rewritten, 700);
+  return cleanGeneratedMessage(rewritten, 700, lead?.agentStyle);
 }
 
 function sharesRawSequence(candidate, source) {
@@ -917,6 +952,8 @@ function salesSystemPrompt() {
 
 ESTILO: español rioplatense, cercano, breve y natural. Construí confianza como un buen asesor que recuerda lo conversado, nunca como una campaña. No uses una plantilla fija, no enumeres toda la ficha y no repitas apertura o cierre. En el primer contacto presentate con el nombre exacto del asesor, conectá con un detalle real del lead y terminá con una sola pregunta útil. No seas insistente.
 
+PERSONALIDAD DEL ASESOR: respetá advisorCommunicationStyle en todos los mensajes. tone=friendly usa calidez, cercanía y expresiones conversacionales; balanced combina cercanía y claridad; professional es sobrio, preciso y cordial. emojiUsage=none prohíbe emojis; moderate permite uno o dos si aportan; expressive admite varios sin convertir el texto en publicidad. paragraphSpacing=compact produce un solo bloque breve; spaced separa ideas en párrafos cortos mediante líneas en blanco. Estas preferencias solo modifican la forma, nunca las reglas comerciales ni la veracidad.
+
 CONTEXTO INTERNO: el campo context contiene apuntes privados y desordenados del asesor, no texto para reenviar. Interpretá su significado y convertí como máximo una motivación relevante en una frase natural. Nunca copies una secuencia, enumeración ni redacción del campo context; tampoco escribas “me contaste sobre” seguido de esos apuntes. Ejemplo: “vive solo, tiene pareja y quiere mudarse con ella” se interpreta como “tu proyecto de construir un hogar con tu pareja”.
 
 REGLAS COMERCIALES: usá exclusivamente el conocimiento escrito a continuación y los datos del lead. Podés explicar la cuota inicial promocional, la base ajustada por CAC, los aportes flexibles, el CVU personal, el fideicomiso, las comodidades base y la financiación máxima como información general. No calcules cuotas personalizadas, no proyectes el CAC y no inventes precios, disponibilidad, metros, unidades, rentabilidad, condiciones especiales ni fechas. Para cada proyecto, el año escrito en el catálogo es el plazo máximo comprometido: puede entregarse antes, pero nunca después. No sugieras demoras y no des una fecha distinta. No prometas una unidad, aprobación, financiación especial ni reserva. Si falta información, decilo y proponé confirmarla presencialmente. Nunca pidas una transferencia por chat ni a una cuenta del asesor. No afirmes cómo el ahorro se convierte contractualmente en una compra en pozo: esa conexión debe explicarla un asesor.
@@ -961,6 +998,36 @@ function firstName(value) {
 
 function clean(value, limit) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, limit);
+}
+
+function normalizeAdvisorStyle(input = {}) {
+  const tone = ['friendly', 'balanced', 'professional'].includes(input?.tone) ? input.tone : DEFAULT_ADVISOR_STYLE.tone;
+  const emojiUsage = ['none', 'moderate', 'expressive'].includes(input?.emojiUsage) ? input.emojiUsage : DEFAULT_ADVISOR_STYLE.emojiUsage;
+  const paragraphSpacing = ['compact', 'spaced'].includes(input?.paragraphSpacing) ? input.paragraphSpacing : DEFAULT_ADVISOR_STYLE.paragraphSpacing;
+  return { tone, emojiUsage, paragraphSpacing };
+}
+
+function cleanGeneratedMessage(value, limit, rawStyle) {
+  const style = normalizeAdvisorStyle(rawStyle);
+  let text = String(value || '')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (style.emojiUsage === 'none') {
+    text = text.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/ {2,}/g, ' ').trim();
+  }
+  if (style.paragraphSpacing === 'compact') {
+    text = text.replace(/\s+/g, ' ');
+  } else {
+    text = text.replace(/\n+/g, '\n\n');
+    if (!text.includes('\n\n')) {
+      const questionIndex = text.lastIndexOf('¿');
+      if (questionIndex > 80) text = `${text.slice(0, questionIndex).trim()}\n\n${text.slice(questionIndex).trim()}`;
+    }
+  }
+  return text.slice(0, limit);
 }
 
 function leadName(value) {

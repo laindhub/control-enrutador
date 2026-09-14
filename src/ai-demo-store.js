@@ -617,6 +617,7 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
   generated.selectedVideoId = selectedVideo?.id || '';
   generated.message = sanitizeContextEcho(generated.message, lead);
   const accurate = enforceCommercialAccuracy(generated, { kind, lead, history, video: selectedVideo });
+  accurate.message = sanitizeContextEcho(accurate.message, lead);
   accurate.message = cleanGeneratedMessage(accurate.message, kind === 'video' ? 700 : 500, lead.agentStyle);
   return accurate;
 }

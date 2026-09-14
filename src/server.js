@@ -417,7 +417,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-context-sanitizer-v20',
+          diagnosticRevision: 'demo-ai-nurse-video-v21',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -477,7 +477,7 @@ async function healthDiagnostics(req) {
           contextualVideoSelection: true,
           interpretedLeadContext: true,
           rawContextEchoGuard: true,
-          videoFollowUpCount: 2,
+          videoFollowUpCount: 3,
         },
         warnings,
         hint: authenticated

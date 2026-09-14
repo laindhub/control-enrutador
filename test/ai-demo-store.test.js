@@ -171,13 +171,23 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
   const generationRequests = [];
   const generate = async (request) => {
     generationRequests.push(request);
-    const isFirstVideo = request.videos.some(({ id }) => id === 'melissa-story-v1');
+    const selectedVideoId = request.videos.some(({ id }) => id === 'melissa-story-v1')
+      ? 'melissa-story-v1'
+      : request.videos.some(({ id }) => id === 'eclipse-keys-v2')
+        ? 'eclipse-keys-v2'
+        : 'nurse-home-v3';
     return {
-      selectedVideoId: isFirstVideo ? 'melissa-story-v1' : 'eclipse-keys-v2',
-      message: isFirstVideo
+      selectedVideoId,
+      message: selectedVideoId === 'melissa-story-v1'
         ? 'Hola Lucía, pensé en lo que me contaste sobre dejar de alquilar. Melissa era mamá soltera, alquilaba y pagaba el colegio de su hija. Ahorró, hizo sacrificios y vendió su auto. Después de reunir lo necesario financió su departamento en 120 cuotas (10 años), fue la primera dueña de su familia y dice que apostó, lo logró y fue gratificante. ¿Qué parte te resonó más?'
-        : 'Hola Lucía, te comparto las reacciones de los nuevos dueños de Spazio Eclipse al recibir sus llaves: hubo llanto, risas, abrazos y alivio después de años de esfuerzo. Algunos dijeron “Lo logré, ya llegué” y una dueña contó que no va a alquilar nunca más. ¿Te imaginás cómo vivirías ese momento?',
-      note: isFirstVideo ? 'Qwen adaptó el testimonio de Melissa al objetivo de Lucía.' : 'Qwen eligió el testimonio de Eclipse.',
+        : selectedVideoId === 'eclipse-keys-v2'
+          ? 'Hola Lucía, te comparto las reacciones de los nuevos dueños de Spazio Eclipse al recibir sus llaves: hubo llanto, risas, abrazos y alivio después de años de esfuerzo. Algunos dijeron “Lo logré, ya llegué” y una dueña contó que no va a alquilar nunca más. ¿Te imaginás cómo vivirías ese momento?'
+          : 'Hola Lucía, te comparto la historia de una enfermera que tomó horas extra, ajustó sus gastos e hizo guardias larguísimas. Hoy tiene su hogar, dejó de alquilar y recibió sus llaves. Su constancia hizo posible ese objetivo. ¿Qué te genera verla?',
+      note: selectedVideoId === 'melissa-story-v1'
+        ? 'Qwen adaptó el testimonio de Melissa al objetivo de Lucía.'
+        : selectedVideoId === 'eclipse-keys-v2'
+          ? 'Qwen eligió el testimonio de Eclipse.'
+          : 'Qwen eligió el testimonio de la enfermera.',
       generatedBy: 'Qwen vía Groq',
       generationStyle: 'Testimonio conectado',
     };
@@ -190,11 +200,13 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
   assert.equal(generationRequests[0].kind, 'video');
   assert.equal(generationRequests[0].lead.name, 'Lucía Fernández');
   assert.match(generationRequests[0].lead.context, /pareja/);
-  assert.equal(generationRequests[0].videos.length, 2);
+  assert.equal(generationRequests[0].videos.length, 3);
   assert.match(generationRequests[0].videos[0].contentBrief, /120 cuotas.*10 años/);
   assert.match(generationRequests[0].videos[0].contentBrief, /primera dueña de su familia/);
   assert.match(generationRequests[0].videos[1].contentBrief, /llanto, risas, abrazos y alivio/);
   assert.match(generationRequests[0].videos[1].requiredInstruction, /No voy a alquilar nunca más/);
+  assert.match(generationRequests[0].videos[2].contentBrief, /tomó horas extra, ajustó sus gastos/);
+  assert.match(generationRequests[0].videos[2].requiredInstruction, /largas guardias/);
   assert.equal(videoMessage.role, 'advisor');
   assert.equal(videoMessage.video.src, '/assets/demo-ai/videos/melissa-historia.mp4');
   assert.equal(videoMessage.video.durationLabel, '0:40');
@@ -205,12 +217,20 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
   assert.match(sent.notes[0].text, /Qwen adaptó/);
   const secondSent = await store.sendWelcomeVideo(before.id);
   const eclipseMessage = secondSent.messages.find((item) => item.video?.id === 'eclipse-keys-v2');
-  assert.equal(generationRequests[1].videos.length, 1);
-  assert.equal(generationRequests[1].videos[0].id, 'eclipse-keys-v2');
+  assert.equal(generationRequests[1].videos.length, 2);
+  assert.deepEqual(generationRequests[1].videos.map(({ id }) => id), ['eclipse-keys-v2', 'nurse-home-v3']);
   assert.equal(eclipseMessage.video.src, '/assets/demo-ai/videos/eclipse-nuevos-duenos.mp4');
   assert.equal(eclipseMessage.video.durationLabel, '0:30');
   assert.match(eclipseMessage.text, /Lo logré, ya llegué/);
   assert.ok(eclipseMessage.createdAt >= videoMessage.createdAt + 7 * 24 * 60 * 60 * 1000);
+  const thirdSent = await store.sendWelcomeVideo(before.id);
+  const nurseMessage = thirdSent.messages.find((item) => item.video?.id === 'nurse-home-v3');
+  assert.equal(generationRequests[2].videos.length, 1);
+  assert.equal(generationRequests[2].videos[0].id, 'nurse-home-v3');
+  assert.equal(nurseMessage.video.src, '/assets/demo-ai/videos/enfermera-hogar-propio.mp4');
+  assert.equal(nurseMessage.video.durationLabel, '1:14');
+  assert.match(nurseMessage.text, /enfermera.*horas extra.*guardias/s);
+  assert.ok(nurseMessage.createdAt >= eclipseMessage.createdAt + 7 * 24 * 60 * 60 * 1000);
   await assert.rejects(() => store.sendWelcomeVideo(before.id), /todos los videos disponibles/);
 });
 

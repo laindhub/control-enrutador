@@ -36,6 +36,22 @@ const VIDEO_FOLLOW_UPS = Object.freeze([
     requiredInstruction: 'Presentá las escenas como testimonios de personas que ya completaron su propio proceso. Conservá las emociones, el esfuerzo sostenido, las frases “Lo logré, ya llegué” y “No voy a alquilar nunca más”, y cerrá con una pregunta suave que conecte con el objetivo real del lead.',
     commercialClarification: 'No conviertas lo vivido por los protagonistas en una promesa al lead. El lead primero debe ahorrar hasta completar el anticipo obligatorio de USD 10.000; recién después puede ingresar al proceso de financiación y formalización de una propiedad en pozo, cuya entrega ocurre en el año informado para el proyecto o antes.',
   }),
+  Object.freeze({
+    id: 'nurse-home-v3',
+    src: '/assets/demo-ai/videos/enfermera-hogar-propio.mp4',
+    title: 'Una enfermera que llegó a su hogar propio',
+    durationLabel: '1:14',
+    delayHours: 168,
+    contentBrief: [
+      'El video cuenta la historia real de una enfermera que logró tener su hogar propio con Spazios y dejó de alquilar.',
+      'El proceso requirió esfuerzo: tomó horas extra, ajustó sus gastos e hizo guardias muy extensas.',
+      'Hoy es dueña y muestra la emoción de tener las llaves en la mano.',
+      'El mensaje central es que la constancia y el esfuerzo sostenido hicieron posible su objetivo.',
+      'El asesor se ofrece a acompañar a la persona en las distintas etapas de su propio camino.',
+    ].join(' '),
+    requiredInstruction: 'Incluí, sin copiar literalmente, que es enfermera, que tomó horas extra, ajustó gastos e hizo largas guardias; que hoy tiene su hogar, dejó de alquilar y recibió sus llaves. Conectá su constancia con una motivación real del lead y ofrecé acompañamiento con una pregunta suave.',
+    commercialClarification: 'La historia describe un caso ya completado y no garantiza al lead el mismo resultado. No digas que pagar las cuotas de ahorro lo vuelve dueño: primero debe completar el anticipo obligatorio de USD 10.000 y recién después puede ingresar a financiación y formalización de una propiedad en pozo.',
+  }),
 ]);
 
 export class AiDemoStore {
@@ -475,7 +491,11 @@ function hydrateProject(lead) {
 }
 
 async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos = [] }) {
-  if (!config.groq.apiKey) return fallbackGeneration({ kind, lead, history, videos });
+  if (!config.groq.apiKey) {
+    const fallback = fallbackGeneration({ kind, lead, history, videos });
+    fallback.message = sanitizeContextEcho(fallback.message, lead);
+    return fallback;
+  }
   const variation = messageVariation(lead, kind);
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -733,6 +753,20 @@ function fallbackGeneration({ kind, lead, history, videos = [] }) {
 
 function videoFallbackGeneration(lead, video = VIDEO_FOLLOW_UPS[0]) {
   const personalConnection = clean(lead.context || lead.objective, 120);
+  if (video?.id === 'nurse-home-v3') {
+    return {
+      message: `Hola ${firstName(lead.name)}, te quería compartir la historia de una enfermera que llegó a tener su hogar con Spazios y dejó de alquilar ❤️ No fue fácil: tomó horas extra, ajustó sus gastos e hizo guardias larguísimas. Hoy es dueña y tiene sus llaves en la mano. Su historia muestra lo que puede construir la constancia. Me acordé de ${interpretedContextInsight(lead)}. ¿Qué te genera verla?`,
+      note: 'Tras una semana sin respuesta, el agente eligió la historia de la enfermera y vinculó su constancia con una motivación interpretada del lead, sin prometerle el mismo resultado.',
+      requiresHuman: false,
+      handoffReason: '',
+      intent: 'interés',
+      nextAction: 'Esperar la reacción del lead al testimonio de la enfermera.',
+      stopFollowUp: false,
+      selectedVideoId: video.id,
+      generatedBy: 'Modo demo local',
+      generationStyle: 'Video testimonial personalizado',
+    };
+  }
   if (video?.id === 'eclipse-keys-v2') {
     return {
       message: `Hola ${firstName(lead.name)}, pensé en compartirte este momento de los nuevos dueños de Spazio Eclipse ❤️ Al recibir sus llaves hubo llanto, risas, abrazos y mucho alivio después de años de esfuerzo y perseverancia. Algunos lo resumieron con “Lo logré, ya llegué”, y una de las dueñas contó emocionada que no va a alquilar nunca más. ${personalConnection ? `Me acordé de lo que me contaste sobre ${personalConnection.toLowerCase()}. ` : ''}¿Te imaginás cómo sería ese momento para vos?`,
@@ -774,6 +808,7 @@ function chooseBestVideo(lead, history, videos) {
   };
   add('melissa-story-v1', ['mama', 'madre', 'hij', 'colegio', 'familia', 'auto', 'sacrificio', 'cuota'], 2);
   add('eclipse-keys-v2', ['alquil', 'llave', 'hogar', 'casa propia', 'departamento propio', 'mudar', 'sueno'], 2);
+  add('nurse-home-v3', ['enfermer', 'medic', 'salud', 'hospital', 'guardia', 'hora extra', 'trabajo'], 3);
   return [...videos].sort((left, right) => (scores.get(right.id) || 0) - (scores.get(left.id) || 0))[0];
 }
 

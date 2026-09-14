@@ -604,7 +604,11 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
   } catch (error) {
     if (!isRecoverableGroqOutage(error)) throw error;
     const fallback = fallbackGeneration({ kind, lead, history, videos });
-    fallback.message = sanitizeContextEcho(fallback.message, lead);
+    fallback.message = cleanGeneratedMessage(
+      sanitizeContextEcho(fallback.message, lead),
+      kind === 'video' ? 700 : 500,
+      lead.agentStyle,
+    );
     fallback.generatedBy = 'Respaldo automático';
     fallback.generationStyle = `${variation.label} · respaldo temporal`;
     return fallback;
@@ -798,7 +802,7 @@ function fallbackGeneration({ kind, lead, history, videos = [] }) {
 }
 
 function videoFallbackGeneration(lead, video = VIDEO_FOLLOW_UPS[0]) {
-  const personalConnection = clean(lead.context || lead.objective, 120);
+  const personalConnection = interpretedContextInsight(lead);
   if (video?.id === 'nurse-home-v3') {
     return {
       message: `Hola ${firstName(lead.name)}, te quería compartir la historia de una enfermera que llegó a tener su hogar con Spazios y dejó de alquilar ❤️ No fue fácil: tomó horas extra, ajustó sus gastos e hizo guardias larguísimas. Hoy es dueña y tiene sus llaves en la mano. Su historia muestra lo que puede construir la constancia. Me acordé de ${interpretedContextInsight(lead)}. ¿Qué te genera verla?`,
@@ -815,7 +819,7 @@ function videoFallbackGeneration(lead, video = VIDEO_FOLLOW_UPS[0]) {
   }
   if (video?.id === 'eclipse-keys-v2') {
     return {
-      message: `Hola ${firstName(lead.name)}, pensé en compartirte este momento de los nuevos dueños de Spazio Eclipse ❤️ Al recibir sus llaves hubo llanto, risas, abrazos y mucho alivio después de años de esfuerzo y perseverancia. Algunos lo resumieron con “Lo logré, ya llegué”, y una de las dueñas contó emocionada que no va a alquilar nunca más. ${personalConnection ? `Me acordé de lo que me contaste sobre ${personalConnection.toLowerCase()}. ` : ''}¿Te imaginás cómo sería ese momento para vos?`,
+      message: `Hola ${firstName(lead.name)}, pensé en compartirte este momento de los nuevos dueños de Spazio Eclipse ❤️ Al recibir sus llaves hubo llanto, risas, abrazos y mucho alivio después de años de esfuerzo y perseverancia. Algunos lo resumieron con “Lo logré, ya llegué”, y una de las dueñas contó emocionada que no va a alquilar nunca más. ${personalConnection ? `Lo relacioné con ${personalConnection}. ` : ''}¿Te imaginás cómo sería ese momento para vos?`,
       note: 'Tras una semana sin respuesta, el agente eligió el video de los nuevos dueños de Spazio Eclipse y lo conectó con el objetivo del lead sin prometer resultados.',
       requiresHuman: false,
       handoffReason: '',
@@ -828,7 +832,7 @@ function videoFallbackGeneration(lead, video = VIDEO_FOLLOW_UPS[0]) {
     };
   }
   return {
-    message: `Hola ${firstName(lead.name)}, te comparto la historia de Melissa ❤️ Es mamá soltera, alquilaba y tenía los gastos del colegio de su hija. Aun así, ahorró, hizo sacrificios y vendió su auto; después de reunir lo necesario, financió su departamento en 120 cuotas (10 años) y se convirtió en la primera dueña de su familia. Ella dice que apostó, lo logró y fue gratificante. ${personalConnection ? `Pensé en lo que me contaste sobre ${personalConnection.toLowerCase()}. ` : ''}¿Qué parte de su experiencia te resonó más?`,
+    message: `Hola ${firstName(lead.name)}, te comparto la historia de Melissa ❤️ Es mamá soltera, alquilaba y tenía los gastos del colegio de su hija. Aun así, ahorró, hizo sacrificios y vendió su auto; después de reunir lo necesario, financió su departamento en 120 cuotas (10 años) y se convirtió en la primera dueña de su familia. Ella dice que apostó, lo logró y fue gratificante. ${personalConnection ? `Lo relacioné con ${personalConnection}. ` : ''}¿Qué parte de su experiencia te resonó más?`,
     note: 'Tras una semana sin respuesta se envió el video de Melissa con un mensaje adaptado al contexto del lead, diferenciando el ahorro previo de su financiación en 120 cuotas.',
     requiresHuman: false,
     handoffReason: '',

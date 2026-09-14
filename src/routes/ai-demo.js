@@ -86,6 +86,18 @@ export function createAiDemoRouter() {
     }
   });
 
+  router.post('/advisor-style', async (req, res, next) => {
+    try {
+      const result = await withSessionStore(req, (store) => store.updateAdvisorStyle(
+        req.body?.advisorName,
+        req.body || {},
+      ));
+      return res.json(result);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.post('/leads/:id/handle', async (req, res, next) => {
     try {
       const lead = await withSessionStore(req, (store) => store.markHandled(req.params.id));

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b141a">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title><%= title %> · Más Dueños</title>
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="apple-touch-icon" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo-ai.css') %>">
+  </head>
+  <body class="ai-demo-page ai-welcome-page">
+    <header class="ai-appbar">
+      <a class="ai-brand" href="/demo" aria-label="Volver a elegir área">
+        <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños">
+      </a>
+      <div class="ai-appbar-actions">
+        <a href="/demo" class="ai-ghost-button">Cambiar área</a>
+        <% if (canSwitchRole) { %>
+          <form method="post" action="/demo/change-profile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Cambiar perfil</button></form>
+        <% } %>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Salir</button></form>
+      </div>
+    </header>
+    <main class="welcome-shell">
+      <section class="welcome-heading">
+        <div><span class="ai-kicker">EQUIPO DE BIENVENIDA</span><h1>Seguimiento y retención</h1><p>Personas que ya forman parte del plan de ahorro.</p></div>
+        <span class="welcome-demo-badge">Primera versión</span>
+      </section>
+      <section class="welcome-metrics" aria-label="Resumen de retención">
+        <article><span>RETENCIÓN PROMEDIO</span><strong>84%</strong><small>+6% durante el seguimiento</small></article>
+        <article><span>PLANES ACOMPAÑADOS</span><strong>12</strong><small>10 activos · 2 requieren atención</small></article>
+        <article class="risk"><span>RIESGO DE BAJA</span><strong>2</strong><small>Contacto prioritario recomendado</small></article>
+      </section>
+      <section class="welcome-layout">
+        <aside class="welcome-members">
+          <header><span class="ai-kicker">MIEMBROS</span><h2>Personas acompañadas</h2></header>
+          <article class="welcome-member active">
+            <span class="ai-avatar">CB</span><div><strong>Camila Benítez</strong><small>Plan activo · último aporte este mes</small></div><b>92%</b>
+          </article>
+          <article class="welcome-member">
+            <span class="ai-avatar">JR</span><div><strong>Julián Romero</strong><small>Consulta pendiente sobre el próximo aporte</small></div><b>78%</b>
+          </article>
+          <article class="welcome-member risk">
+            <span class="ai-avatar">AV</span><div><strong>Andrea Vega</strong><small>Sin actividad reciente · requiere contacto</small></div><b>61%</b>
+          </article>
+        </aside>
+        <div class="welcome-detail">
+          <header><div><span class="ai-kicker">ACOMPAÑAMIENTO</span><h2>Camila Benítez</h2></div><span class="welcome-status">Plan activo</span></header>
+          <section class="welcome-retention-card">
+            <div class="welcome-score"><strong>92%</strong><span>retención</span></div>
+            <div><h3>Vínculo estable</h3><p>Mantiene sus aportes y responde al acompañamiento. La IA debe informar, escuchar y sostener el vínculo sin volver a venderle el ingreso al plan.</p></div>
+          </section>
+          <section class="welcome-progress">
+            <div><span>Regularidad de aportes</span><strong>Alta</strong></div><div class="welcome-progress-bar"><i style="width: 88%"></i></div>
+            <div><span>Último contacto</span><strong>Hace 4 días</strong></div>
+            <div><span>Próxima acción</span><strong>Consultar cómo viene con el plan</strong></div>
+          </section>
+          <section class="welcome-agent-note">
+            <span>✦ CRITERIO DE LA IA</span>
+            <p>Detectar dudas, frustración, falta de aportes o intención de abandonar. Derivar a una persona del equipo cuando exista riesgo real de baja o una consulta que requiera intervención.</p>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

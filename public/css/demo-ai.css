@@ -522,3 +522,61 @@ h1, h2, h3, p { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.ai-advisor-style-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #dce7e3;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ffffff, #f5fbf8);
+}
+.ai-advisor-style-card > p {
+  margin: 5px 0 14px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.ai-style-owner {
+  max-width: 130px;
+  overflow: hidden;
+  color: var(--green);
+  font-size: .72rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.ai-style-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.ai-style-grid select {
+  width: 100%;
+}
+.ai-style-preview {
+  min-height: 70px;
+  margin: 13px 0;
+  padding: 12px;
+  border: 1px dashed #b9d8cb;
+  border-radius: 13px;
+  background: #fff;
+  color: var(--ink);
+  font-size: .84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.ai-advisor-style-card .ai-secondary-button {
+  width: 100%;
+}
+@media (max-width: 520px) {
+  .ai-style-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

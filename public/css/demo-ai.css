@@ -35,6 +35,15 @@ body {
   overflow: hidden;
 }
 
+html.ai-scroll-page,
+html.ai-scroll-page body {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+}
+
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 

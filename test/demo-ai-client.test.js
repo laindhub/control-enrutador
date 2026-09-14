@@ -77,4 +77,6 @@ test('la oportunidad permite personalizar la voz de cada asesor', () => {
   assert.match(client, /\/api\/demo-ai\/advisor-style/);
   assert.match(client, /renderAdvisorStylePreview/);
   assert.match(client, /Personalidad guardada para/);
+  assert.match(client, /state\.styleDirty && state\.styleEditingAdvisor/);
+  assert.match(client, /syncingStyleControls/);
 });

@@ -153,21 +153,37 @@ test('las alternativas adjuntas sobreviven al recuperar la sesión sin convertir
   assert.equal(restored.messages.at(-1).card.delivery, '2028');
 });
 
-test('el video de Melissa simula siete días sin respuesta y se envía una sola vez', () => {
+test('Qwen recibe el contexto y los hechos obligatorios para personalizar el video de Melissa', async () => {
   const now = 1_800_000_000_000;
-  const store = new AiDemoStore({ now: () => now });
+  let generationRequest;
+  const generate = async (request) => {
+    generationRequest = request;
+    return {
+      message: 'Hola Lucía, pensé en lo que me contaste sobre dejar de alquilar. Melissa era mamá soltera, alquilaba y pagaba el colegio de su hija. Ahorró, hizo sacrificios y vendió su auto. Después de reunir lo necesario financió su departamento en 120 cuotas (10 años), fue la primera dueña de su familia y dice que apostó, lo logró y fue gratificante. ¿Qué parte te resonó más?',
+      note: 'Qwen adaptó el testimonio de Melissa al objetivo de Lucía.',
+      generatedBy: 'Qwen vía Groq',
+      generationStyle: 'Testimonio conectado',
+    };
+  };
+  const store = new AiDemoStore({ now: () => now, generate });
   const before = store.getLead('demo-ai-lucia');
   const lastOutbound = before.messages.at(-1);
-  const sent = store.sendWelcomeVideo(before.id);
+  const sent = await store.sendWelcomeVideo(before.id);
   const videoMessage = sent.messages.find((item) => item.video?.id === 'melissa-story-v1');
+  assert.equal(generationRequest.kind, 'video');
+  assert.equal(generationRequest.lead.name, 'Lucía Fernández');
+  assert.match(generationRequest.lead.context, /pareja/);
+  assert.match(generationRequest.video.contentBrief, /120 cuotas.*10 años/);
+  assert.match(generationRequest.video.contentBrief, /primera dueña de su familia/);
   assert.equal(videoMessage.role, 'advisor');
   assert.equal(videoMessage.video.src, '/assets/demo-ai/videos/melissa-historia.mp4');
   assert.equal(videoMessage.video.durationLabel, '0:40');
+  assert.equal(videoMessage.generatedBy, 'Qwen vía Groq');
   assert.ok(videoMessage.createdAt >= lastOutbound.createdAt + 7 * 24 * 60 * 60 * 1000);
-  assert.match(videoMessage.text, /proceso de ahorro/);
-  assert.doesNotMatch(videoMessage.text, /te mudás|financiación en 120 cuotas/i);
-  assert.match(sent.notes[0].text, /semana sin respuesta/);
-  assert.throws(() => store.sendWelcomeVideo(before.id), /ya fue enviado/);
+  assert.match(videoMessage.text, /120 cuotas \(10 años\)/);
+  assert.match(videoMessage.text, /vendió su auto/);
+  assert.match(sent.notes[0].text, /Qwen adaptó/);
+  await assert.rejects(() => store.sendWelcomeVideo(before.id), /ya fue enviado/);
 });
 
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {

@@ -308,7 +308,7 @@ export class AiDemoStore {
 
   async sendWelcomeVideo(id) {
     const lead = this.getLead(id);
-    if (['scheduled', 'thinking', 'human', 'error', 'cold'].includes(lead.status)) {
+    if (['scheduled', 'thinking', 'human', 'cold'].includes(lead.status)) {
       throw new AiDemoError('El video solo se puede enviar en un seguimiento activo y sin mensajes pendientes.', 409);
     }
     const sentVideoIds = new Set(lead.messages.map((item) => item.video?.id).filter(Boolean));

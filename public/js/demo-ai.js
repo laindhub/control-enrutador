@@ -46,6 +46,12 @@ const elements = {
   detailObjective: $('#detailObjective'),
   detailBuilding: $('#detailBuilding'),
   detailNextAction: $('#detailNextAction'),
+  advisorStyleOwner: $('#advisorStyleOwner'),
+  advisorTone: $('#advisorTone'),
+  advisorEmojiUsage: $('#advisorEmojiUsage'),
+  advisorParagraphSpacing: $('#advisorParagraphSpacing'),
+  advisorStylePreview: $('#advisorStylePreview'),
+  saveAdvisorStyle: $('#saveAdvisorStyle'),
   notesCount: $('#notesCount'),
   notesList: $('#notesList'),
   leadModal: $('#leadModal'),
@@ -96,6 +102,9 @@ function bindEvents() {
   elements.shareProjectButton.addEventListener('click', shareProject);
   document.querySelectorAll('[data-advance-hours]').forEach((button) => button.addEventListener('click', () => advanceTime(button)));
   elements.handleButton.addEventListener('click', handleHandoff);
+  elements.saveAdvisorStyle.addEventListener('click', saveAdvisorStyle);
+  [elements.advisorTone, elements.advisorEmojiUsage, elements.advisorParagraphSpacing]
+    .forEach((select) => select.addEventListener('change', renderAdvisorStylePreview));
   $('#showOpportunity').addEventListener('click', () => setMobileView('opportunity'));
   document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.go)));
   document.querySelectorAll('.ai-mobile-nav [data-view]').forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.view)));
@@ -259,6 +268,7 @@ function renderSelectedLead() {
   elements.interestBar.style.width = `${lead.interest}%`;
   elements.interestLabel.textContent = interestLabel(lead.interest);
   elements.detailAdvisor.textContent = lead.advisorName;
+  renderAdvisorStyle(lead);
   elements.detailObjective.textContent = lead.objective;
   elements.detailBuilding.textContent = lead.buildingName;
   elements.handoffCard.hidden = !lead.humanHandoff;
@@ -525,6 +535,67 @@ async function sendLeadReply(event) {
 function createClientRequestId() {
   return globalThis.crypto?.randomUUID?.()
     || `reply-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function renderAdvisorStyle(lead) {
+  const profile = lead.agentStyle || {
+    tone: 'friendly',
+    emojiUsage: 'moderate',
+    paragraphSpacing: 'spaced',
+  };
+  elements.advisorStyleOwner.textContent = lead.advisorName;
+  setStyleSelect(elements.advisorTone, profile.tone);
+  setStyleSelect(elements.advisorEmojiUsage, profile.emojiUsage);
+  setStyleSelect(elements.advisorParagraphSpacing, profile.paragraphSpacing);
+  renderAdvisorStylePreview();
+}
+
+function setStyleSelect(select, value) {
+  if (select.value === value) return;
+  select.value = value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function renderAdvisorStylePreview() {
+  const toneText = {
+    friendly: 'Hola, ¿cómo estás? Me acordé de lo que querés lograr',
+    balanced: 'Hola, ¿cómo estás? Quería retomar tu objetivo',
+    professional: 'Hola. Quería retomar la información sobre tu objetivo',
+  }[elements.advisorTone.value] || 'Hola, ¿cómo estás?';
+  const emojiText = {
+    none: '',
+    moderate: ' 🏡',
+    expressive: ' 🏡✨🙌',
+  }[elements.advisorEmojiUsage.value] || '';
+  const close = '¿Querés que lo conversemos?';
+  elements.advisorStylePreview.textContent = elements.advisorParagraphSpacing.value === 'spaced'
+    ? `${toneText}.${emojiText}\n\n${close}`
+    : `${toneText}. ${close}${emojiText}`;
+}
+
+async function saveAdvisorStyle() {
+  const lead = selectedLead();
+  if (!lead || state.loading) return;
+  state.loading = true;
+  elements.saveAdvisorStyle.disabled = true;
+  try {
+    await api('/api/demo-ai/advisor-style', {
+      method: 'POST',
+      body: {
+        advisorName: lead.advisorName,
+        tone: elements.advisorTone.value,
+        emojiUsage: elements.advisorEmojiUsage.value,
+        paragraphSpacing: elements.advisorParagraphSpacing.value,
+      },
+    });
+    await refresh();
+    toast(`Personalidad guardada para ${lead.advisorName}.`);
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    state.loading = false;
+    elements.saveAdvisorStyle.disabled = false;
+  }
 }
 
 async function handleHandoff() {

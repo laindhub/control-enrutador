@@ -52,6 +52,7 @@ const elements = {
   notesCount: $('#welcomeNotesCount'),
   notesList: $('#welcomeNotesList'),
   handleButton: $('#welcomeHandleButton'),
+  videoButton: $('#sendWelcomeVideo'),
   regenerate: $('#regenerateWelcome'),
   toast: $('#welcomeToast'),
 };
@@ -69,6 +70,7 @@ function bindEvents() {
     button.addEventListener('click', () => advanceTime(button));
   });
   elements.handleButton.addEventListener('click', handleClient);
+  elements.videoButton.addEventListener('click', sendWelcomeVideo);
   elements.regenerate.addEventListener('click', regenerateClients);
   $('#showWelcomeRetention').addEventListener('click', () => setMobileView('retention'));
   document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.go)));
@@ -156,6 +158,13 @@ function renderSelectedClient() {
   document.querySelectorAll('[data-advance-days]').forEach((button) => {
     button.disabled = state.loading || client.status === 'human';
   });
+  const sentVideoCount = client.messages.filter((item) => item.video?.id).length;
+  elements.videoButton.disabled = state.loading
+    || client.status === 'thinking'
+    || sentVideoCount >= Number(state.snapshot?.ai?.videoFollowUpCount || 1);
+  elements.videoButton.textContent = sentVideoCount >= Number(state.snapshot?.ai?.videoFollowUpCount || 1)
+    ? 'Videos enviados'
+    : '▶ Video';
 
   elements.detailName.textContent = client.name;
   elements.riskBadge.textContent = riskLabel(client.riskLevel);
@@ -194,13 +203,14 @@ function renderMessages(client) {
     status: client.status,
     typing,
     optimistic,
-    messages: client.messages.map(({ id, role, text, createdAt, generatedBy, clientRequestId }) => ({
+    messages: client.messages.map(({ id, role, text, createdAt, generatedBy, clientRequestId, video }) => ({
       id,
       role,
       text,
       createdAt,
       generatedBy,
       clientRequestId,
+      videoId: video?.id,
     })),
   });
   if (signature === state.renderedChatSignature) return;
@@ -209,7 +219,10 @@ function renderMessages(client) {
   const messages = client.messages.map((item) => {
     if (item.role === 'time') return `<div class="welcome-time-passage">⌛ ${escapeHtml(item.text)}</div>`;
     const generated = item.generatedBy ? `<span>✦ ${escapeHtml(item.generatedBy)}</span>` : '';
-    return `<article class="welcome-message ${escapeAttr(item.role)}"><p>${escapeHtml(item.text)}</p><footer>${generated}<time>${formatTime(item.createdAt)}${item.role === 'agent' ? ' ✓✓' : ''}</time></footer></article>`;
+    const video = item.video
+      ? `<figure class="welcome-video-card"><video controls playsinline preload="metadata" aria-label="${escapeAttr(item.video.title)}"><source src="${escapeAttr(item.video.src)}" type="video/mp4">Tu navegador no puede reproducir este video.</video><figcaption><strong>▶ ${escapeHtml(item.video.title)}</strong><span>Video de acompañamiento · ${escapeHtml(item.video.durationLabel || '')}</span></figcaption></figure>`
+      : '';
+    return `<article class="welcome-message ${escapeAttr(item.role)}">${video}<p>${escapeHtml(item.text)}</p><footer>${generated}<time>${formatTime(item.createdAt)}${item.role === 'agent' ? ' ✓✓' : ''}</time></footer></article>`;
   }).join('');
 
   const optimisticMessage = optimistic
@@ -296,6 +309,33 @@ async function advanceTime(button) {
     toast(error.message, true);
   } finally {
     state.loading = false;
+  }
+}
+
+async function sendWelcomeVideo() {
+  const client = selectedClient();
+  if (!client || state.loading) return;
+  state.loading = true;
+  state.agentActivity = { clientId: client.id, kind: 'video' };
+  elements.videoButton.disabled = true;
+  renderSelectedClient();
+  try {
+    const response = await api(`/api/demo-ai/welcome/clients/${encodeURIComponent(client.id)}/send-video`, {
+      method: 'POST',
+      timeoutMs: 50_000,
+    });
+    state.agentActivity = null;
+    mergeClient(response.client);
+    render();
+    const video = [...response.client.messages].reverse().find((item) => item.video)?.video;
+    toast(video ? `Se compartió “${video.title}”.` : 'Se compartió el video.');
+  } catch (error) {
+    state.agentActivity = null;
+    renderSelectedClient();
+    toast(error.message, true);
+  } finally {
+    state.loading = false;
+    renderSelectedClient();
   }
 }
 

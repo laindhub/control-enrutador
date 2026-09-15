@@ -543,78 +543,63 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     fallback.message = sanitizeContextEcho(fallback.message, lead);
     return fallback;
   }
+
   const variation = messageVariation(lead, kind);
+  if (kind === 'video') {
+    return generateVideoWithGroq({ lead, history, videos, variation });
+  }
+
   let parsed;
   try {
     parsed = await requestGroqJson({
       model: config.groq.model,
       temperature: 0.72,
-      max_completion_tokens: kind === 'video' ? 480 : 560,
+      max_completion_tokens: 560,
       messages: [
         {
           role: 'system',
-          content: kind === 'video' ? videoSystemPrompt() : salesSystemPrompt(),
+          content: salesSystemPrompt(),
         },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          task: kind === 'initial'
-            ? 'Primer contacto después de la charla'
-            : kind === 'followup'
-              ? `Seguimiento después de ${elapsedHours} horas sin respuesta del lead`
-              : kind === 'video'
-                ? 'Escribir el mensaje que acompaña un video testimonial después de una semana sin respuesta'
+        {
+          role: 'user',
+          content: JSON.stringify({
+            task: kind === 'initial'
+              ? 'Primer contacto después de la charla'
+              : kind === 'followup'
+                ? `Seguimiento después de ${elapsedHours} horas sin respuesta del lead`
                 : 'Responder el último mensaje del lead',
-          variation,
-          followUp: kind === 'followup' ? {
-            attempt: Number(lead.followUpCount || 0) + 1,
-            elapsedHours,
-            instruction: Number(lead.followUpCount || 0) >= 2
-              ? 'Es el último intento. Cerrá el contacto con respeto, dejá la puerta abierta y no hagas presión.'
-              : 'No repitas la presentación ni el mensaje anterior. Aportá un ángulo nuevo y hacé una sola pregunta fácil de responder.',
-          } : null,
-          videoFollowUp: kind === 'video' ? {
-            instruction: 'Elegí UN solo video, el más pertinente para el contexto y el historial de este lead. Devolvé su id exacto en selectedVideoId y escribí el mensaje que lo acompaña. No elijas por orden ni al azar. Personalizá con datos reales, resumí sin copiar literalmente y no atribuyas al lead circunstancias que no figuren en sus datos.',
-            availableVideos: videos.map(({ id, title, requiredInstruction, commercialClarification }) => ({
-              id,
-              title,
-              story: requiredInstruction,
-              guardrail: commercialClarification,
-            })),
-          } : null,
-          advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
-          lead: {
-            name: lead.name,
-            advisor: lead.advisorName,
-            objective: kind === 'video' ? clean(lead.objective, 180) : lead.objective,
-            context: kind === 'video' ? clean(lead.context, 280) : lead.context,
-            building: lead.buildingName,
-            address: lead.buildingAddress,
-            projectStatus: lead.buildingStatus,
-            projectDelivery: lead.buildingDelivery,
-            officialProjectUrl: lead.projectUrl,
-          },
-          history: history
-            .slice(kind === 'video' ? -4 : -8)
-            .map(({ role, text }) => ({ role, text: kind === 'video' ? clean(text, 260) : text })),
-        }),
-      },
-    ],
+            variation,
+            followUp: kind === 'followup' ? {
+              attempt: Number(lead.followUpCount || 0) + 1,
+              elapsedHours,
+              instruction: Number(lead.followUpCount || 0) >= 2
+                ? 'Es el último intento. Cerrá el contacto con respeto, dejá la puerta abierta y no hagas presión.'
+                : 'No repitas la presentación ni el mensaje anterior. Aportá un ángulo nuevo y hacé una sola pregunta fácil de responder.',
+            } : null,
+            advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
+            lead: {
+              name: lead.name,
+              advisor: lead.advisorName,
+              objective: lead.objective,
+              context: lead.context,
+              building: lead.buildingName,
+              address: lead.buildingAddress,
+              projectStatus: lead.buildingStatus,
+              projectDelivery: lead.buildingDelivery,
+              officialProjectUrl: lead.projectUrl,
+            },
+            history: history.slice(-8).map(({ role, text }) => ({ role, text })),
+          }),
+        },
+      ],
     });
   } catch (error) {
     if (!isRecoverableGroqOutage(error)) throw error;
-    const fallback = fallbackGeneration({ kind, lead, history, videos });
-    fallback.message = cleanGeneratedMessage(
-      sanitizeContextEcho(fallback.message, lead),
-      kind === 'video' ? 700 : 500,
-      lead.agentStyle,
-    );
-    fallback.generatedBy = 'Respaldo automático';
-    fallback.generationStyle = `${variation.label} · respaldo temporal`;
-    return fallback;
+    return automaticGenerationFallback({ kind, lead, history, videos, variation });
   }
+
   const generated = {
-    message: cleanGeneratedMessage(parsed.message, kind === 'video' ? 700 : 500, lead.agentStyle),
+    message: cleanGeneratedMessage(parsed.message, 500, lead.agentStyle),
     note: clean(parsed.note, 600),
     requiresHuman: parsed.requiresHuman === true,
     handoffReason: clean(parsed.handoffReason, 240),
@@ -622,19 +607,183 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     intent: clean(parsed.intent, 40),
     nextAction: clean(parsed.nextAction, 180),
     stopFollowUp: parsed.stopFollowUp === true,
-    selectedVideoId: clean(parsed.selectedVideoId, 80),
+    selectedVideoId: '',
     generatedBy: 'Qwen vía Groq',
     generationStyle: variation.label,
   };
-  const selectedVideo = kind === 'video'
-    ? videos.find(({ id }) => id === generated.selectedVideoId) || chooseBestVideo(lead, history, videos)
-    : null;
-  generated.selectedVideoId = selectedVideo?.id || '';
   generated.message = sanitizeContextEcho(generated.message, lead);
-  const accurate = enforceCommercialAccuracy(generated, { kind, lead, history, video: selectedVideo });
+  const accurate = enforceCommercialAccuracy(generated, { kind, lead, history });
   accurate.message = sanitizeContextEcho(accurate.message, lead);
-  accurate.message = cleanGeneratedMessage(accurate.message, kind === 'video' ? 700 : 500, lead.agentStyle);
+  accurate.message = cleanGeneratedMessage(accurate.message, 500, lead.agentStyle);
   return accurate;
+}
+
+async function generateVideoWithGroq({ lead, history, videos, variation }) {
+  const localChoice = chooseBestVideo(lead, history, videos);
+  let selection;
+
+  try {
+    selection = await requestGroqJson({
+      model: config.groq.model,
+      temperature: 0.35,
+      max_completion_tokens: 170,
+      messages: [
+        {
+          role: 'system',
+          content: videoSelectionSystemPrompt(),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            motivation: interpretedContextInsight(lead),
+            objective: clean(lead.objective, 140),
+            recentConversation: compactVideoHistory(history, 2, 140),
+            availableVideos: videos.map(({ id, title, contentBrief }) => ({
+              id,
+              title,
+              summary: clean(contentBrief, 220),
+            })),
+          }),
+        },
+      ],
+    });
+  } catch (error) {
+    if (!isRecoverableGroqOutage(error)) throw error;
+    return automaticGenerationFallback({ kind: 'video', lead, history, videos, variation });
+  }
+
+  const selectedVideo = videos.find(({ id }) => id === clean(selection.selectedVideoId, 80)) || localChoice;
+  if (!selectedVideo) {
+    return automaticGenerationFallback({ kind: 'video', lead, history, videos, variation });
+  }
+
+  let draft;
+  try {
+    draft = await requestGroqJson({
+      model: config.groq.model,
+      temperature: 0.72,
+      max_completion_tokens: 760,
+      messages: [
+        {
+          role: 'system',
+          content: videoDraftSystemPrompt(),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            selectedVideo: {
+              id: selectedVideo.id,
+              title: selectedVideo.title,
+              story: selectedVideo.requiredInstruction,
+              commercialGuardrail: selectedVideo.commercialClarification,
+            },
+            selectedApproach: clean(selection.message, 220),
+            advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
+            lead: {
+              name: lead.name,
+              advisor: lead.advisorName,
+              motivation: interpretedContextInsight(lead),
+              objective: clean(lead.objective, 160),
+              project: lead.buildingName,
+              projectStatus: lead.buildingStatus,
+              projectDelivery: lead.buildingDelivery,
+            },
+            recentConversation: compactVideoHistory(history, 3, 220),
+          }),
+        },
+      ],
+    });
+  } catch (error) {
+    if (!isRecoverableGroqOutage(error)) throw error;
+    return automaticGenerationFallback({ kind: 'video', lead, history, videos: [selectedVideo], variation });
+  }
+
+  let finalDraft = draft;
+  let stages = 2;
+  if (videoDraftNeedsExpansion(draft.message, selectedVideo)) {
+    try {
+      finalDraft = await requestGroqJson({
+        model: config.groq.model,
+        temperature: 0.64,
+        max_completion_tokens: 780,
+        messages: [
+          {
+            role: 'system',
+            content: videoExpansionSystemPrompt(),
+          },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              selectedVideo: {
+                id: selectedVideo.id,
+                title: selectedVideo.title,
+                story: selectedVideo.requiredInstruction,
+                commercialGuardrail: selectedVideo.commercialClarification,
+              },
+              leadName: lead.name,
+              interpretedMotivation: interpretedContextInsight(lead),
+              advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
+              currentDraft: cleanGeneratedMessage(draft.message, 900, lead.agentStyle),
+              instruction: 'Reescribí el mensaje completo. Ampliá lo que falta sin repetir frases ni agregar datos inventados.',
+            }),
+          },
+        ],
+      });
+      stages = 3;
+    } catch (error) {
+      if (!isRecoverableGroqOutage(error)) throw error;
+      finalDraft = draft;
+    }
+  }
+
+  const generated = {
+    message: cleanGeneratedMessage(finalDraft.message, 1100, lead.agentStyle),
+    note: clean(finalDraft.note || draft.note, 600),
+    requiresHuman: finalDraft.requiresHuman === true,
+    handoffReason: clean(finalDraft.handoffReason, 240),
+    interestDelta: clampNumber(finalDraft.interestDelta, -25, 30, 0),
+    intent: clean(finalDraft.intent, 40),
+    nextAction: clean(finalDraft.nextAction, 180),
+    stopFollowUp: finalDraft.stopFollowUp === true,
+    selectedVideoId: selectedVideo.id,
+    generatedBy: `Qwen vía Groq · ${stages} etapas`,
+    generationStyle: variation.label,
+  };
+  generated.message = sanitizeContextEcho(generated.message, lead);
+  const accurate = enforceCommercialAccuracy(generated, { kind: 'video', lead, history, video: selectedVideo });
+  accurate.message = sanitizeContextEcho(accurate.message, lead);
+  accurate.message = cleanGeneratedMessage(accurate.message, 1100, lead.agentStyle);
+  return accurate;
+}
+
+function compactVideoHistory(history, count, limit) {
+  return history
+    .filter(({ role, text }) => (role === 'lead' || role === 'advisor') && text)
+    .slice(-count)
+    .map(({ role, text }) => ({ role, text: clean(text, limit) }));
+}
+
+function videoDraftNeedsExpansion(messageText, video) {
+  const normalized = normalizeText(messageText);
+  const requiredTerms = video?.id === 'melissa-story-v1'
+    ? ['120 cuotas', '10 anos', 'auto', 'colegio']
+    : video?.id === 'nurse-home-v3'
+      ? ['enfermera', 'horas extra', 'guardias']
+      : ['llaves', 'alquil', 'esfuerzo'];
+  return String(messageText || '').trim().length < 620
+    || requiredTerms.some((term) => !normalized.includes(term));
+}
+
+function automaticGenerationFallback({ kind, lead, history, videos, variation }) {
+  const fallback = fallbackGeneration({ kind, lead, history, videos });
+  fallback.message = cleanGeneratedMessage(
+    sanitizeContextEcho(fallback.message, lead),
+    kind === 'video' ? 1100 : 500,
+    lead.agentStyle,
+  );
+  fallback.generatedBy = 'Respaldo automático';
+  fallback.generationStyle = `${variation.label} · respaldo temporal`;
+  return fallback;
 }
 
 export function enforceCommercialAccuracy(result, { kind, lead, history, video = null }) {
@@ -969,16 +1118,28 @@ function interestSignals(text) {
   return { delta: 3, requiresHuman: false, stopFollowUp: false, intent: 'conversación', reason: '' };
 }
 
-function videoSystemPrompt() {
-  return `Sos el asistente virtual de un asesor de Más Dueños/Metroterra, marcas vinculadas a Spazios. Tenés que elegir el video testimonial más pertinente y escribir el WhatsApp que lo acompaña después de una semana sin respuesta.
+function videoSelectionSystemPrompt() {
+  return `Elegí el video testimonial que mejor encaja con la motivación, el objetivo y la conversación. No elijas por orden ni al azar. No redactes el WhatsApp todavía. Respondé solo JSON válido: {"selectedVideoId":"id exacto","message":"enfoque de redacción en hasta 140 caracteres"}.`;
+}
 
-ESTILO: español rioplatense, cercano, breve y sin presión. Respetá advisorCommunicationStyle. El campo context son apuntes privados: interpretá como máximo una motivación, nunca copies su redacción ni enumeres la ficha. Usá el nombre y una sola pregunta final.
+function videoDraftSystemPrompt() {
+  return `Sos el asistente virtual de un asesor de Más Dueños/Metroterra, marcas vinculadas a Spazios. Escribí el WhatsApp completo que acompaña el video testimonial elegido después de una semana sin respuesta.
 
-SELECCIÓN: evaluá motivaciones, objeciones e historial; no elijas al azar ni por posición. Conservá los hechos importantes de story, sin copiarlos literalmente, y devolvé el id exacto en selectedVideoId. No atribuyas al lead la vida del protagonista.
+EXTENSIÓN Y CONTENIDO: redactá entre 650 y 1000 caracteres. Conservá todos los hechos importantes de story, incluyendo financiación, plazos, sacrificios o frases relevantes cuando aparezcan. No copies el texto fuente literalmente, no hagas una lista y no rellenes con frases vacías. Conectá una sola motivación interpretada del lead de forma natural y terminá con una pregunta suave.
 
-VERACIDAD: el plan de ahorro sirve únicamente para reunir el anticipo obligatorio de USD 10.000. La primera cuota promocional puede ser ARS 100.000 y la base posterior ARS 200.000 ajustada por CAC. Esos aportes no eligen ni reservan un departamento, no inician su financiación y no permiten firmar boleto. Solo al completar el anticipo se deriva a POZO para financiación y formalización. Las cuotas o resultados del testimonio son solo de ese caso. No prometas propiedad, entrega inmediata, condiciones especiales ni el mismo resultado. Si no hace falta explicar el plan, no lo fuerces; pero nunca lo contradigas.
+ESTILO: español rioplatense, cercano y sin presión. Respetá advisorCommunicationStyle. No enumeres ni copies apuntes internos. El mensaje debe sentirse humano, no como publicidad masiva.
 
-Respondé solo JSON válido con: message (máximo 650 caracteres), note, requiresHuman, handoffReason, interestDelta, intent, nextAction, stopFollowUp y selectedVideoId.`;
+VERACIDAD: los aportes del plan sirven únicamente para reunir el anticipo obligatorio de USD 10.000. Pagar ARS 100.000 o la base de ARS 200.000 ajustada por CAC no elige ni reserva un departamento, no inicia financiación y no permite firmar boleto. Solo después de completar el anticipo se deriva a POZO. Las cuotas, el resultado y la entrega del testimonio pertenecen únicamente a ese caso. No prometas el mismo resultado, propiedad, mudanza, entrega inmediata ni condiciones especiales.
+
+Respondé solo JSON válido con message, note, requiresHuman, handoffReason, interestDelta, intent, nextAction y stopFollowUp.`;
+}
+
+function videoExpansionSystemPrompt() {
+  return `Revisá y reescribí por completo un WhatsApp que acompaña un video testimonial. Debe quedar natural, sustancioso y entre 700 y 1050 caracteres. Conservá el contenido correcto del borrador, incorporá los hechos de story que falten y evitá repeticiones.
+
+Nunca copies literalmente los apuntes del lead ni inventes datos. Los aportes de ARS 100.000/200.000 solo sirven para ahorrar hasta el anticipo obligatorio de USD 10.000; no reservan una unidad, no inician financiación y no permiten firmar boleto. Cualquier financiación o logro del video pertenece al protagonista y no es una promesa para el lead. Respetá advisorCommunicationStyle y cerrá con una sola pregunta suave.
+
+Respondé solo JSON válido con message, note, requiresHuman, handoffReason, interestDelta, intent, nextAction y stopFollowUp.`;
 }
 
 function salesSystemPrompt() {

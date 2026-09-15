@@ -502,6 +502,8 @@ async function healthDiagnostics(req) {
           groq429ImmediateFallback: true,
           stagedVideoGeneration: true,
           videoGenerationMaxStages: 3,
+          oneRequestPerVideoStage: true,
+          preservesDraftIfExpansionFails: true,
           conditionalVideoExpansion: true,
           videoMessageMaxCharacters: 1100,
           idempotentLeadReplies: true,

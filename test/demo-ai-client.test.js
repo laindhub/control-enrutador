@@ -55,6 +55,7 @@ test('el simulador ofrece el video de bienvenida y el chat lo reproduce en líne
   assert.match(client, /ai-video-card/);
   assert.match(client, /videoFollowUpCount/);
   assert.match(client, /El agente eligió y personalizó/);
+  assert.match(client, /send-welcome-video[\s\S]{0,160}timeoutMs: 50_000/);
 });
 
 test('el polling conserva el elemento de video y se pausa durante la reproducción', () => {

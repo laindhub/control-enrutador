@@ -246,24 +246,97 @@ function generateWelcomeClients(now) {
         cacAdjusted: true,
         cvuOwnedByClient: true,
       },
-      messages: seedMessages({ name, welcomeAdvisor, objective, now, index }),
+      historyVersion: 2,
+      messages: [],
       notes: [
         note('Contexto inicial', context, now - randomInt(8, 20) * 86_400_000),
         note('Estado del plan', `Registra ${contributionCount} aportes y un avance estimado del ${progressPercent}% hacia su meta configurada.`, now - randomInt(2, 7) * 86_400_000, 'neutral'),
       ],
     };
+    client.messages = seedMessages({ client, now, index });
     updateRisk(client);
     return client;
   });
 }
 
-function seedMessages({ name, welcomeAdvisor, objective, now, index }) {
-  const start = now - randomInt(3, 18) * 86_400_000;
-  return [
-    message('agent', `Hola ${firstName(name)}, ¿cómo estás? Soy ${firstName(welcomeAdvisor)} del equipo de Bienvenida. Quería saber cómo venís con tu plan y si necesitás que revisemos algo juntos.`, start, { sender: welcomeAdvisor }),
-    message('client', CLIENT_REPLIES[index % CLIENT_REPLIES.length], start + 18 * 60_000, { sender: name }),
-    message('agent', `Gracias por contarme. La idea es acompañarte para que puedas sostener el proceso de una manera posible para vos. Tengo presente que buscás ${objective}. Si aparece alguna duda concreta, la vemos y, si requiere una definición personal, te contacto con alguien del equipo.`, start + 27 * 60_000, { sender: welcomeAdvisor }),
+function seedMessages({ client, now, index }) {
+  const start = now - randomInt(12, 35) * 86_400_000;
+  const hour = 60 * 60_000;
+  const day = 24 * hour;
+  const sender = { sender: client.welcomeAdvisor };
+  const customer = { sender: client.name };
+  const name = firstName(client.name);
+  const advisor = firstName(client.welcomeAdvisor);
+  const objective = objectiveForConversation(client.objective);
+  const paid = formatArs(client.plan.totalPaidArs);
+  const target = formatArs(client.plan.targetDownPaymentArs);
+  const progress = client.plan.progressPercent;
+  const contributions = client.plan.contributionCount;
+
+  const opening = message(
+    'agent',
+    `Hola ${name}, ¿cómo estás? Soy ${advisor}, del equipo de Bienvenida. Te escribo para saber cómo venís con el plan y si hay algo que necesites revisar.`,
+    start,
+    sender,
+  );
+
+  const scenarios = [
+    [
+      message('client', 'Este mes se me juntaron varios gastos y no sé si voy a poder organizarme igual que antes.', start + 18 * 60_000, customer),
+      message('agent', `Gracias por avisarme, ${name}. No quiero que tomes una decisión apurada ni prometerte cambios por mensaje. Si te parece, revisamos tu situación y vemos qué información necesitás para ordenar el próximo aporte.`, start + 31 * 60_000, sender),
+      message('time', 'Pasaron 3 días', start + 3 * day),
+      message('client', 'Creo que la semana que viene voy a tener un panorama más claro.', start + 3 * day + 22 * 60_000, customer),
+      message('agent', 'Perfecto, te doy ese espacio. La semana que viene vuelvo a consultarte y, si necesitás revisar movimientos o condiciones de tu caso, lo vemos con una persona del equipo.', start + 3 * day + 36 * 60_000, sender),
+    ],
+    [
+      message('client', '¿Me explicás por qué la cuota ya no es exactamente la misma que al principio?', start + 16 * 60_000, customer),
+      message('agent', 'Sí. La base informada es de $200.000 y se actualiza por el índice CAC, por eso cambia con el tiempo. Si querés conocer el importe exacto de tu próximo aporte, primero tenemos que revisar el dato vigente de tu cuenta.', start + 29 * 60_000, sender),
+      message('time', 'Pasó 1 día', start + day),
+      message('client', 'Entiendo. ¿Eso significa que ya elegí un departamento?', start + day + 20 * 60_000, customer),
+      message('agent', `No. Durante esta etapa estás ahorrando para reunir el anticipo obligatorio de USD 10.000. Recién al completarlo pasás al equipo de POZO para evaluar una propiedad, la financiación y la firma correspondiente.`, start + day + 33 * 60_000, sender),
+    ],
+    [
+      message('client', 'Vengo cumpliendo, pero me cuesta mantener la constancia todos los meses.', start + 17 * 60_000, customer),
+      message('agent', `Te entiendo. Ya llevás ${contributions} aportes y eso muestra que venís sosteniendo el proceso. Podemos acompañarte con recordatorios breves, sin estar escribiéndote de más. ¿Qué momento del mes te resulta más útil?`, start + 30 * 60_000, sender),
+      message('time', 'Pasaron 4 días', start + 4 * day),
+      message('client', 'Me sirve que me recuerden cerca de fin de mes, después de cobrar.', start + 4 * day + 18 * 60_000, customer),
+      message('agent', 'Perfecto, lo dejo registrado así. Si en algún mes necesitás consultar algo antes, podés escribirme por acá.', start + 4 * day + 28 * 60_000, sender),
+    ],
+    [
+      message('client', '¿Podés decirme cuánto llevo aportado hasta ahora?', start + 15 * 60_000, customer),
+      message('agent', `En esta demostración figuran ${paid} acumulados en ${contributions} aportes. Sobre la referencia configurada de ${target} para alcanzar USD 10.000, representa aproximadamente un ${progress}% del objetivo.`, start + 27 * 60_000, sender),
+      message('client', '¿Cuando llegue al cien por ciento ya me entregan el departamento?', start + 39 * 60_000, customer),
+      message('agent', 'No de manera inmediata. Completar el anticipo permite pasar al equipo de POZO; allí se revisan proyectos disponibles, financiación y condiciones antes de firmar un boleto. La entrega depende del año informado para el proyecto elegido.', start + 52 * 60_000, sender),
+    ],
+    [
+      message('client', 'Estoy organizándome para volver a aportar el viernes.', start + 19 * 60_000, customer),
+      message('agent', `Buenísimo, ${name}. Cuando lo hagas, verificá que el movimiento sea al CVU que está a tu nombre. Si después querés revisar cómo quedó registrado, escribime y lo vemos.`, start + 32 * 60_000, sender),
+      message('time', 'Pasaron 2 días', start + 2 * day),
+      message('client', '¿Puedo hacer otro aporte en el mismo mes si me sobra algo?', start + 2 * day + 16 * 60_000, customer),
+      message('agent', 'Sí, podés realizar aportes adicionales en el mismo mes. La base se actualiza por CAC y, por encima de eso, podés aportar más para avanzar a tu ritmo hacia el anticipo.', start + 2 * day + 29 * 60_000, sender),
+    ],
+    [
+      message('client', 'Tuve un gasto inesperado y estoy pensando si seguir o dejar el plan.', start + 14 * 60_000, customer),
+      message('agent', `Gracias por decírmelo antes de decidir, ${name}. Quiero entender bien qué se te complicó. Yo no puedo cambiar condiciones ni prometer una excepción, pero sí pedir que revisen tu caso personalmente.`, start + 28 * 60_000, sender),
+      message('client', 'Prefiero hablarlo antes de tomar una decisión definitiva.', start + 43 * 60_000, customer),
+      message('agent', `De acuerdo. Le dejo el caso señalado a ${client.welcomeAdvisor} para una conversación personal y sin presión. La idea es que tengas información clara antes de decidir.`, start + 55 * 60_000, sender),
+    ],
+    [
+      message('client', '¿Cuándo me corresponde hablar con el equipo de POZO?', start + 16 * 60_000, customer),
+      message('agent', `Cuando hayas completado el anticipo obligatorio de USD 10.000. Hoy la demostración registra ${paid}, equivalente aproximadamente al ${progress}% con la referencia configurada.`, start + 29 * 60_000, sender),
+      message('client', 'Entonces los $200.000 mensuales no son la cuota de un departamento.', start + 42 * 60_000, customer),
+      message('agent', 'Exactamente. Es un aporte de ahorro para construir el anticipo; todavía no elegís ni reservás una unidad y tampoco firmás un boleto. Esa etapa comienza después, con POZO.', start + 54 * 60_000, sender),
+    ],
+    [
+      message('client', 'Quiero saber si puedo adelantar más dinero algunos meses.', start + 17 * 60_000, customer),
+      message('agent', 'Sí. Además de la base mensual ajustada por CAC, podés realizar aportes adicionales al CVU a tu nombre, incluso más de una vez en el mes.', start + 30 * 60_000, sender),
+      message('time', 'Pasaron 5 días', start + 5 * day),
+      message('client', `Mi idea es avanzar más rápido porque ${objective}.`, start + 5 * day + 16 * 60_000, customer),
+      message('agent', 'Tiene sentido. Los aportes adicionales pueden acercarte antes al anticipo, pero no equivalen a reservar un departamento. Cuando completes los USD 10.000, POZO revisará con vos las opciones y condiciones disponibles.', start + 5 * day + 29 * 60_000, sender),
+    ],
   ];
+
+  return [opening, ...scenarios[index % scenarios.length]];
 }
 
 async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) {
@@ -397,7 +470,7 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays }) {
     };
   }
   return {
-    message: `Gracias por escribir, ${firstName(client.name)}. Tengo presente tu objetivo de ${client.objective}. La idea es acompañarte y aclarar lo que necesites para que puedas tomar decisiones con información. ¿Qué parte del plan te gustaría revisar hoy?`,
+    message: `Gracias por escribir, ${firstName(client.name)}. Tengo presente que tu objetivo es ${objectiveForConversation(client.objective)}. La idea es acompañarte y aclarar lo que necesites para que puedas tomar decisiones con información. ¿Qué parte del plan te gustaría revisar hoy?`,
     note: 'Se respondió al cliente y se abrió una pregunta para identificar su necesidad actual.',
     requiresHuman: false,
     retentionDelta: 3,
@@ -437,10 +510,43 @@ function normalizeClient(client, now) {
   if (planNote) {
     planNote.text = `Registra ${Number(normalized.plan.contributionCount || 0)} aportes y un avance calculado del ${normalized.plan.progressPercent}% hacia el anticipo de USD 10.000.`;
   }
+  if (shouldUpgradeSeedHistory(normalized)) {
+    normalized.messages = seedMessages({ client: normalized, now, index: historyScenarioIndex(normalized) });
+    normalized.historyVersion = 2;
+  }
   normalized.retentionScore = clampNumber(normalized.retentionScore, 20, 99, 75);
   normalized.simulatedAt = Number(normalized.simulatedAt || now);
   updateRisk(normalized);
   return normalized;
+}
+
+function objectiveForConversation(value) {
+  return clean(value, 180)
+    .replace(/\bsu familia\b/gi, 'tu familia')
+    .replace(/\bsu pareja\b/gi, 'tu pareja')
+    .replace(/\bsu futuro\b/gi, 'tu futuro');
+}
+
+function formatArs(value) {
+  return `$ ${Math.round(Number(value) || 0).toLocaleString('es-AR')}`;
+}
+
+function shouldUpgradeSeedHistory(client) {
+  if (Number(client.historyVersion || 0) >= 2) return false;
+  if (client.messages.length > 4) return false;
+  return !client.messages.some((item) => (
+    item?.clientRequestId
+    || item?.replyToRequestId
+    || item?.generatedBy
+    || item?.role === 'time'
+  ));
+}
+
+function historyScenarioIndex(client) {
+  const context = String(client.context || '');
+  const concernIndex = CONCERNS.findIndex((concern) => context.includes(concern));
+  if (concernIndex >= 0) return concernIndex;
+  return [...String(client.name || '')].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 8;
 }
 
 function calculatePlanProgress(totalPaidArs, usdReferenceArs) {

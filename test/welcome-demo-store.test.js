@@ -137,6 +137,29 @@ test('simular una semana genera seguimiento y la intervención personal toma el 
   assert.match(handled.notes[0].title, /Intervención personal/);
 });
 
+test('Bienvenida puede elegir y enviar un video contextual al chat', async () => {
+  const requests = [];
+  const generate = async (request) => {
+    requests.push(request);
+    return {
+      message: 'Te comparto esta historia porque conecta con el esfuerzo que venís haciendo. Cada proceso es distinto y primero necesitás completar el anticipo. ¿Qué te genera verla?',
+      note: 'Se eligió el testimonio de la enfermera por su contexto.',
+      selectedVideoId: 'nurse-home-v3',
+      generatedBy: 'Generado por IA',
+    };
+  };
+  const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000, generate });
+  const id = store.clients[0].id;
+  const updated = await store.sendVideo(id);
+  const videoMessage = updated.messages.at(-1);
+  assert.equal(requests[0].kind, 'video');
+  assert.equal(requests[0].videos.length, 3);
+  assert.equal(videoMessage.video.id, 'nurse-home-v3');
+  assert.equal(videoMessage.video.src, '/assets/demo-ai/videos/enfermera-hogar-propio.mp4');
+  assert.match(videoMessage.text, /completar el anticipo/);
+  assert.match(updated.notes[0].title, /Video compartido/);
+});
+
 test('regenerar reemplaza la muestra manteniendo veinte clientes', () => {
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000 });
   const previousIds = new Set(store.clients.map(({ id }) => id));

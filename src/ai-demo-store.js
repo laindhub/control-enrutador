@@ -80,7 +80,7 @@ export class AiDemoStore {
       ai: {
         enabled: Boolean(config.groq.apiKey),
         model: config.groq.model,
-        mode: config.groq.apiKey ? 'Qwen conectado mediante Groq' : 'Respuestas de demostración',
+        mode: config.groq.apiKey ? 'IA conectada' : 'Respuestas de demostración',
         videoFollowUpCount: VIDEO_FOLLOW_UPS.length,
       },
       generatedAt: this.now(),
@@ -608,7 +608,7 @@ async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos 
     nextAction: clean(parsed.nextAction, 180),
     stopFollowUp: parsed.stopFollowUp === true,
     selectedVideoId: '',
-    generatedBy: 'Qwen vía Groq',
+    generatedBy: 'Generado por IA',
     generationStyle: variation.label,
   };
   generated.message = sanitizeContextEcho(generated.message, lead);
@@ -746,7 +746,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
     nextAction: clean(finalDraft.nextAction, 180),
     stopFollowUp: finalDraft.stopFollowUp === true,
     selectedVideoId: selectedVideo.id,
-    generatedBy: `Qwen vía Groq · ${stages} etapas`,
+    generatedBy: `Generado por IA · ${stages} etapas`,
     generationStyle: variation.label,
   };
   generated.message = sanitizeContextEcho(generated.message, lead);
@@ -1068,14 +1068,14 @@ async function requestGroqJson(body, { maxAttempts = 3 } = {}) {
       });
       if (!response.ok) {
         const details = await response.text();
-        const error = new Error(`Groq respondió ${response.status}: ${details.slice(0, 180)}`);
+        const error = new Error(`El servicio de IA respondió ${response.status}: ${details.slice(0, 180)}`);
         error.groqStatus = response.status;
         throw error;
       }
       const payload = await response.json();
       const raw = payload.choices?.[0]?.message?.content || '';
       const parsed = parseModelJson(raw);
-      if (!parsed.message) throw new Error('Qwen no devolvió un mensaje utilizable.');
+      if (!parsed.message) throw new Error('La IA no devolvió un mensaje utilizable.');
       return parsed;
     } catch (error) {
       lastError = error;
@@ -1251,7 +1251,7 @@ function resolveProject(value) {
 }
 
 function publicError(error) {
-  if (Number(error?.groqStatus) === 429) return 'Groq alcanzó temporalmente su límite de uso.';
-  if (error?.name === 'TimeoutError') return 'Groq demoró demasiado en responder.';
+  if (Number(error?.groqStatus) === 429) return 'El servicio de IA alcanzó temporalmente su límite de uso.';
+  if (error?.name === 'TimeoutError') return 'El servicio de IA demoró demasiado en responder.';
   return String(error?.message || 'Error inesperado').slice(0, 220);
 }

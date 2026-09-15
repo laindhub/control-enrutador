@@ -453,8 +453,8 @@ async function advanceTime(button) {
     }
     const messages = {
       waiting: 'El agente decidió esperar para no ser invasivo.',
-      followup: 'Qwen generó un nuevo seguimiento por falta de respuesta.',
-      closed: 'Qwen cerró la secuencia automática y dejó el lead en pausa.',
+      followup: 'La IA generó un nuevo seguimiento por falta de respuesta.',
+      closed: 'La IA cerró la secuencia automática y dejó el lead en pausa.',
     };
     toast(messages[result.outcome] || 'Tiempo simulado.');
   } catch (error) {
@@ -783,7 +783,7 @@ function nextActionLabel(lead) {
   if (lead.status === 'human') return 'Conversación tomada por el asesor';
   if (lead.status === 'thinking') return 'El agente está preparando una respuesta';
   if (lead.status === 'cold') return 'Secuencia finalizada; puede reactivarse si el lead responde';
-  if (lead.status === 'error') return 'Revisar conexión con Groq';
+  if (lead.status === 'error') return 'Revisar conexión con el servicio de IA';
   return 'Esperar respuesta del lead';
 }
 

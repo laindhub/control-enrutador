@@ -28,6 +28,9 @@ test('Bienvenida genera 20 clientes ficticios con contacto, contexto y avance de
     assert.doesNotMatch(client.messages.map(({ text }) => text).join(' '), /buscás .* su (familia|pareja|futuro)/i);
     assert.ok(client.messages
       .filter(({ role }) => role === 'client')
+      .every(({ text }) => !/\btu (familia|pareja|futuro)\b/i.test(text)));
+    assert.ok(client.messages
+      .filter(({ role }) => role === 'client')
       .every(({ text }) => !/^(Le preocupa|Quiere entender|Necesita acompañamiento|Está motivado|Consulta seguido|Tuvo un mes difícil|Valora recibir|Quiere saber)/.test(text)));
   }
   const distinctClientHistories = new Set(snapshot.clients.map((client) => client.messages

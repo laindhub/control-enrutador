@@ -19,9 +19,28 @@ test('Bienvenida genera 20 clientes ficticios con contacto, contexto y avance de
     assert.equal(client.plan.targetDownPaymentUsd, 10_000);
     assert.equal(client.plan.monthlyBaseArs, 200_000);
     assert.ok(client.messages.length >= 3);
+    assert.ok(client.messages
+      .filter(({ role }) => role === 'client')
+      .every(({ text }) => !/^(Le preocupa|Quiere entender|Necesita acompañamiento|Está motivado|Consulta seguido|Tuvo un mes difícil|Valora recibir|Quiere saber)/.test(text)));
   }
   assert.ok(snapshot.metrics.retentionAverage >= 20 && snapshot.metrics.retentionAverage <= 99);
   assert.equal(snapshot.metrics.activePlans, 20);
+});
+
+test('migra el contexto interno heredado fuera del chat del cliente', () => {
+  const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000 });
+  const legacy = store.snapshot().clients[0];
+  legacy.messages.push({
+    id: 'legacy-context-message',
+    role: 'client',
+    text: 'Necesita acompañamiento para mantener la constancia sin sentirse presionado.',
+    createdAt: 1_800_000_000_000,
+  });
+  store.restore([legacy]);
+  const restored = store.snapshot().clients[0];
+  assert.equal(restored.messages.some(({ id }) => id === 'legacy-context-message'), false);
+  assert.match(restored.context, /Necesita acompañamiento|Busca/);
+  assert.ok(restored.notes.some(({ title }) => title === 'Contexto inicial'));
 });
 
 test('el chat de retención registra el mensaje una sola vez y actualiza la ficha', async () => {

@@ -354,8 +354,20 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-building-placeholder strong { font-size: 1.05rem; }
 .ai-building-placeholder small { color: rgba(255, 255, 255, .75); }
 
-.ai-typing {
+.ai-typing-row {
   align-self: flex-end;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+}
+.ai-typing-row > span {
+  padding-right: 3px;
+  color: #65767d;
+  font-size: .62rem;
+  font-weight: 700;
+  animation: ai-typing-label 1.5s ease-in-out infinite;
+}
+.ai-typing {
   display: inline-flex;
   gap: 4px;
   padding: 12px 15px;
@@ -366,6 +378,19 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-typing i:nth-child(2) { animation-delay: .16s; }
 .ai-typing i:nth-child(3) { animation-delay: .32s; }
 @keyframes typing { 0%, 70%, 100% { transform: translateY(0); opacity: .4; } 35% { transform: translateY(-4px); opacity: 1; } }
+@keyframes ai-typing-label { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+.ai-optimistic-message.sending { opacity: .92; }
+.ai-optimistic-message.failed {
+  border: 1px solid rgba(190, 43, 64, .3);
+  background: #fff8f8;
+}
+.ai-message-delivery {
+  color: #718087;
+  font-size: .6rem;
+  font-weight: 750;
+}
+.ai-optimistic-message.failed .ai-message-delivery { color: #b5233a; }
 
 .ai-composer {
   display: flex;

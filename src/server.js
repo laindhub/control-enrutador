@@ -441,7 +441,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-welcome-contribution-progress-v32',
+          diagnosticRevision: 'demo-welcome-chat-histories-v33',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -530,6 +530,9 @@ async function healthDiagnostics(req) {
           welcomeInternalContextNotes: true,
           welcomeContributionBasedProgress: true,
           welcomeUsdReferenceArs: config.welcomeDemo.usdReferenceArs,
+          variedWelcomeChatHistories: true,
+          welcomeHistoryVersion: 2,
+          preservesTesterConversations: true,
         },
         demoWelcome: {
           accessible: authenticated && demoRole === 'ai',

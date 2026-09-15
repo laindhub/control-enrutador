@@ -626,7 +626,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
     selection = await requestGroqJson({
       model: config.groq.model,
       temperature: 0.35,
-      max_completion_tokens: 170,
+      max_completion_tokens: 240,
       messages: [
         {
           role: 'system',
@@ -677,7 +677,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
               story: selectedVideo.requiredInstruction,
               commercialGuardrail: selectedVideo.commercialClarification,
             },
-            selectedApproach: clean(selection.message, 220),
+            initialDraft: clean(selection.message, 320),
             advisorCommunicationStyle: normalizeAdvisorStyle(lead.agentStyle),
             lead: {
               name: lead.name,
@@ -702,7 +702,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
   let stages = 2;
   if (videoDraftNeedsExpansion(draft.message, selectedVideo)) {
     try {
-      finalDraft = await requestGroqJson({
+      const expandedDraft = await requestGroqJson({
         model: config.groq.model,
         temperature: 0.64,
         max_completion_tokens: 780,
@@ -729,7 +729,10 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
           },
         ],
       });
-      stages = 3;
+      if (String(expandedDraft.message || '').trim().length > String(draft.message || '').trim().length) {
+        finalDraft = { ...draft, ...expandedDraft, message: expandedDraft.message };
+        stages = 3;
+      }
     } catch (error) {
       if (!isRecoverableGroqOutage(error)) throw error;
       finalDraft = draft;
@@ -856,7 +859,7 @@ function normalizeText(value) {
 }
 
 export function sanitizeContextEcho(messageText, lead) {
-  const messageTextClean = cleanGeneratedMessage(messageText, 700, lead?.agentStyle);
+  const messageTextClean = cleanGeneratedMessage(messageText, 1100, lead?.agentStyle);
   const rawContext = clean(lead?.context, 500);
   if (!rawContext || !sharesRawSequence(messageTextClean, rawContext)) return messageTextClean;
 
@@ -871,7 +874,7 @@ export function sanitizeContextEcho(messageText, lead) {
   const rewritten = questionIndex >= 0
     ? `${base.slice(0, questionIndex).trim()} Me acordé de ${insight}. ${base.slice(questionIndex).trim()}`
     : `${base} Me acordé de ${insight}.`;
-  return cleanGeneratedMessage(rewritten, 700, lead?.agentStyle);
+  return cleanGeneratedMessage(rewritten, 1100, lead?.agentStyle);
 }
 
 function sharesRawSequence(candidate, source) {
@@ -1119,13 +1122,13 @@ function interestSignals(text) {
 }
 
 function videoSelectionSystemPrompt() {
-  return `Elegí el video testimonial que mejor encaja con la motivación, el objetivo y la conversación. No elijas por orden ni al azar. No redactes el WhatsApp todavía. Respondé solo JSON válido: {"selectedVideoId":"id exacto","message":"enfoque de redacción en hasta 140 caracteres"}.`;
+  return `Elegí el video testimonial que mejor encaja con la motivación, el objetivo y la conversación. No elijas por orden ni al azar. Escribí además una apertura natural de una o dos frases para iniciar el WhatsApp. Respondé solo JSON válido: {"selectedVideoId":"id exacto","message":"apertura inicial en hasta 260 caracteres"}.`;
 }
 
 function videoDraftSystemPrompt() {
   return `Sos el asistente virtual de un asesor de Más Dueños/Metroterra, marcas vinculadas a Spazios. Escribí el WhatsApp completo que acompaña el video testimonial elegido después de una semana sin respuesta.
 
-EXTENSIÓN Y CONTENIDO: redactá entre 650 y 1000 caracteres. Conservá todos los hechos importantes de story, incluyendo financiación, plazos, sacrificios o frases relevantes cuando aparezcan. No copies el texto fuente literalmente, no hagas una lista y no rellenes con frases vacías. Conectá una sola motivación interpretada del lead de forma natural y terminá con una pregunta suave.
+EXTENSIÓN Y CONTENIDO: continuá y desarrollá initialDraft hasta redactar un mensaje completo de entre 650 y 1000 caracteres. Conservá todos los hechos importantes de story, incluyendo financiación, plazos, sacrificios o frases relevantes cuando aparezcan. No copies el texto fuente literalmente, no hagas una lista y no rellenes con frases vacías. Conectá una sola motivación interpretada del lead de forma natural y terminá con una pregunta suave.
 
 ESTILO: español rioplatense, cercano y sin presión. Respetá advisorCommunicationStyle. No enumeres ni copies apuntes internos. El mensaje debe sentirse humano, no como publicidad masiva.
 

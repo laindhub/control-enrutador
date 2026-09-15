@@ -65,11 +65,23 @@ test('el polling conserva el elemento de video y se pausa durante la reproducci�
   assert.match(client, /event\.type === 'play' \|\| event\.type === 'playing'/);
 });
 
+test('el mensaje del tester aparece de inmediato y la IA muestra que está escribiendo', () => {
+  assert.match(client, /optimisticReplyFor\(lead\)/);
+  assert.match(client, /ai-optimistic-message/);
+  assert.match(client, /status: 'sending'/);
+  assert.match(client, /renderSelectedLead\(\);[\s\S]{0,120}await api\(/);
+  assert.match(client, /agentIsTyping\(lead\)/);
+  assert.match(client, /El agente está escribiendo…/);
+  assert.match(styles, /\.ai-typing-row/);
+  assert.match(styles, /\.ai-optimistic-message\.failed/);
+});
+
 test('los reenvíos del lead conservan una identidad y esperan los reintentos internos', () => {
   assert.match(client, /pendingReply/);
   assert.match(client, /body: \{ text, requestId \}/);
   assert.match(client, /timeoutMs: 50_000/);
   assert.match(client, /createClientRequestId/);
+  assert.match(client, /El mensaje quedó visible/);
   assert.match(client, /no se duplicará/);
 });
 

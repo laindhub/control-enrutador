@@ -12,6 +12,7 @@ const state = {
   mediaActive: false,
   renderedChatSignature: '',
   pendingReply: null,
+  agentActivity: null,
   styleDirty: false,
   styleEditingAdvisor: null,
   syncingStyleControls: false,
@@ -261,9 +262,9 @@ function renderSelectedLead() {
   document.querySelectorAll('[data-advance-hours]').forEach((button) => {
     button.disabled = ['human', 'error', 'cold'].includes(lead.status);
   });
-  elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'error', 'cold'].includes(lead.status)
+  elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'cold'].includes(lead.status)
     || lead.messages.filter((item) => item.video?.id).length >= Number(state.snapshot.ai.videoFollowUpCount || 1);
-  elements.chatState.textContent = lead.status === 'thinking' ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
+  elements.chatState.textContent = agentIsTyping(lead) ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
   elements.opportunityName.textContent = lead.name;
   elements.opportunityStatus.textContent = statusLabel(lead.status);
   elements.opportunityStatus.className = `ai-status-chip ${lead.status}`;
@@ -283,16 +284,21 @@ function renderSelectedLead() {
 }
 
 function renderMessages(lead) {
+  const optimisticReply = optimisticReplyFor(lead);
+  const typingActive = agentIsTyping(lead);
   const signature = JSON.stringify({
     leadId: lead.id,
     status: lead.status,
     nextActionAt: lead.nextActionAt,
-    messages: lead.messages.map(({ id, role, text, createdAt, generatedBy, video, card }) => ({
+    typingActive,
+    optimisticReply,
+    messages: lead.messages.map(({ id, role, text, createdAt, generatedBy, video, card, clientRequestId }) => ({
       id,
       role,
       text,
       createdAt,
       generatedBy,
+      clientRequestId,
       videoId: video?.id || '',
       cardTitle: card?.title || '',
     })),
@@ -325,8 +331,13 @@ function renderMessages(lead) {
       : '';
     return `<article class="ai-bubble ${escapeAttr(item.role)}">${video}${card}<p>${escapeHtml(item.text)}</p><footer>${generatedLabel}<time>${formatTime(item.createdAt)}${item.role === 'advisor' ? '<span class="ai-checks">✓✓</span>' : ''}</time></footer></article>`;
   }).join('');
-  const typing = lead.status === 'thinking' ? '<div class="ai-typing" aria-label="El agente está escribiendo"><i></i><i></i><i></i></div>' : '';
-  elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${typing}`;
+  const optimisticBubble = optimisticReply
+    ? `<article class="ai-bubble lead ai-optimistic-message ${optimisticReply.status === 'failed' ? 'failed' : 'sending'}"><p>${escapeHtml(optimisticReply.text)}</p><footer><span class="ai-message-delivery">${optimisticReply.status === 'failed' ? 'Sin respuesta · podés reenviar' : 'Enviado · esperando respuesta'}</span><time>${formatTime(optimisticReply.createdAt)}</time></footer></article>`
+    : '';
+  const typing = typingActive
+    ? '<div class="ai-typing-row" role="status" aria-live="polite"><div class="ai-typing" aria-hidden="true"><i></i><i></i><i></i></div><span>El agente está escribiendo…</span></div>'
+    : '';
+  elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${optimisticBubble}${typing}`;
   $('#sendNowButton')?.addEventListener('click', sendNow);
   requestAnimationFrame(() => { elements.messageList.scrollTop = elements.messageList.scrollHeight; });
 }
@@ -359,7 +370,7 @@ async function sendWelcomeVideo() {
       button.disabled = ['human', 'error', 'cold'].includes(current?.status);
     });
     if (current) {
-      elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'error', 'cold'].includes(current.status)
+      elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'cold'].includes(current.status)
         || current.messages.filter((item) => item.video?.id).length >= Number(state.snapshot?.ai?.videoFollowUpCount || 1);
     }
   }
@@ -509,14 +520,21 @@ async function sendLeadReply(event) {
   const text = elements.replyInput.value.trim();
   if (!lead || !text || state.loading) return;
   const previousAttempt = state.pendingReply;
-  const requestId = previousAttempt?.leadId === lead.id && previousAttempt.text === text
-    ? previousAttempt.requestId
-    : createClientRequestId();
-  state.pendingReply = { leadId: lead.id, text, requestId };
+  const reusingAttempt = previousAttempt?.leadId === lead.id && previousAttempt.text === text;
+  const requestId = reusingAttempt ? previousAttempt.requestId : createClientRequestId();
+  state.pendingReply = {
+    leadId: lead.id,
+    text,
+    requestId,
+    createdAt: reusingAttempt ? previousAttempt.createdAt : Date.now(),
+    status: 'sending',
+  };
+  state.agentActivity = { leadId: lead.id, kind: 'reply' };
   state.loading = true;
   const button = elements.replyForm.querySelector('[type="submit"]');
   button.disabled = true;
   elements.replyInput.value = '';
+  renderSelectedLead();
   try {
     await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/reply`, {
       method: 'POST',
@@ -524,10 +542,14 @@ async function sendLeadReply(event) {
       timeoutMs: 50_000,
     });
     state.pendingReply = null;
+    state.agentActivity = null;
     await refresh();
   } catch (error) {
+    if (state.pendingReply?.requestId === requestId) state.pendingReply.status = 'failed';
+    state.agentActivity = null;
     elements.replyInput.value = text;
-    toast(`${error.message} Podés tocar enviar otra vez: no se duplicará.`, true);
+    renderSelectedLead();
+    toast(`${error.message} El mensaje quedó visible; podés tocar enviar otra vez y no se duplicará.`, true);
   } finally {
     state.loading = false;
     button.disabled = false;
@@ -635,6 +657,30 @@ async function handleHandoff() {
 
 function selectedLead() {
   return state.snapshot?.leads.find((lead) => lead.id === state.selectedLeadId) || null;
+}
+
+function optimisticReplyFor(lead) {
+  const pending = state.pendingReply;
+  if (!pending || pending.leadId !== lead.id) return null;
+  const alreadyStored = lead.messages.some((item) => item.clientRequestId && item.clientRequestId === pending.requestId);
+  return alreadyStored ? null : pending;
+}
+
+function agentIsTyping(lead) {
+  return lead.status === 'thinking'
+    || state.agentActivity?.leadId === lead.id
+    || state.pendingReply?.leadId === lead.id && state.pendingReply.status === 'sending';
+}
+
+function beginAgentActivity(lead, kind) {
+  state.agentActivity = { leadId: lead.id, kind };
+  renderSelectedLead();
+}
+
+function endAgentActivity(leadId) {
+  if (state.agentActivity?.leadId !== leadId) return;
+  state.agentActivity = null;
+  if (state.selectedLeadId === leadId) renderSelectedLead();
 }
 
 function firstName(value) {

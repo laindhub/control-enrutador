@@ -17,10 +17,10 @@ test('los videos se generan por etapas compactas y conservan respaldo ante el l�
   assert.match(storeSource, /content: videoExpansionSystemPrompt\(\)/);
   assert.match(storeSource, /return requestGroqJson\(body, \{ maxAttempts: 1 \}\)/);
   assert.match(storeSource, /catch \{[\s\S]{0,80}finalDraft = draft/);
-  assert.match(storeSource, /Qwen vía Groq · \$\{stages\} etapas/);
+  assert.match(storeSource, /Generado por IA · \$\{stages\} etapas/);
   assert.match(storeSource, /Number\(error\?\.groqStatus\) === 429/);
   assert.match(storeSource, /fallback\.generatedBy = 'Respaldo automático'/);
-  assert.match(storeSource, /groqStatus\) === 429\) return 'Groq alcanzó temporalmente su límite de uso\.'/);
+  assert.match(storeSource, /groqStatus\) === 429\) return 'El servicio de IA alcanzó temporalmente su límite de uso\.'/);
 });
 
 test('incluye por escrito los 39 proyectos del PDF en el prompt de sistema', () => {
@@ -183,7 +183,7 @@ test('las alternativas adjuntas sobreviven al recuperar la sesión sin convertir
   assert.equal(restored.messages.at(-1).card.delivery, '2028');
 });
 
-test('Qwen elige el video más pertinente entre los no enviados y recibe todos sus hechos', async () => {
+test('la IA elige el video más pertinente entre los no enviados y recibe todos sus hechos', async () => {
   const now = 1_800_000_000_000;
   const generationRequests = [];
   const generate = async (request) => {
@@ -201,11 +201,11 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
           ? 'Hola Lucía, te comparto las reacciones de los nuevos dueños de Spazio Eclipse al recibir sus llaves: hubo llanto, risas, abrazos y alivio después de años de esfuerzo. Algunos dijeron “Lo logré, ya llegué” y una dueña contó que no va a alquilar nunca más. ¿Te imaginás cómo vivirías ese momento?'
           : 'Hola Lucía, te comparto la historia de una enfermera que tomó horas extra, ajustó sus gastos e hizo guardias larguísimas. Hoy tiene su hogar, dejó de alquilar y recibió sus llaves. Su constancia hizo posible ese objetivo. ¿Qué te genera verla?',
       note: selectedVideoId === 'melissa-story-v1'
-        ? 'Qwen adaptó el testimonio de Melissa al objetivo de Lucía.'
+        ? 'La IA adaptó el testimonio de Melissa al objetivo de Lucía.'
         : selectedVideoId === 'eclipse-keys-v2'
-          ? 'Qwen eligió el testimonio de Eclipse.'
-          : 'Qwen eligió el testimonio de la enfermera.',
-      generatedBy: 'Qwen vía Groq',
+          ? 'La IA eligió el testimonio de Eclipse.'
+          : 'La IA eligió el testimonio de la enfermera.',
+      generatedBy: 'Generado por IA',
       generationStyle: 'Testimonio conectado',
     };
   };
@@ -227,11 +227,11 @@ test('Qwen elige el video más pertinente entre los no enviados y recibe todos s
   assert.equal(videoMessage.role, 'advisor');
   assert.equal(videoMessage.video.src, '/assets/demo-ai/videos/melissa-historia.mp4');
   assert.equal(videoMessage.video.durationLabel, '0:40');
-  assert.equal(videoMessage.generatedBy, 'Qwen vía Groq');
+  assert.equal(videoMessage.generatedBy, 'Generado por IA');
   assert.ok(videoMessage.createdAt >= lastOutbound.createdAt + 7 * 24 * 60 * 60 * 1000);
   assert.match(videoMessage.text, /120 cuotas \(10 años\)/);
   assert.match(videoMessage.text, /vendió su auto/);
-  assert.match(sent.notes[0].text, /Qwen adaptó/);
+  assert.match(sent.notes[0].text, /La IA adaptó/);
   const secondSent = await store.sendWelcomeVideo(before.id);
   const eclipseMessage = secondSent.messages.find((item) => item.video?.id === 'eclipse-keys-v2');
   assert.equal(generationRequests[1].videos.length, 2);
@@ -256,7 +256,7 @@ test('un video puede reintentarse sobre el mismo lead después de una falla', as
   const generate = async ({ videos }) => {
     attempts += 1;
     if (attempts === 1) {
-      const error = new Error('Límite temporal de Groq');
+      const error = new Error('Límite temporal del servicio de IA');
       error.groqStatus = 429;
       throw error;
     }
@@ -264,12 +264,12 @@ test('un video puede reintentarse sobre el mismo lead después de una falla', as
       message: 'Hola Lucía, te comparto esta historia porque conecta con tus ganas de dejar de alquilar. ¿Qué te genera verla?',
       note: 'El video se envió correctamente después de recuperar una falla temporal.',
       selectedVideoId: videos[0].id,
-      generatedBy: 'Qwen vía Groq',
+      generatedBy: 'Generado por IA',
     };
   };
   const store = new AiDemoStore({ now: () => 1_800_000_000_000, generate });
   const id = 'demo-ai-lucia';
-  await assert.rejects(() => store.sendWelcomeVideo(id), /Límite temporal de Groq/);
+  await assert.rejects(() => store.sendWelcomeVideo(id), /Límite temporal del servicio de IA/);
   assert.equal(store.getLead(id).status, 'error');
 
   const recovered = await store.sendWelcomeVideo(id);
@@ -283,7 +283,7 @@ test('reintentar una respuesta fallida no duplica el mensaje del lead ni la resp
   const generate = async ({ kind }) => {
     if (kind !== 'reply') return { message: 'Mensaje inicial.', note: 'Inicio.' };
     attempts += 1;
-    if (attempts === 1) throw new Error('Falla transitoria de Groq');
+    if (attempts === 1) throw new Error('Falla transitoria del servicio de IA');
     return {
       message: 'Te explico la diferencia entre el ahorro y el anticipo.',
       note: 'Se respondió la consulta tras reintentar.',
@@ -339,7 +339,7 @@ test('la personalidad del asesor se aplica a todos sus leads y se hereda en los 
 test('cada mensaje del agente crea una nota dentro de la oportunidad', async () => {
   let clock = 1_800_000_000_000;
   const generate = async ({ kind }) => kind === 'initial'
-    ? { message: '¿Querés conocer el proyecto?', note: 'Se propuso una visita.', generatedBy: 'Qwen vía Groq' }
+    ? { message: '¿Querés conocer el proyecto?', note: 'Se propuso una visita.', generatedBy: 'Generado por IA' }
     : { message: 'Te contacto con el asesor.', note: 'El lead pidió avanzar.', requiresHuman: true, handoffReason: 'Solicitó una visita.' };
   const store = new AiDemoStore({ now: () => clock, generate });
   const created = store.createLead({ name: 'Martín Sosa', delaySeconds: 5 });
@@ -347,7 +347,7 @@ test('cada mensaje del agente crea una nota dentro de la oportunidad', async () 
   await store.processDue();
   let lead = store.getLead(created.id);
   assert.equal(lead.messages.length, 1);
-  assert.equal(lead.messages[0].generatedBy, 'Qwen vía Groq');
+  assert.equal(lead.messages[0].generatedBy, 'Generado por IA');
   assert.match(lead.notes[0].text, /visita/i);
   clock += 1_000;
   lead = await store.receiveLeadMessage(created.id, 'Quiero verlo el sábado');
@@ -369,7 +369,7 @@ test('simula espera, respeta la cadencia y cierra después de tres seguimientos'
     note: kind === 'initial' ? 'Inicio.' : 'Seguimiento por falta de respuesta.',
     requiresHuman: false,
     handoffReason: '',
-    generatedBy: 'Qwen vía Groq',
+    generatedBy: 'Generado por IA',
   });
   const store = new AiDemoStore({ now: () => clock, generate });
   const created = store.createLead({ name: 'Mariano', delaySeconds: 5 });

@@ -9,6 +9,10 @@ const welcomeView = readFileSync(new URL('../views/demo-welcome.ejs', import.met
 const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
 const customSelect = readFileSync(new URL('../public/js/custom-select.js', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../public/css/demo-ai.css', import.meta.url), 'utf8');
+const welcomeClient = readFileSync(new URL('../public/js/demo-welcome.js', import.meta.url), 'utf8');
+const welcomeStyles = readFileSync(new URL('../public/css/demo-welcome.css', import.meta.url), 'utf8');
+const welcomeStore = readFileSync(new URL('../src/welcome-demo-store.js', import.meta.url), 'utf8');
+const aiRoutes = readFileSync(new URL('../src/routes/ai-demo.js', import.meta.url), 'utf8');
 
 test('la Demo IA se reconecta al volver a la página o recuperar Internet', () => {
   assert.match(client, /addEventListener\('pageshow', \(\) => reconnectNow\(\)\)/);
@@ -105,12 +109,27 @@ test('la Demo IA separa asesoramiento de leads y seguimiento de bienvenida', () 
   assert.match(areaView, /Asesorar leads/);
   assert.match(areaView, /Equipo de bienvenida/);
   assert.match(areaView, /Los historiales y criterios de la IA se mantienen separados/);
-  assert.match(welcomeView, /RETENCIÓN PROMEDIO/);
-  assert.match(welcomeView, /RIESGO DE BAJA/);
-  assert.match(welcomeView, /Personas que ya forman parte del plan de ahorro/);
+  assert.match(welcomeView, /Equipo de Bienvenida/);
+  assert.match(welcomeView, /Personas acompañadas/);
+  assert.match(welcomeView, /Avance del plan de ahorro/);
+  assert.match(welcomeView, /id="welcomeMessageList"/);
   assert.doesNotMatch(welcomeView, /porcentaje de oportunidad/i);
   assert.match(view, /Cambiar área/);
   assert.match(areaView, /<html lang="es" class="ai-scroll-page">/);
-  assert.match(welcomeView, /<html lang="es" class="ai-scroll-page">/);
-  assert.match(styles, /html\.ai-scroll-page body[\s\S]{0,180}overflow-y: auto/);
+});
+
+test('Bienvenida ofrece veinte clientes, chats y seguimiento de retención funcional', () => {
+  assert.match(welcomeStore, /FIRST_NAMES\.map/);
+  assert.match(welcomeStore, /targetDownPaymentUsd: 10_000/);
+  assert.match(welcomeStore, /totalPaidArs/);
+  assert.match(aiRoutes, /\/welcome\/snapshot/);
+  assert.match(aiRoutes, /\/welcome\/clients\/:id\/reply/);
+  assert.match(aiRoutes, /\/welcome\/clients\/:id\/advance-time/);
+  assert.match(aiRoutes, /\/welcome\/reset/);
+  assert.match(welcomeClient, /sendClientReply/);
+  assert.match(welcomeClient, /optimisticReplyFor/);
+  assert.match(welcomeClient, /El equipo de Bienvenida está escribiendo/);
+  assert.match(welcomeClient, /regenerateClients/);
+  assert.match(welcomeStyles, /\.welcome-workspace/);
+  assert.match(welcomeStyles, /body\[data-view="chat"\]/);
 });

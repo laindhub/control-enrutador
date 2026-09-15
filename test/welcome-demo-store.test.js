@@ -35,7 +35,7 @@ test('el chat de retención registra el mensaje una sola vez y actualiza la fich
       retentionDelta: -6,
       intent: 'dificultad de pago',
       nextAction: 'Contactar personalmente al cliente',
-      generatedBy: 'Qwen vía Groq',
+      generatedBy: 'Generado por IA',
     };
   };
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000, generate });
@@ -61,7 +61,7 @@ test('simular una semana genera seguimiento y la intervención personal toma el 
     retentionDelta: 1,
     intent: 'seguimiento preventivo',
     nextAction: 'Esperar respuesta',
-    generatedBy: 'Qwen vía Groq',
+    generatedBy: 'Generado por IA',
   });
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000, generate });
   const id = store.clients[1].id;

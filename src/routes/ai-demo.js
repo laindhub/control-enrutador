@@ -111,6 +111,15 @@ export function createAiDemoRouter() {
     }
   });
 
+  router.post('/welcome/clients/:id/send-video', async (req, res, next) => {
+    try {
+      const client = await withWelcomeSessionStore(req, (store) => store.sendVideo(req.params.id));
+      return res.json({ client });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.post('/welcome/clients/:id/advance-time', async (req, res, next) => {
     try {
       const result = await withWelcomeSessionStore(req, (store) => store.advanceTime(req.params.id, req.body?.days));

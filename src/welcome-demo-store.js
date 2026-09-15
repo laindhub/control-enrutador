@@ -268,6 +268,7 @@ function seedMessages({ client, now, index }) {
   const name = firstName(client.name);
   const advisor = firstName(client.welcomeAdvisor);
   const objective = objectiveForConversation(client.objective);
+  const clientObjective = objectiveInFirstPerson(client.objective);
   const paid = formatArs(client.plan.totalPaidArs);
   const target = formatArs(client.plan.targetDownPaymentArs);
   const progress = client.plan.progressPercent;
@@ -331,7 +332,7 @@ function seedMessages({ client, now, index }) {
       message('client', 'Quiero saber si puedo adelantar más dinero algunos meses.', start + 17 * 60_000, customer),
       message('agent', 'Sí. Además de la base mensual ajustada por CAC, podés realizar aportes adicionales al CVU a tu nombre, incluso más de una vez en el mes.', start + 30 * 60_000, sender),
       message('time', 'Pasaron 5 días', start + 5 * day),
-      message('client', `Mi idea es avanzar más rápido porque ${objective}.`, start + 5 * day + 16 * 60_000, customer),
+      message('client', `Mi idea es avanzar más rápido porque ${clientObjective}.`, start + 5 * day + 16 * 60_000, customer),
       message('agent', 'Tiene sentido. Los aportes adicionales pueden acercarte antes al anticipo, pero no equivalen a reservar un departamento. Cuando completes los USD 10.000, POZO revisará con vos las opciones y condiciones disponibles.', start + 5 * day + 29 * 60_000, sender),
     ],
   ];
@@ -525,6 +526,13 @@ function objectiveForConversation(value) {
     .replace(/\bsu familia\b/gi, 'tu familia')
     .replace(/\bsu pareja\b/gi, 'tu pareja')
     .replace(/\bsu futuro\b/gi, 'tu futuro');
+}
+
+function objectiveInFirstPerson(value) {
+  return clean(value, 180)
+    .replace(/\bsu familia\b/gi, 'mi familia')
+    .replace(/\bsu pareja\b/gi, 'mi pareja')
+    .replace(/\bsu futuro\b/gi, 'mi futuro');
 }
 
 function formatArs(value) {

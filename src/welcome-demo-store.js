@@ -237,7 +237,7 @@ function generateWelcomeClients(now) {
         cacAdjusted: true,
         cvuOwnedByClient: true,
       },
-      messages: seedMessages({ name, welcomeAdvisor, objective, concern: CONCERNS[index % CONCERNS.length], now, index }),
+      messages: seedMessages({ name, welcomeAdvisor, objective, now, index }),
       notes: [
         note('Contexto inicial', context, now - randomInt(8, 20) * 86_400_000),
         note('Estado del plan', `Registra ${contributionCount} aportes y un avance estimado del ${progressPercent}% hacia su meta configurada.`, now - randomInt(2, 7) * 86_400_000, 'neutral'),
@@ -248,13 +248,12 @@ function generateWelcomeClients(now) {
   });
 }
 
-function seedMessages({ name, welcomeAdvisor, objective, concern, now, index }) {
+function seedMessages({ name, welcomeAdvisor, objective, now, index }) {
   const start = now - randomInt(3, 18) * 86_400_000;
   return [
     message('agent', `Hola ${firstName(name)}, ¿cómo estás? Soy ${firstName(welcomeAdvisor)} del equipo de Bienvenida. Quería saber cómo venís con tu plan y si necesitás que revisemos algo juntos.`, start, { sender: welcomeAdvisor }),
     message('client', CLIENT_REPLIES[index % CLIENT_REPLIES.length], start + 18 * 60_000, { sender: name }),
     message('agent', `Gracias por contarme. La idea es acompañarte para que puedas sostener el proceso de una manera posible para vos. Tengo presente que buscás ${objective}. Si aparece alguna duda concreta, la vemos y, si requiere una definición personal, te contacto con alguien del equipo.`, start + 27 * 60_000, { sender: welcomeAdvisor }),
-    ...(index % 3 === 0 ? [message('client', concern, start + 31 * 60_000, { sender: name })] : []),
   ];
 }
 
@@ -415,13 +414,20 @@ function updateRisk(client) {
 
 function normalizeClient(client, now) {
   const normalized = structuredClone(client);
-  normalized.messages = Array.isArray(normalized.messages) ? normalized.messages : [];
+  const storedMessages = Array.isArray(normalized.messages) ? normalized.messages : [];
+  normalized.messages = storedMessages.filter((item) => !isLegacyInternalContextMessage(item));
   normalized.notes = Array.isArray(normalized.notes) ? normalized.notes : [];
   normalized.plan = normalized.plan || {};
   normalized.retentionScore = clampNumber(normalized.retentionScore, 20, 99, 75);
   normalized.simulatedAt = Number(normalized.simulatedAt || now);
   updateRisk(normalized);
   return normalized;
+}
+
+function isLegacyInternalContextMessage(item) {
+  if (item?.role !== 'client') return false;
+  const text = clean(item?.text, 500);
+  return CONCERNS.some((concern) => clean(concern, 500) === text);
 }
 
 function eventTime(client, now) {

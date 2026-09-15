@@ -2,6 +2,32 @@ import { randomUUID } from 'node:crypto';
 import { config } from './config.js';
 
 const TARGET_DOWN_PAYMENT_USD = 10_000;
+const WELCOME_VIDEOS = Object.freeze([
+  Object.freeze({
+    id: 'melissa-story-v1',
+    src: '/assets/demo-ai/videos/melissa-historia.mp4',
+    title: 'La historia de Melissa',
+    durationLabel: '0:40',
+    summary: 'Una mamá soltera que sostuvo el ahorro, hizo sacrificios, vendió su auto y luego financió su departamento en 120 cuotas.',
+    bestFor: 'Personas con gastos familiares, dudas sobre su constancia o que necesitan recuperar motivación.',
+  }),
+  Object.freeze({
+    id: 'eclipse-keys-v2',
+    src: '/assets/demo-ai/videos/eclipse-nuevos-duenos.mp4',
+    title: 'Nuevos dueños de Spazio Eclipse',
+    durationLabel: '0:30',
+    summary: 'Personas que reciben sus llaves después de completar un proceso prolongado de esfuerzo y perseverancia.',
+    bestFor: 'Personas con avance alto que necesitan visualizar la meta sin prometer una entrega inmediata.',
+  }),
+  Object.freeze({
+    id: 'nurse-home-v3',
+    src: '/assets/demo-ai/videos/enfermera-hogar-propio.mp4',
+    title: 'Una enfermera que llegó a su hogar propio',
+    durationLabel: '1:14',
+    summary: 'Una enfermera que tomó horas extra, ajustó gastos y sostuvo el proceso hasta recibir sus llaves.',
+    bestFor: 'Personas trabajadoras que hacen esfuerzos adicionales o aportes extra para avanzar.',
+  }),
+]);
 
 const FIRST_NAMES = ['Camila', 'Julián', 'Andrea', 'Martín', 'Lucía', 'Santiago', 'Valentina', 'Nicolás', 'Florencia', 'Matías', 'Carolina', 'Federico', 'Agustina', 'Leandro', 'Micaela', 'Gonzalo', 'Natalia', 'Sebastián', 'Rocío', 'Emanuel'];
 const LAST_NAMES = ['Benítez', 'Romero', 'Vega', 'Sosa', 'Fernández', 'Acosta', 'Medina', 'Pereyra', 'Roldán', 'Suárez', 'Giménez', 'Molina', 'Navarro', 'López', 'Herrera', 'Castro', 'Silva', 'Torres', 'Ruiz', 'Cabrera'];
@@ -70,6 +96,7 @@ export class WelcomeDemoStore {
         enabled: Boolean(config.groq.apiKey),
         model: config.groq.model,
         mode: config.groq.apiKey ? 'IA conectada' : 'Respuestas de demostración',
+        videoFollowUpCount: WELCOME_VIDEOS.length,
       },
     };
   }
@@ -164,6 +191,43 @@ export class WelcomeDemoStore {
     } catch (error) {
       client.status = 'error';
       client.notes.unshift(note('Error de seguimiento', publicError(error), this.now(), 'risk'));
+      throw error;
+    }
+  }
+
+  async sendVideo(id) {
+    const client = this.getClient(id);
+    if (client.status === 'thinking') throw new WelcomeDemoError('Esperá a que termine el mensaje pendiente.', 409);
+    const sentIds = new Set(client.messages.map((item) => item.video?.id).filter(Boolean));
+    const availableVideos = WELCOME_VIDEOS.filter(({ id: videoId }) => !sentIds.has(videoId));
+    if (!availableVideos.length) throw new WelcomeDemoError('Ya se enviaron todos los videos disponibles a este cliente.', 409);
+
+    const previousStatus = client.status;
+    client.status = 'thinking';
+    client.updatedAt = eventTime(client, this.now());
+    try {
+      const result = await this.generate({ kind: 'video', client, history: client.messages, videos: availableVideos });
+      const selectedVideo = availableVideos.find(({ id: videoId }) => videoId === result.selectedVideoId)
+        || selectWelcomeVideo(client, availableVideos);
+      const sentAt = eventTime(client, this.now());
+      client.messages.push(message('agent', result.message, sentAt, {
+        sender: client.welcomeAdvisor,
+        generatedBy: result.generatedBy || null,
+        video: selectedVideo,
+      }));
+      client.status = previousStatus === 'human' ? 'human' : previousStatus === 'attention' ? 'attention' : 'active';
+      client.updatedAt = sentAt;
+      client.nextAction = 'Esperar la reacción del cliente al video compartido';
+      client.notes.unshift(note(
+        'Video compartido',
+        result.note || `Se eligió “${selectedVideo.title}” según el contexto del cliente.`,
+        sentAt,
+        'success',
+      ));
+      return structuredClone(client);
+    } catch (error) {
+      client.status = previousStatus;
+      client.notes.unshift(note('Error al enviar video', publicError(error), this.now(), 'risk'));
       throw error;
     }
   }
@@ -340,8 +404,8 @@ function seedMessages({ client, now, index }) {
   return [opening, ...scenarios[index % scenarios.length]];
 }
 
-async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) {
-  if (!config.groq.apiKey) return fallbackWelcomeReply({ kind, client, history, elapsedDays });
+async function generateWelcomeReply({ kind, client, history, elapsedDays = 0, videos = [] }) {
+  if (!config.groq.apiKey) return fallbackWelcomeReply({ kind, client, history, elapsedDays, videos });
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -358,7 +422,11 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) 
           {
             role: 'user',
             content: JSON.stringify({
-              task: kind === 'followup' ? `Seguimiento preventivo tras ${elapsedDays} días` : 'Responder al último mensaje del cliente',
+              task: kind === 'video'
+                ? 'Elegir el video más pertinente y escribir un mensaje breve que lo presente'
+                : kind === 'followup'
+                  ? `Seguimiento preventivo tras ${elapsedDays} días`
+                  : 'Responder al último mensaje del cliente',
               client: {
                 name: client.name,
                 advisor: client.welcomeAdvisor,
@@ -376,6 +444,7 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) 
                   missedPayments: client.plan.missedPayments,
                 },
               },
+              availableVideos: videos.map(({ id, title, summary, bestFor }) => ({ id, title, summary, bestFor })),
               history: history
                 .filter(({ role }) => role === 'client' || role === 'agent')
                 .slice(-5)
@@ -403,10 +472,11 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) 
       intent: clean(parsed.intent, 50),
       nextAction: clean(parsed.nextAction, 180),
       generatedBy: 'Generado por IA',
+      selectedVideoId: clean(parsed.selectedVideoId, 80),
     };
   } catch (error) {
     if (!isRecoverable(error)) throw error;
-    const fallback = fallbackWelcomeReply({ kind, client, history, elapsedDays });
+    const fallback = fallbackWelcomeReply({ kind, client, history, elapsedDays, videos });
     fallback.generatedBy = 'Respaldo automático';
     return fallback;
   }
@@ -421,10 +491,25 @@ Información confirmada: el ahorro se deposita en un CVU a nombre de la persona 
 
 Nunca prometas congelar cuotas, devolver dinero, pausar obligaciones, eliminar ajustes, reservar unidades, otorgar financiación especial ni garantizar plazos. Si consulta contratos, rescisión, retiros, reintegros, deuda exacta, movimientos que no figuran o quiere abandonar, requiresHuman=true. Si expresa una dificultad temporal, acompañá sin juzgar y ofrecé revisar el caso con una persona.
 
-Respondé exclusivamente JSON válido con message, note, requiresHuman, retentionDelta (entero de -20 a 15), intent y nextAction.`;
+Si la tarea es elegir un video, seleccioná solamente uno de availableVideos, conectalo con la situación interpretada sin copiar la ficha, no afirmes que el cliente ya recibirá una propiedad y devolvé también selectedVideoId. El mensaje debe tener entre 350 y 650 caracteres, presentar brevemente el testimonio y cerrar con una pregunta humana.
+
+Respondé exclusivamente JSON válido con message, note, requiresHuman, retentionDelta (entero de -20 a 15), intent, nextAction y, cuando corresponda, selectedVideoId.`;
 }
 
-function fallbackWelcomeReply({ kind, client, history, elapsedDays }) {
+function fallbackWelcomeReply({ kind, client, history, elapsedDays, videos = [] }) {
+  if (kind === 'video') {
+    const selected = selectWelcomeVideo(client, videos.length ? videos : WELCOME_VIDEOS);
+    return {
+      message: welcomeVideoFallbackMessage(client, selected),
+      note: `Se eligió “${selected.title}” como contenido de acompañamiento según el contexto y avance del cliente.`,
+      requiresHuman: false,
+      retentionDelta: 1,
+      intent: 'acompañamiento con testimonio',
+      nextAction: 'Esperar la reacción del cliente al video',
+      selectedVideoId: selected.id,
+      generatedBy: 'Modo demo local',
+    };
+  }
   if (kind === 'followup') {
     return {
       message: `Hola ${firstName(client.name)}, ¿cómo estás? Pasaron unos días y quería saber cómo venís con el plan. No es para apurarte: si apareció alguna duda o se te complicó organizar el próximo aporte, contame y vemos qué necesitás revisar.`,
@@ -479,6 +564,27 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays }) {
     nextAction: 'Continuar el acompañamiento según su respuesta',
     generatedBy: 'Modo demo local',
   };
+}
+
+function selectWelcomeVideo(client, videos) {
+  const context = normalizeText(`${client.occupation} ${client.context} ${client.objective}`);
+  const preferredId = client.plan.progressPercent >= 65
+    ? 'eclipse-keys-v2'
+    : /enfermer|hora extra|trabaj|aporte adicional/.test(context)
+      ? 'nurse-home-v3'
+      : 'melissa-story-v1';
+  return videos.find(({ id }) => id === preferredId) || videos[0];
+}
+
+function welcomeVideoFallbackMessage(client, video) {
+  const name = firstName(client.name);
+  if (video.id === 'eclipse-keys-v2') {
+    return `${name}, te comparto este video de personas que recibieron sus llaves en Spazio Eclipse después de sostener su proceso con esfuerzo y constancia. No significa que la entrega sea inmediata ni que ya tengas una unidad elegida: primero hay que completar el anticipo y luego pasar a POZO. ¿Qué te genera ver ese momento?`;
+  }
+  if (video.id === 'nurse-home-v3') {
+    return `${name}, pensé que podía servirte esta historia de una enfermera que tomó horas extra, ajustó gastos y sostuvo su objetivo hasta recibir sus llaves. Cada proceso es distinto y todavía necesitás completar el anticipo antes de pasar a POZO, pero su constancia puede ser una referencia. ¿Con qué parte de su experiencia te identificás?`;
+  }
+  return `${name}, quería compartirte la historia de Melissa. Es mamá soltera y tuvo que organizar gastos, ahorrar y hacer sacrificios antes de poder financiar su departamento. Su caso no fija tus condiciones ni significa que ya tengas una unidad, pero muestra cómo sostuvo su objetivo paso a paso. ¿Hay algo de su recorrido que conecte con lo que estás viviendo?`;
 }
 
 function applyRetentionResult(client, result, at) {

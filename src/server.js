@@ -506,6 +506,7 @@ async function healthDiagnostics(req) {
           preservesDraftIfExpansionFails: true,
           optimisticLeadMessages: true,
           localAiTypingIndicator: true,
+          videoClientTimeoutSeconds: 50,
           failedReplyRemainsVisible: true,
           conditionalVideoExpansion: true,
           videoMessageMaxCharacters: 1100,

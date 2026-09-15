@@ -433,7 +433,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-staged-video-generation-v27',
+          diagnosticRevision: 'demo-ai-optimistic-chat-v28',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -504,6 +504,9 @@ async function healthDiagnostics(req) {
           videoGenerationMaxStages: 3,
           oneRequestPerVideoStage: true,
           preservesDraftIfExpansionFails: true,
+          optimisticLeadMessages: true,
+          localAiTypingIndicator: true,
+          failedReplyRemainsVisible: true,
           conditionalVideoExpansion: true,
           videoMessageMaxCharacters: 1100,
           idempotentLeadReplies: true,

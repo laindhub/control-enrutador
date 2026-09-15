@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
 import { AiDemoStore } from '../ai-demo-store.js';
+import { WelcomeDemoStore } from '../welcome-demo-store.js';
 import { alphaRoleFor, listAlphaPeople, requireAlphaAccess, requireAlphaRole } from './demo.js';
 
 export function createAiDemoRouter() {
@@ -86,6 +87,57 @@ export function createAiDemoRouter() {
     }
   });
 
+  router.get('/welcome/snapshot', async (req, res, next) => {
+    try {
+      const initialized = Array.isArray(req.session.welcomeDemoClients) && req.session.welcomeDemoClients.length > 0;
+      const store = welcomeStoreFromSession(req);
+      if (!initialized) await persistWelcomeStore(req, store);
+      return res.json(store.snapshot());
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post('/welcome/clients/:id/reply', async (req, res, next) => {
+    try {
+      const client = await withWelcomeSessionStore(req, (store) => store.receiveClientMessage(
+        req.params.id,
+        req.body?.text,
+        req.body?.requestId,
+      ));
+      return res.json({ client });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post('/welcome/clients/:id/advance-time', async (req, res, next) => {
+    try {
+      const result = await withWelcomeSessionStore(req, (store) => store.advanceTime(req.params.id, req.body?.days));
+      return res.json(result);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post('/welcome/clients/:id/handle', async (req, res, next) => {
+    try {
+      const client = await withWelcomeSessionStore(req, (store) => store.markHandled(req.params.id));
+      return res.json({ client });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post('/welcome/reset', async (req, res, next) => {
+    try {
+      const snapshot = await withWelcomeSessionStore(req, (store) => store.reset());
+      return res.json(snapshot);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.post('/advisor-style', async (req, res, next) => {
     try {
       const result = await withSessionStore(req, (store) => store.updateAdvisorStyle(
@@ -134,6 +186,28 @@ async function withSessionStore(req, task) {
   } finally {
     await persistStore(req, store);
   }
+}
+
+function welcomeStoreFromSession(req) {
+  const store = new WelcomeDemoStore();
+  if (Array.isArray(req.session.welcomeDemoClients)) {
+    store.restore(req.session.welcomeDemoClients);
+  }
+  return store;
+}
+
+async function withWelcomeSessionStore(req, task) {
+  const store = welcomeStoreFromSession(req);
+  try {
+    return await task(store);
+  } finally {
+    await persistWelcomeStore(req, store);
+  }
+}
+
+async function persistWelcomeStore(req, store) {
+  req.session.welcomeDemoClients = structuredClone(store.clients);
+  await saveSession(req);
 }
 
 async function persistStore(req, store) {

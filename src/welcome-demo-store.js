@@ -446,7 +446,7 @@ function normalizeClient(client, now) {
 function calculatePlanProgress(totalPaidArs, usdReferenceArs) {
   const targetArs = TARGET_DOWN_PAYMENT_USD * positiveNumber(usdReferenceArs, config.welcomeDemo.usdReferenceArs);
   if (!targetArs) return 0;
-  return Math.max(0, Math.min(100, Math.floor((positiveNumber(totalPaidArs, 0) / targetArs) * 100)));
+  return Math.max(0, Math.min(100, Math.round((positiveNumber(totalPaidArs, 0) / targetArs) * 100)));
 }
 
 function positiveNumber(value, fallback) {

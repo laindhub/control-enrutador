@@ -623,7 +623,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
   let selection;
 
   try {
-    selection = await requestGroqJson({
+    selection = await requestGroqStageJson({
       model: config.groq.model,
       temperature: 0.35,
       max_completion_tokens: 240,
@@ -647,8 +647,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
         },
       ],
     });
-  } catch (error) {
-    if (!isRecoverableGroqOutage(error)) throw error;
+  } catch {
     return automaticGenerationFallback({ kind: 'video', lead, history, videos, variation });
   }
 
@@ -659,7 +658,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
 
   let draft;
   try {
-    draft = await requestGroqJson({
+    draft = await requestGroqStageJson({
       model: config.groq.model,
       temperature: 0.72,
       max_completion_tokens: 760,
@@ -693,8 +692,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
         },
       ],
     });
-  } catch (error) {
-    if (!isRecoverableGroqOutage(error)) throw error;
+  } catch {
     return automaticGenerationFallback({ kind: 'video', lead, history, videos: [selectedVideo], variation });
   }
 
@@ -702,7 +700,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
   let stages = 2;
   if (videoDraftNeedsExpansion(draft.message, selectedVideo)) {
     try {
-      const expandedDraft = await requestGroqJson({
+      const expandedDraft = await requestGroqStageJson({
         model: config.groq.model,
         temperature: 0.64,
         max_completion_tokens: 780,
@@ -733,8 +731,7 @@ async function generateVideoWithGroq({ lead, history, videos, variation }) {
         finalDraft = { ...draft, ...expandedDraft, message: expandedDraft.message };
         stages = 3;
       }
-    } catch (error) {
-      if (!isRecoverableGroqOutage(error)) throw error;
+    } catch {
       finalDraft = draft;
     }
   }
@@ -1052,9 +1049,13 @@ function elapsedLabel(hours) {
   return `Pasaron ${hours} ${hours === 1 ? 'hora' : 'horas'} sin respuesta`;
 }
 
-async function requestGroqJson(body) {
+function requestGroqStageJson(body) {
+  return requestGroqJson(body, { maxAttempts: 1 });
+}
+
+async function requestGroqJson(body, { maxAttempts = 3 } = {}) {
   let lastError;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -1078,7 +1079,7 @@ async function requestGroqJson(body) {
       return parsed;
     } catch (error) {
       lastError = error;
-      if (attempt >= 3 || !isRetryableGroqError(error)) throw error;
+      if (attempt >= maxAttempts || !isRetryableGroqError(error)) throw error;
       await new Promise((resolve) => setTimeout(resolve, attempt * 450));
     }
   }

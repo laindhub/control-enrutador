@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { config } from './config.js';
 
+const TARGET_DOWN_PAYMENT_USD = 10_000;
+
 const FIRST_NAMES = ['Camila', 'Julián', 'Andrea', 'Martín', 'Lucía', 'Santiago', 'Valentina', 'Nicolás', 'Florencia', 'Matías', 'Carolina', 'Federico', 'Agustina', 'Leandro', 'Micaela', 'Gonzalo', 'Natalia', 'Sebastián', 'Rocío', 'Emanuel'];
 const LAST_NAMES = ['Benítez', 'Romero', 'Vega', 'Sosa', 'Fernández', 'Acosta', 'Medina', 'Pereyra', 'Roldán', 'Suárez', 'Giménez', 'Molina', 'Navarro', 'López', 'Herrera', 'Castro', 'Silva', 'Torres', 'Ruiz', 'Cabrera'];
 const OCCUPATIONS = ['enfermera', 'empleado administrativo', 'docente', 'comerciante', 'técnica de laboratorio', 'chofer', 'diseñadora', 'operario industrial', 'peluquera', 'vendedor', 'cocinera', 'electricista'];
@@ -190,10 +192,15 @@ export class WelcomeDemoError extends Error {
 function generateWelcomeClients(now) {
   return FIRST_NAMES.map((first, index) => {
     const name = `${first} ${LAST_NAMES[index]}`;
-    const progressPercent = randomInt(8, 91);
-    const contributionCount = Math.max(1, Math.round(progressPercent / randomInt(4, 9)));
-    const averageContribution = randomInt(190_000, 410_000);
-    const totalPaidArs = contributionCount * averageContribution;
+    const contributionCount = randomInt(1, 32);
+    const averageContribution = randomInt(190_000, 500_000);
+    const usdReferenceArs = config.welcomeDemo.usdReferenceArs;
+    const targetDownPaymentArs = Math.round(TARGET_DOWN_PAYMENT_USD * usdReferenceArs);
+    const totalPaidArs = Math.min(
+      contributionCount * averageContribution,
+      Math.floor(targetDownPaymentArs * 0.96),
+    );
+    const progressPercent = calculatePlanProgress(totalPaidArs, usdReferenceArs);
     const missedPayments = weightedChoice([0, 0, 0, 1, 1, 2, 3]);
     const lastPaymentDays = missedPayments >= 2 ? randomInt(42, 88) : missedPayments === 1 ? randomInt(24, 45) : randomInt(2, 22);
     const retentionScore = clampNumber(95 - missedPayments * 13 - Math.max(0, lastPaymentDays - 20) / 3 + randomInt(-5, 5), 38, 98, 80);
@@ -229,7 +236,9 @@ function generateWelcomeClients(now) {
         monthlyBaseArs: 200_000,
         firstContributionBonusArs: 100_000,
         progressPercent,
-        targetDownPaymentUsd: 10_000,
+        targetDownPaymentUsd: TARGET_DOWN_PAYMENT_USD,
+        targetDownPaymentArs,
+        usdReferenceArs,
         lastPaymentAt,
         nextPaymentAt: lastPaymentAt + 30 * 86_400_000,
         daysSinceLastPayment: lastPaymentDays,
@@ -287,6 +296,8 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) 
                   totalPaidArs: client.plan.totalPaidArs,
                   progressPercent: client.plan.progressPercent,
                   contributionCount: client.plan.contributionCount,
+                  targetDownPaymentArs: client.plan.targetDownPaymentArs,
+                  usdReferenceArs: client.plan.usdReferenceArs,
                   daysSinceLastPayment: client.plan.daysSinceLastPayment,
                   missedPayments: client.plan.missedPayments,
                 },
@@ -418,10 +429,29 @@ function normalizeClient(client, now) {
   normalized.messages = storedMessages.filter((item) => !isLegacyInternalContextMessage(item));
   normalized.notes = Array.isArray(normalized.notes) ? normalized.notes : [];
   normalized.plan = normalized.plan || {};
+  normalized.plan.targetDownPaymentUsd = TARGET_DOWN_PAYMENT_USD;
+  normalized.plan.usdReferenceArs = positiveNumber(normalized.plan.usdReferenceArs, config.welcomeDemo.usdReferenceArs);
+  normalized.plan.targetDownPaymentArs = Math.round(TARGET_DOWN_PAYMENT_USD * normalized.plan.usdReferenceArs);
+  normalized.plan.progressPercent = calculatePlanProgress(normalized.plan.totalPaidArs, normalized.plan.usdReferenceArs);
+  const planNote = normalized.notes.find(({ title }) => title === 'Estado del plan');
+  if (planNote) {
+    planNote.text = `Registra ${Number(normalized.plan.contributionCount || 0)} aportes y un avance calculado del ${normalized.plan.progressPercent}% hacia el anticipo de USD 10.000.`;
+  }
   normalized.retentionScore = clampNumber(normalized.retentionScore, 20, 99, 75);
   normalized.simulatedAt = Number(normalized.simulatedAt || now);
   updateRisk(normalized);
   return normalized;
+}
+
+function calculatePlanProgress(totalPaidArs, usdReferenceArs) {
+  const targetArs = TARGET_DOWN_PAYMENT_USD * positiveNumber(usdReferenceArs, config.welcomeDemo.usdReferenceArs);
+  if (!targetArs) return 0;
+  return Math.max(0, Math.min(100, Math.floor((positiveNumber(totalPaidArs, 0) / targetArs) * 100)));
+}
+
+function positiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : fallback;
 }
 
 function isLegacyInternalContextMessage(item) {

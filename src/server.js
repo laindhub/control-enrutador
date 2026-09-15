@@ -395,6 +395,7 @@ async function healthDiagnostics(req) {
     ? createHash('sha256').update(sessionId).digest('hex').slice(0, 12)
     : null;
   const inMemoryLeads = Array.isArray(req.session?.aiDemoLeads) ? req.session.aiDemoLeads : null;
+  const inMemoryWelcomeClients = Array.isArray(req.session?.welcomeDemoClients) ? req.session.welcomeDemoClients : null;
 
   try {
     const [[databaseInfo], [sessionRows]] = await Promise.all([
@@ -410,10 +411,17 @@ async function healthDiagnostics(req) {
     const storedSession = sessionRows[0] || null;
     const storedData = parseStoredSession(storedSession?.data);
     const storedLeads = Array.isArray(storedData?.aiDemoLeads) ? storedData.aiDemoLeads : null;
+    const storedWelcomeClients = Array.isArray(storedData?.welcomeDemoClients) ? storedData.welcomeDemoClients : null;
     const authenticated = Boolean(req.session?.user);
     const demoRole = alphaRoleFor(req);
     const sessionMatchesDatabase = storedSession
-      ? JSON.stringify(inMemoryLeads) === JSON.stringify(storedLeads)
+      ? JSON.stringify({
+        leads: inMemoryLeads,
+        welcomeClients: inMemoryWelcomeClients,
+      }) === JSON.stringify({
+        leads: storedLeads,
+        welcomeClients: storedWelcomeClients,
+      })
       : null;
     const warnings = [];
 
@@ -433,7 +441,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-optimistic-chat-v28',
+          diagnosticRevision: 'demo-welcome-functional-v29',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -519,6 +527,32 @@ async function healthDiagnostics(req) {
           aiAreaChooser: true,
           welcomeTeamWorkspace: true,
           welcomeRetentionMetric: true,
+        },
+        demoWelcome: {
+          accessible: authenticated && demoRole === 'ai',
+          loadedFromSession: inMemoryWelcomeClients !== null,
+          clientCount: inMemoryWelcomeClients?.length ?? null,
+          storedClientCount: storedWelcomeClients?.length ?? null,
+          retentionAverage: inMemoryWelcomeClients?.length
+            ? Math.round(inMemoryWelcomeClients.reduce((sum, client) => sum + Number(client.retentionScore || 0), 0) / inMemoryWelcomeClients.length)
+            : null,
+          riskCounts: inMemoryWelcomeClients
+            ? inMemoryWelcomeClients.reduce((counts, client) => {
+              const level = String(client.riskLevel || 'unknown');
+              counts[level] = Number(counts[level] || 0) + 1;
+              return counts;
+            }, {})
+            : {},
+          generatedClientCount: 20,
+          independentSessionStore: true,
+          searchableClientList: true,
+          clientChats: true,
+          retentionAiReplies: true,
+          retentionTimeSimulation: true,
+          idempotentClientReplies: true,
+          optimisticClientMessages: true,
+          personalIntervention: true,
+          regenerateDemoClients: true,
         },
         warnings,
         hint: authenticated

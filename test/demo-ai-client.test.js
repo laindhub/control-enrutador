@@ -120,7 +120,9 @@ test('la Demo IA separa asesoramiento de leads y seguimiento de bienvenida', () 
 
 test('Bienvenida ofrece veinte clientes, chats y seguimiento de retención funcional', () => {
   assert.match(welcomeStore, /FIRST_NAMES\.map/);
-  assert.match(welcomeStore, /targetDownPaymentUsd: 10_000/);
+  assert.match(welcomeStore, /targetDownPaymentUsd: TARGET_DOWN_PAYMENT_USD/);
+  assert.match(welcomeStore, /calculatePlanProgress\(totalPaidArs, usdReferenceArs\)/);
+  assert.match(welcomeView, /id="welcomePlanTarget"/);
   assert.match(welcomeStore, /totalPaidArs/);
   assert.match(aiRoutes, /\/welcome\/snapshot/);
   assert.match(aiRoutes, /\/welcome\/clients\/:id\/reply/);

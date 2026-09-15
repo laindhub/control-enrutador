@@ -355,7 +355,10 @@ async function sendWelcomeVideo() {
   controls.forEach((button) => { button.disabled = true; });
   beginAgentActivity(lead, 'video');
   try {
-    const response = await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/send-welcome-video`, { method: 'POST' });
+    const response = await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/send-welcome-video`, {
+      method: 'POST',
+      timeoutMs: 50_000,
+    });
     state.agentActivity = null;
     if (state.snapshot) {
       state.snapshot.leads = state.snapshot.leads.map((item) => item.id === response.lead.id ? response.lead : item);

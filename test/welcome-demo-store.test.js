@@ -24,11 +24,17 @@ test('Bienvenida genera 20 clientes ficticios con contacto, contexto y avance de
       Math.round((client.plan.totalPaidArs / client.plan.targetDownPaymentArs) * 100),
     );
     assert.equal(client.plan.monthlyBaseArs, 200_000);
-    assert.ok(client.messages.length >= 3);
+    assert.ok(client.messages.length >= 5);
+    assert.doesNotMatch(client.messages.map(({ text }) => text).join(' '), /buscás .* su (familia|pareja|futuro)/i);
     assert.ok(client.messages
       .filter(({ role }) => role === 'client')
       .every(({ text }) => !/^(Le preocupa|Quiere entender|Necesita acompañamiento|Está motivado|Consulta seguido|Tuvo un mes difícil|Valora recibir|Quiere saber)/.test(text)));
   }
+  const distinctClientHistories = new Set(snapshot.clients.map((client) => client.messages
+    .filter(({ role }) => role === 'client')
+    .map(({ text }) => text)
+    .join('|')));
+  assert.ok(distinctClientHistories.size >= 8);
   assert.ok(snapshot.metrics.retentionAverage >= 20 && snapshot.metrics.retentionAverage <= 99);
   assert.equal(snapshot.metrics.activePlans, 20);
 });
@@ -51,6 +57,29 @@ test('migra el contexto interno heredado fuera del chat del cliente', () => {
   assert.equal(restored.plan.progressPercent, 13);
   assert.match(restored.context, /Necesita acompañamiento|Busca/);
   assert.ok(restored.notes.some(({ title }) => title === 'Contexto inicial'));
+});
+
+test('actualiza historiales iniciales antiguos sin pisar conversaciones del tester', () => {
+  const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000 });
+  const legacy = store.snapshot().clients[2];
+  legacy.historyVersion = 1;
+  legacy.messages = legacy.messages.filter(({ role }) => role !== 'time').slice(0, 3);
+  store.restore([legacy]);
+  const upgraded = store.snapshot().clients[0];
+  assert.equal(upgraded.historyVersion, 2);
+  assert.ok(upgraded.messages.length >= 5);
+
+  const manual = structuredClone(upgraded);
+  manual.historyVersion = 1;
+  manual.messages.push({
+    id: 'tester-message',
+    role: 'client',
+    text: 'Este mensaje lo escribió el tester.',
+    clientRequestId: 'keep-me',
+    createdAt: 1_800_000_000_001,
+  });
+  store.restore([manual]);
+  assert.ok(store.snapshot().clients[0].messages.some(({ clientRequestId }) => clientRequestId === 'keep-me'));
 });
 
 test('el chat de retención registra el mensaje una sola vez y actualiza la ficha', async () => {

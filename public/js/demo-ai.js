@@ -353,8 +353,10 @@ async function sendWelcomeVideo() {
   state.loading = true;
   const controls = [...document.querySelectorAll('[data-advance-hours]'), elements.sendWelcomeVideo];
   controls.forEach((button) => { button.disabled = true; });
+  beginAgentActivity(lead, 'video');
   try {
     const response = await api(`/api/demo-ai/leads/${encodeURIComponent(lead.id)}/send-welcome-video`, { method: 'POST' });
+    state.agentActivity = null;
     if (state.snapshot) {
       state.snapshot.leads = state.snapshot.leads.map((item) => item.id === response.lead.id ? response.lead : item);
       render();
@@ -362,8 +364,10 @@ async function sendWelcomeVideo() {
     const selectedVideo = [...response.lead.messages].reverse().find((item) => item.video)?.video;
     toast(`El agente eligió y personalizó ${selectedVideo?.title || 'el video más pertinente'}.`);
   } catch (error) {
+    endAgentActivity(lead.id);
     toast(error.message, true);
   } finally {
+    endAgentActivity(lead.id);
     state.loading = false;
     const current = selectedLead();
     document.querySelectorAll('[data-advance-hours]').forEach((button) => {

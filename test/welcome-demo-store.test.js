@@ -15,8 +15,14 @@ test('Bienvenida genera 20 clientes ficticios con contacto, contexto y avance de
     assert.ok(client.objective.length > 10);
     assert.ok(client.plan.totalPaidArs > 0);
     assert.ok(client.plan.contributionCount >= 1);
-    assert.ok(client.plan.progressPercent >= 8 && client.plan.progressPercent <= 91);
+    assert.ok(client.plan.progressPercent >= 1 && client.plan.progressPercent <= 96);
     assert.equal(client.plan.targetDownPaymentUsd, 10_000);
+    assert.equal(client.plan.usdReferenceArs, 1530);
+    assert.equal(client.plan.targetDownPaymentArs, 15_300_000);
+    assert.equal(
+      client.plan.progressPercent,
+      Math.floor((client.plan.totalPaidArs / client.plan.targetDownPaymentArs) * 100),
+    );
     assert.equal(client.plan.monthlyBaseArs, 200_000);
     assert.ok(client.messages.length >= 3);
     assert.ok(client.messages
@@ -30,6 +36,8 @@ test('Bienvenida genera 20 clientes ficticios con contacto, contexto y avance de
 test('migra el contexto interno heredado fuera del chat del cliente', () => {
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000 });
   const legacy = store.snapshot().clients[0];
+  legacy.plan.progressPercent = 80;
+  legacy.plan.totalPaidArs = 1_977_210;
   legacy.messages.push({
     id: 'legacy-context-message',
     role: 'client',
@@ -39,6 +47,8 @@ test('migra el contexto interno heredado fuera del chat del cliente', () => {
   store.restore([legacy]);
   const restored = store.snapshot().clients[0];
   assert.equal(restored.messages.some(({ id }) => id === 'legacy-context-message'), false);
+  assert.equal(restored.plan.targetDownPaymentArs, 15_300_000);
+  assert.equal(restored.plan.progressPercent, 12);
   assert.match(restored.context, /Necesita acompañamiento|Busca/);
   assert.ok(restored.notes.some(({ title }) => title === 'Contexto inicial'));
 });

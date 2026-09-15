@@ -37,6 +37,8 @@ const elements = {
   nextAction: $('#welcomeNextAction'),
   planProgress: $('#welcomePlanProgress'),
   planBar: $('#welcomePlanBar'),
+  planTarget: $('#welcomePlanTarget'),
+  usdReference: $('#welcomeUsdReference'),
   paidAmount: $('#welcomePaidAmount'),
   contributionCount: $('#welcomeContributionCount'),
   lastPayment: $('#welcomeLastPayment'),
@@ -164,6 +166,8 @@ function renderSelectedClient() {
   elements.nextAction.textContent = client.nextAction;
   elements.planProgress.textContent = `${client.plan.progressPercent}%`;
   elements.planBar.style.width = `${client.plan.progressPercent}%`;
+  elements.planTarget.textContent = formatMoney(client.plan.targetDownPaymentArs);
+  elements.usdReference.textContent = formatMoney(client.plan.usdReferenceArs);
   elements.paidAmount.textContent = formatMoney(client.plan.totalPaidArs);
   elements.contributionCount.textContent = `${client.plan.contributionCount} aportes`;
   elements.lastPayment.textContent = relativeDate(client.plan.lastPaymentAt);

@@ -87,6 +87,8 @@
 .welcome-time-simulator button { flex: 0 0 auto; padding: 5px 8px; border: 1px solid #d4ddda; border-radius: 99px; color: #40575e; background: #fff; font-size: .6rem; font-weight: 800; }
 .welcome-time-simulator button:hover { color: #087751; border-color: #87c8af; }
 .welcome-time-simulator button:disabled { opacity: .5; cursor: wait; }
+.welcome-time-simulator .welcome-video-button { color: #fff; border-color: #078158; background: #078158; }
+.welcome-time-simulator .welcome-video-button:hover { color: #fff; border-color: #096f50; background: #096f50; }
 
 .welcome-message-list { min-height: 0; padding: 18px clamp(13px, 5vw, 54px) 24px; display: flex; flex-direction: column; gap: 7px; overflow-y: auto; scroll-behavior: smooth; }
 .welcome-day-label, .welcome-time-passage { align-self: center; padding: 6px 9px; border-radius: 7px; color: #607078; background: rgba(255,255,255,.88); box-shadow: 0 1px 2px rgba(0,0,0,.08); font-size: .58rem; font-weight: 800; }
@@ -94,6 +96,11 @@
 .welcome-message { max-width: min(84%, 560px); padding: 9px 10px 6px; border-radius: 9px; background: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.13); color: #17272e; font-size: .82rem; line-height: 1.42; }
 .welcome-message.agent { align-self: flex-end; border-top-right-radius: 2px; background: #d9fdd3; }
 .welcome-message.client { align-self: flex-start; border-top-left-radius: 2px; }
+.welcome-video-card { margin: 0 0 9px; overflow: hidden; border-radius: 9px; background: #10262d; color: #fff; }
+.welcome-video-card video { width: 100%; max-height: 360px; display: block; background: #000; object-fit: contain; }
+.welcome-video-card figcaption { padding: 8px 10px; display: grid; gap: 2px; }
+.welcome-video-card figcaption strong { font-size: .68rem; }
+.welcome-video-card figcaption span { color: #b7c8cb; font-size: .56rem; }
 .welcome-message p { margin: 0; white-space: pre-wrap; }
 .welcome-message footer { min-height: 15px; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; color: #718087; font-size: .55rem; }
 .welcome-message footer span { color: #147b57; font-weight: 800; }

@@ -319,7 +319,7 @@ function seedMessages({ client, now, index }) {
       message('client', 'Tuve un gasto inesperado y estoy pensando si seguir o dejar el plan.', start + 14 * 60_000, customer),
       message('agent', `Gracias por decírmelo antes de decidir, ${name}. Quiero entender bien qué se te complicó. Yo no puedo cambiar condiciones ni prometer una excepción, pero sí pedir que revisen tu caso personalmente.`, start + 28 * 60_000, sender),
       message('client', 'Prefiero hablarlo antes de tomar una decisión definitiva.', start + 43 * 60_000, customer),
-      message('agent', `De acuerdo. Le dejo el caso señalado a ${client.welcomeAdvisor} para una conversación personal y sin presión. La idea es que tengas información clara antes de decidir.`, start + 55 * 60_000, sender),
+      message('agent', `De acuerdo. Voy a dejar tu caso marcado para revisarlo personalmente y sin presión. La idea es que tengas información clara antes de decidir.`, start + 55 * 60_000, sender),
     ],
     [
       message('client', '¿Cuándo me corresponde hablar con el equipo de POZO?', start + 16 * 60_000, customer),

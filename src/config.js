@@ -12,6 +12,8 @@ const requiredProductionVariables = [
   'ADMIN_PASSWORD',
 ];
 
+const configuredWelcomeUsdReference = Number(process.env.WELCOME_USD_REFERENCE_ARS || 1530);
+
 export const config = {
   env: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 3000),
@@ -39,6 +41,11 @@ export const config = {
   groq: {
     apiKey: process.env.GROQ_API_KEY || '',
     model: process.env.GROQ_MODEL || 'qwen/qwen3.6-27b',
+  },
+  welcomeDemo: {
+    usdReferenceArs: Number.isFinite(configuredWelcomeUsdReference) && configuredWelcomeUsdReference > 0
+      ? configuredWelcomeUsdReference
+      : 1530,
   },
 };
 

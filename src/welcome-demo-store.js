@@ -67,7 +67,7 @@ export class WelcomeDemoStore {
       ai: {
         enabled: Boolean(config.groq.apiKey),
         model: config.groq.model,
-        mode: config.groq.apiKey ? 'Qwen conectado mediante Groq' : 'Respuestas de demostración',
+        mode: config.groq.apiKey ? 'IA conectada' : 'Respuestas de demostración',
       },
     };
   }
@@ -304,13 +304,13 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) 
     });
     if (!response.ok) {
       const details = await response.text();
-      const error = new Error(`Groq respondió ${response.status}: ${details.slice(0, 160)}`);
+      const error = new Error(`El servicio de IA respondió ${response.status}: ${details.slice(0, 160)}`);
       error.groqStatus = response.status;
       throw error;
     }
     const payload = await response.json();
     const parsed = parseJson(payload.choices?.[0]?.message?.content || '');
-    if (!parsed.message) throw new Error('Qwen no devolvió un mensaje utilizable.');
+    if (!parsed.message) throw new Error('La IA no devolvió un mensaje utilizable.');
     return {
       message: cleanMessage(parsed.message, 700),
       note: clean(parsed.note, 500),
@@ -318,7 +318,7 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0 }) 
       retentionDelta: clampNumber(parsed.retentionDelta, -20, 15, 0),
       intent: clean(parsed.intent, 50),
       nextAction: clean(parsed.nextAction, 180),
-      generatedBy: 'Qwen vía Groq',
+      generatedBy: 'Generado por IA',
     };
   } catch (error) {
     if (!isRecoverable(error)) throw error;
@@ -461,8 +461,8 @@ function isRecoverable(error) {
 }
 
 function publicError(error) {
-  if (Number(error?.groqStatus) === 429) return 'Groq alcanzó temporalmente su límite de uso.';
-  if (error?.name === 'TimeoutError') return 'Groq demoró demasiado en responder.';
+  if (Number(error?.groqStatus) === 429) return 'El servicio de IA alcanzó temporalmente su límite de uso.';
+  if (error?.name === 'TimeoutError') return 'El servicio de IA demoró demasiado en responder.';
   return clean(error?.message || 'No se pudo generar la respuesta.', 180);
 }
 

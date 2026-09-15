@@ -127,11 +127,15 @@ test('Bienvenida ofrece veinte clientes, chats y seguimiento de retención funci
   assert.match(aiRoutes, /\/welcome\/snapshot/);
   assert.match(aiRoutes, /\/welcome\/clients\/:id\/reply/);
   assert.match(aiRoutes, /\/welcome\/clients\/:id\/advance-time/);
+  assert.match(aiRoutes, /\/welcome\/clients\/:id\/send-video/);
   assert.match(aiRoutes, /\/welcome\/reset/);
   assert.match(welcomeClient, /sendClientReply/);
   assert.match(welcomeClient, /optimisticReplyFor/);
   assert.match(welcomeClient, /El equipo de Bienvenida está escribiendo/);
   assert.match(welcomeClient, /regenerateClients/);
+  assert.match(welcomeClient, /sendWelcomeVideo/);
+  assert.match(welcomeClient, /welcome-video-card/);
+  assert.match(welcomeView, /id="sendWelcomeVideo"/);
   assert.match(welcomeStyles, /\.welcome-workspace/);
   assert.match(welcomeStyles, /body\[data-view="chat"\]/);
 });

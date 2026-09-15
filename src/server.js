@@ -433,7 +433,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-ai-groq-rate-limit-v26',
+          diagnosticRevision: 'demo-ai-staged-video-generation-v27',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -500,6 +500,10 @@ async function healthDiagnostics(req) {
           compactVideoPrompt: true,
           groqRateLimitFallback: true,
           groq429ImmediateFallback: true,
+          stagedVideoGeneration: true,
+          videoGenerationMaxStages: 3,
+          conditionalVideoExpansion: true,
+          videoMessageMaxCharacters: 1100,
           idempotentLeadReplies: true,
           replyTimeoutSeconds: 50,
           advisorPersonalityProfiles: true,

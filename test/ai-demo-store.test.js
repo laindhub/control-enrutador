@@ -8,10 +8,14 @@ import { PROJECT_CATALOG, promptKnowledgeText } from '../src/ai-demo-knowledge.j
 
 const storeSource = readFileSync(new URL('../src/ai-demo-store.js', import.meta.url), 'utf8');
 
-test('los videos usan un prompt compacto y continúan con respaldo ante el límite 429', () => {
-  assert.match(storeSource, /kind === 'video' \? videoSystemPrompt\(\) : salesSystemPrompt\(\)/);
-  assert.match(storeSource, /slice\(kind === 'video' \? -4 : -8\)/);
-  assert.match(storeSource, /story: requiredInstruction/);
+test('los videos se generan por etapas compactas y conservan respaldo ante el límite 429', () => {
+  assert.match(storeSource, /return generateVideoWithGroq\(\{ lead, history, videos, variation \}\)/);
+  assert.match(storeSource, /content: videoSelectionSystemPrompt\(\)/);
+  assert.match(storeSource, /initialDraft: clean\(selection\.message, 320\)/);
+  assert.match(storeSource, /content: videoDraftSystemPrompt\(\)/);
+  assert.match(storeSource, /videoDraftNeedsExpansion\(draft\.message, selectedVideo\)/);
+  assert.match(storeSource, /content: videoExpansionSystemPrompt\(\)/);
+  assert.match(storeSource, /Qwen vía Groq · \$\{stages\} etapas/);
   assert.match(storeSource, /Number\(error\?\.groqStatus\) === 429/);
   assert.match(storeSource, /fallback\.generatedBy = 'Respaldo automático'/);
   assert.match(storeSource, /groqStatus\) === 429\) return 'Groq alcanzó temporalmente su límite de uso\.'/);

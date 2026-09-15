@@ -21,7 +21,7 @@ test('Bienvenida genera 20 clientes ficticios con contacto, contexto y avance de
     assert.equal(client.plan.targetDownPaymentArs, 15_300_000);
     assert.equal(
       client.plan.progressPercent,
-      Math.floor((client.plan.totalPaidArs / client.plan.targetDownPaymentArs) * 100),
+      Math.round((client.plan.totalPaidArs / client.plan.targetDownPaymentArs) * 100),
     );
     assert.equal(client.plan.monthlyBaseArs, 200_000);
     assert.ok(client.messages.length >= 3);
@@ -48,7 +48,7 @@ test('migra el contexto interno heredado fuera del chat del cliente', () => {
   const restored = store.snapshot().clients[0];
   assert.equal(restored.messages.some(({ id }) => id === 'legacy-context-message'), false);
   assert.equal(restored.plan.targetDownPaymentArs, 15_300_000);
-  assert.equal(restored.plan.progressPercent, 12);
+  assert.equal(restored.plan.progressPercent, 13);
   assert.match(restored.context, /Necesita acompañamiento|Busca/);
   assert.ok(restored.notes.some(({ title }) => title === 'Contexto inicial'));
 });

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" class="ai-scroll-page">
+<html lang="es">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -9,60 +9,107 @@
     <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
     <link rel="apple-touch-icon" href="<%= assetUrl('assets/favicon.png') %>">
     <link rel="stylesheet" href="<%= assetUrl('css/demo-ai.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo-welcome.css') %>">
   </head>
-  <body class="ai-demo-page ai-welcome-page">
-    <header class="ai-appbar">
+  <body class="welcome-app-page" data-view="clients">
+    <header class="ai-appbar welcome-appbar">
       <a class="ai-brand" href="/demo" aria-label="Volver a elegir área">
         <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños">
       </a>
+      <div class="welcome-app-title"><strong>Equipo de Bienvenida</strong><span>Retención y acompañamiento</span></div>
       <div class="ai-appbar-actions">
+        <button id="regenerateWelcome" type="button" class="ai-ghost-button">Generar otros 20</button>
         <a href="/demo" class="ai-ghost-button ai-change-area-button">Cambiar área</a>
-        <% if (canSwitchRole) { %>
-          <form method="post" action="/demo/change-profile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Cambiar perfil</button></form>
-        <% } %>
         <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Salir</button></form>
       </div>
     </header>
-    <main class="welcome-shell">
-      <section class="welcome-heading">
-        <div><span class="ai-kicker">EQUIPO DE BIENVENIDA</span><h1>Seguimiento y retención</h1><p>Personas que ya forman parte del plan de ahorro.</p></div>
-        <span class="welcome-demo-badge">Primera versión</span>
-      </section>
-      <section class="welcome-metrics" aria-label="Resumen de retención">
-        <article><span>RETENCIÓN PROMEDIO</span><strong>84%</strong><small>+6% durante el seguimiento</small></article>
-        <article><span>PLANES ACOMPAÑADOS</span><strong>12</strong><small>10 activos · 2 requieren atención</small></article>
-        <article class="risk"><span>RIESGO DE BAJA</span><strong>2</strong><small>Contacto prioritario recomendado</small></article>
-      </section>
-      <section class="welcome-layout">
-        <aside class="welcome-members">
-          <header><span class="ai-kicker">MIEMBROS</span><h2>Personas acompañadas</h2></header>
-          <article class="welcome-member active">
-            <span class="ai-avatar">CB</span><div><strong>Camila Benítez</strong><small>Plan activo · último aporte este mes</small></div><b>92%</b>
-          </article>
-          <article class="welcome-member">
-            <span class="ai-avatar">JR</span><div><strong>Julián Romero</strong><small>Consulta pendiente sobre el próximo aporte</small></div><b>78%</b>
-          </article>
-          <article class="welcome-member risk">
-            <span class="ai-avatar">AV</span><div><strong>Andrea Vega</strong><small>Sin actividad reciente · requiere contacto</small></div><b>61%</b>
-          </article>
-        </aside>
-        <div class="welcome-detail">
-          <header><div><span class="ai-kicker">ACOMPAÑAMIENTO</span><h2>Camila Benítez</h2></div><span class="welcome-status">Plan activo</span></header>
-          <section class="welcome-retention-card">
-            <div class="welcome-score"><strong>92%</strong><span>retención</span></div>
-            <div><h3>Vínculo estable</h3><p>Mantiene sus aportes y responde al acompañamiento. La IA debe informar, escuchar y sostener el vínculo sin volver a venderle el ingreso al plan.</p></div>
-          </section>
-          <section class="welcome-progress">
-            <div><span>Regularidad de aportes</span><strong>Alta</strong></div><div class="welcome-progress-bar"><i style="width: 88%"></i></div>
-            <div><span>Último contacto</span><strong>Hace 4 días</strong></div>
-            <div><span>Próxima acción</span><strong>Consultar cómo viene con el plan</strong></div>
-          </section>
-          <section class="welcome-agent-note">
-            <span>✦ CRITERIO DE LA IA</span>
-            <p>Detectar dudas, frustración, falta de aportes o intención de abandonar. Derivar a una persona del equipo cuando exista riesgo real de baja o una consulta que requiera intervención.</p>
-          </section>
+
+    <main class="welcome-workspace">
+      <aside class="welcome-client-panel" data-mobile-view="clients">
+        <section class="welcome-summary">
+          <header><div><span>DEMOSTRACIÓN · DATOS FICTICIOS</span><h1>Retención</h1></div><b id="welcomeAiMode">Conectando…</b></header>
+          <div class="welcome-summary-grid">
+            <article><span>Promedio</span><strong id="retentionAverage">—</strong></article>
+            <article><span>En riesgo</span><strong id="riskCount">—</strong></article>
+            <article><span>Planes</span><strong id="activePlans">—</strong></article>
+          </div>
+        </section>
+        <div class="welcome-search"><span>⌕</span><input id="welcomeSearch" type="search" placeholder="Buscar cliente, teléfono o contexto" autocomplete="off"></div>
+        <div class="welcome-list-heading"><strong>Personas acompañadas</strong><span id="welcomeClientCount">0</span></div>
+        <div id="welcomeClientList" class="welcome-client-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="welcome-chat-panel" data-mobile-view="chat">
+        <div id="welcomeChatEmpty" class="welcome-empty-state">
+          <span>✦</span><h2>Elegí una persona</h2><p>Podés abrir su conversación, responder como cliente y probar el seguimiento de retención.</p>
+        </div>
+        <div id="welcomeChatContent" class="welcome-chat-content" hidden>
+          <header class="welcome-chat-header">
+            <button class="welcome-mobile-back" data-go="clients" type="button" aria-label="Volver a clientes">‹</button>
+            <span id="welcomeChatAvatar" class="welcome-avatar"></span>
+            <div><strong id="welcomeChatName"></strong><small id="welcomeChatContact"></small></div>
+            <span id="welcomeChatState" class="welcome-chat-state">Plan activo</span>
+            <button id="showWelcomeRetention" class="welcome-info-button" type="button" aria-label="Ver retención">ⓘ</button>
+          </header>
+          <div class="welcome-time-simulator">
+            <strong>⌛ Simular tiempo sin contacto</strong>
+            <div>
+              <button type="button" data-advance-days="1">+1 día</button>
+              <button type="button" data-advance-days="3">+3 días</button>
+              <button type="button" data-advance-days="7">+7 días</button>
+              <button type="button" data-advance-days="15">+15 días</button>
+            </div>
+          </div>
+          <div id="welcomeMessageList" class="welcome-message-list" aria-live="polite"></div>
+          <form id="welcomeReplyForm" class="welcome-composer">
+            <span>CLIENTE</span>
+            <input id="welcomeReplyInput" type="text" maxlength="800" placeholder="Responder como cliente" autocomplete="off" enterkeyhint="send">
+            <button type="submit" aria-label="Enviar mensaje">➤</button>
+          </form>
         </div>
       </section>
+
+      <aside class="welcome-retention-panel" data-mobile-view="retention">
+        <div id="welcomeRetentionEmpty" class="welcome-empty-state compact">
+          <span>◎</span><h2>Estado de retención</h2><p>Seleccioná una persona para revisar su plan y las acciones recomendadas.</p>
+        </div>
+        <div id="welcomeRetentionContent" class="welcome-retention-content" hidden>
+          <header>
+            <div><span>FICHA DE BIENVENIDA</span><h2 id="welcomeDetailName"></h2></div>
+            <b id="welcomeRiskBadge"></b>
+          </header>
+          <section class="welcome-score-card">
+            <div id="welcomeScoreRing" class="welcome-score-ring"><strong id="welcomeRetentionScore">—</strong><span>retención</span></div>
+            <div><h3 id="welcomeRetentionLabel"></h3><p id="welcomeNextAction"></p></div>
+          </section>
+          <section class="welcome-plan-card">
+            <header><strong>Avance del plan de ahorro</strong><span id="welcomePlanProgress">—</span></header>
+            <div class="welcome-plan-progress"><i id="welcomePlanBar"></i></div>
+            <p>Avance estimado hacia la meta configurada. El anticipo obligatorio para pasar a POZO es de USD 10.000.</p>
+          </section>
+          <dl class="welcome-details">
+            <div><dt>Total aportado</dt><dd id="welcomePaidAmount"></dd></div>
+            <div><dt>Aportes realizados</dt><dd id="welcomeContributionCount"></dd></div>
+            <div><dt>Último aporte</dt><dd id="welcomeLastPayment"></dd></div>
+            <div><dt>Base informada</dt><dd id="welcomeMonthlyBase"></dd></div>
+            <div><dt>Asesora de Bienvenida</dt><dd id="welcomeAdvisor"></dd></div>
+            <div><dt>Ocupación</dt><dd id="welcomeOccupation"></dd></div>
+            <div><dt>Teléfono</dt><dd id="welcomePhone"></dd></div>
+            <div><dt>Email</dt><dd id="welcomeEmail"></dd></div>
+          </dl>
+          <section class="welcome-context-card"><span>OBJETIVO Y CONTEXTO</span><strong id="welcomeObjective"></strong><p id="welcomeContext"></p></section>
+          <section class="welcome-notes-card"><header><strong>Registro de seguimiento</strong><span id="welcomeNotesCount"></span></header><div id="welcomeNotesList"></div></section>
+          <button id="welcomeHandleButton" class="welcome-handle-button" type="button">Intervenir personalmente</button>
+        </div>
+      </aside>
     </main>
+
+    <nav class="welcome-mobile-nav" aria-label="Navegación de Bienvenida">
+      <button type="button" data-view="clients" class="active"><span>▦</span>Clientes</button>
+      <button type="button" data-view="chat"><span>◉</span>Chat</button>
+      <button type="button" data-view="retention"><span>◎</span>Retención</button>
+    </nav>
+    <div id="welcomeToast" class="ai-toast" hidden></div>
+    <script type="module" src="<%= assetUrl('js/demo-welcome.js') %>"></script>
   </body>
 </html>

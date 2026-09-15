@@ -18,7 +18,6 @@
       </a>
       <div class="welcome-app-title"><strong>Equipo de Bienvenida</strong><span>Retención y acompañamiento</span></div>
       <div class="ai-appbar-actions">
-        <button id="regenerateWelcome" type="button" class="ai-ghost-button">Generar otros 20</button>
         <a href="/demo" class="ai-ghost-button ai-change-area-button">Cambiar área</a>
         <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Salir</button></form>
       </div>
@@ -27,7 +26,7 @@
     <main class="welcome-workspace">
       <aside class="welcome-client-panel" data-mobile-view="clients">
         <section class="welcome-summary">
-          <header><div><span>DEMOSTRACIÓN · DATOS FICTICIOS</span><h1>Retención</h1></div><b id="welcomeAiMode">Conectando…</b></header>
+          <header><div><span>DEMOSTRACIÓN · DATOS FICTICIOS</span><h1>Retención</h1></div><div class="welcome-summary-actions"><b id="welcomeAiMode">Conectando…</b><button id="regenerateWelcome" type="button">↻ Generar otros 20</button></div></header>
           <div class="welcome-summary-grid">
             <article><span>Promedio</span><strong id="retentionAverage">—</strong></article>
             <article><span>En riesgo</span><strong id="riskCount">—</strong></article>

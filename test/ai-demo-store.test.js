@@ -15,6 +15,8 @@ test('los videos se generan por etapas compactas y conservan respaldo ante el l�
   assert.match(storeSource, /content: videoDraftSystemPrompt\(\)/);
   assert.match(storeSource, /videoDraftNeedsExpansion\(draft\.message, selectedVideo\)/);
   assert.match(storeSource, /content: videoExpansionSystemPrompt\(\)/);
+  assert.match(storeSource, /return requestGroqJson\(body, \{ maxAttempts: 1 \}\)/);
+  assert.match(storeSource, /catch \{[\s\S]{0,80}finalDraft = draft/);
   assert.match(storeSource, /Qwen vía Groq · \$\{stages\} etapas/);
   assert.match(storeSource, /Number\(error\?\.groqStatus\) === 429/);
   assert.match(storeSource, /fallback\.generatedBy = 'Respaldo automático'/);

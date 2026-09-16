@@ -606,8 +606,14 @@ function updateRisk(client) {
 function normalizeClient(client, now) {
   const normalized = structuredClone(client);
   const storedMessages = Array.isArray(normalized.messages) ? normalized.messages : [];
-  normalized.messages = storedMessages.filter((item) => !isLegacyInternalContextMessage(item));
-  normalized.notes = Array.isArray(normalized.notes) ? normalized.notes : [];
+  normalized.messages = storedMessages
+    .filter((item) => !isLegacyInternalContextMessage(item))
+    .map((item) => ({ ...item, generatedBy: null }));
+  normalized.notes = (Array.isArray(normalized.notes) ? normalized.notes : []).map((item) => ({
+    ...item,
+    title: item.title === 'Seguimiento IA' ? 'Seguimiento' : item.title,
+    text: neutralizeLegacyAiText(item.text),
+  }));
   normalized.plan = normalized.plan || {};
   normalized.plan.targetDownPaymentUsd = TARGET_DOWN_PAYMENT_USD;
   normalized.plan.usdReferenceArs = positiveNumber(normalized.plan.usdReferenceArs, config.welcomeDemo.usdReferenceArs);
@@ -625,6 +631,13 @@ function normalizeClient(client, now) {
   normalized.simulatedAt = Number(normalized.simulatedAt || now);
   updateRisk(normalized);
   return normalized;
+}
+
+function neutralizeLegacyAiText(value) {
+  return String(value || '')
+    .replace(/Qwen(?: vía Groq)?/gi, 'El seguimiento')
+    .replace(/\bLa IA\b/gi, 'El seguimiento')
+    .replace(/\bIA\b/g, 'seguimiento');
 }
 
 function objectiveForConversation(value) {

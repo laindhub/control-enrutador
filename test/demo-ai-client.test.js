@@ -14,7 +14,7 @@ const welcomeStyles = readFileSync(new URL('../public/css/demo-welcome.css', imp
 const welcomeStore = readFileSync(new URL('../src/welcome-demo-store.js', import.meta.url), 'utf8');
 const aiRoutes = readFileSync(new URL('../src/routes/ai-demo.js', import.meta.url), 'utf8');
 
-test('la Demo IA se reconecta al volver a la página o recuperar Internet', () => {
+test('el seguimiento se reconecta al volver a la página o recuperar Internet', () => {
   assert.match(client, /addEventListener\('pageshow', \(\) => reconnectNow\(\)\)/);
   assert.match(client, /addEventListener\('online', \(\) => reconnectNow\(\)\)/);
   assert.match(client, /visibilityState === 'visible'/);
@@ -32,7 +32,7 @@ test('el selector completa la ubicación y Maps automáticamente', () => {
   assert.match(client, /mapsUrl\.value = option\.dataset\.mapsUrl/);
 });
 
-test('la Demo IA reemplaza los selectores nativos por el componente propio', () => {
+test('el seguimiento reemplaza los selectores nativos por el componente propio', () => {
   assert.match(view, /assetUrl\('css\/custom-select\.css'\)/);
   assert.match(view, /assetUrl\('js\/custom-select\.js'\)/);
   assert.match(customSelect, /menu\.classList\.add\('ai-custom-select-menu'\)/);
@@ -70,13 +70,13 @@ test('el polling conserva el elemento de video y se pausa durante la reproducci�
   assert.match(client, /event\.type === 'play' \|\| event\.type === 'playing'/);
 });
 
-test('el mensaje del tester aparece de inmediato y la IA muestra que está escribiendo', () => {
+test('el mensaje del tester aparece de inmediato y la interfaz muestra el estado de escritura', () => {
   assert.match(client, /optimisticReplyFor\(lead\)/);
   assert.match(client, /ai-optimistic-message/);
   assert.match(client, /status: 'sending'/);
   assert.match(client, /renderSelectedLead\(\);[\s\S]{0,120}await api\(/);
   assert.match(client, /agentIsTyping\(lead\)/);
-  assert.match(client, /El agente está escribiendo…/);
+  assert.match(client, /Escribiendo…/);
   assert.match(styles, /\.ai-typing-row/);
   assert.match(styles, /\.ai-optimistic-message\.failed/);
 });
@@ -102,13 +102,13 @@ test('la oportunidad permite personalizar la voz de cada asesor', () => {
   assert.match(client, /syncingStyleControls/);
 });
 
-test('la Demo IA separa asesoramiento de leads y seguimiento de bienvenida', () => {
+test('el seguimiento separa asesoramiento de leads y seguimiento de bienvenida', () => {
   assert.match(server, /if \(area === 'leads'\)/);
   assert.match(server, /if \(area === 'welcome'\)/);
   assert.match(server, /res\.render\('demo-ai-area'/);
   assert.match(areaView, /Asesorar leads/);
   assert.match(areaView, /Equipo de bienvenida/);
-  assert.match(areaView, /Los historiales y criterios de la IA se mantienen separados/);
+  assert.match(areaView, /Los historiales y criterios de seguimiento se mantienen separados/);
   assert.match(welcomeView, /Equipo de Bienvenida/);
   assert.match(welcomeView, /Personas acompañadas/);
   assert.match(welcomeView, /Avance del plan de ahorro/);

@@ -247,14 +247,14 @@ app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
       }
       if (area === 'leads') {
         return res.render('demo-ai', {
-          title: 'Demo IA · Seguimiento comercial',
+          title: 'Seguimiento comercial',
           canSwitchRole: req.session.user.role === 'demo',
           projectCatalog: PROJECT_CATALOG,
         });
       }
       if (area === 'welcome') {
         return res.render('demo-welcome', {
-          title: 'Demo IA · Equipo de bienvenida',
+          title: 'Equipo de bienvenida · Seguimiento',
           canSwitchRole: req.session.user.role === 'demo',
         });
       }
@@ -425,10 +425,10 @@ async function healthDiagnostics(req) {
       : null;
     const warnings = [];
 
-    if (!authenticated) warnings.push('Abrí /health en la misma pestaña donde iniciaste sesión para diagnosticar Demo IA.');
+    if (!authenticated) warnings.push('Abrí /health en la misma pestaña donde iniciaste sesión para diagnosticar Seguimiento.');
     if (authenticated && !storedSession) warnings.push('La cookie existe, pero la fila de sesión no aparece en MySQL.');
     if (storedSession && sessionMatchesDatabase === false) warnings.push('La sesión cargada y la fila guardada en MySQL no coinciden.');
-    if (authenticated && demoRole !== 'ai') warnings.push('La sesión no tiene seleccionado el perfil Demo IA.');
+    if (authenticated && demoRole !== 'ai') warnings.push('La sesión no tiene seleccionado el perfil Seguimiento.');
     if (authenticated && inMemoryLeads?.length === 0) warnings.push('La sesión contiene una lista vacía de leads. Usá Reiniciar demo o registrá un lead nuevo.');
 
     return {
@@ -441,7 +441,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-welcome-videos-v34',
+          diagnosticRevision: 'demo-white-label-followup-v35',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -454,7 +454,7 @@ async function healthDiagnostics(req) {
           time: databaseInfo[0]?.database_time || null,
           latencyMs: Date.now() - startedAt,
         },
-        groq: {
+        messaging: {
           configured: Boolean(config.groq.apiKey),
           model: config.groq.model,
         },
@@ -565,7 +565,7 @@ async function healthDiagnostics(req) {
         warnings,
         hint: authenticated
           ? 'Copiá esta respuesta justo después de reproducir el error; no contiene claves, teléfonos ni nombres.'
-          : 'Iniciá sesión, elegí Demo IA y luego abrí /health en esta misma sesión.',
+          : 'Iniciá sesión, elegí Seguimiento y luego abrí /health en esta misma sesión.',
       },
     };
   } catch (error) {

@@ -58,11 +58,11 @@ Copiar los nombres de `.env.example` en el panel de variables de entorno de Host
 | `ADVISOR_USERNAME` | Usuario futuro de la cuenta compartida de asesores |
 | `ADVISOR_PASSWORD` | Contraseña futura de asesores |
 
-Las variables de las cuentas se leen al iniciar y las contraseñas se guardan como hashes bcrypt. Nunca se guardan en el repositorio. La cuenta demo solamente se habilita cuando existen tanto `DEMO_USERNAME` como `DEMO_PASSWORD`; desde ella se puede acceder a Enrutadores, Asesores, Administración y Demo IA. Su información operativa es ficticia, vive separada de las tablas productivas y se restaura al reiniciar la instancia. Si `GROQ_API_KEY` está vacío, Demo IA utiliza respuestas locales de muestra para que la presentación siga funcionando.
+Las variables de las cuentas se leen al iniciar y las contraseñas se guardan como hashes bcrypt. Nunca se guardan en el repositorio. La cuenta demo solamente se habilita cuando existen tanto `DEMO_USERNAME` como `DEMO_PASSWORD`; desde ella se puede acceder a Enrutadores, Asesores, Administración y Seguimiento. Su información operativa es ficticia, vive separada de las tablas productivas y se restaura al reiniciar la instancia. Si `GROQ_API_KEY` está vacío, Seguimiento utiliza respuestas locales de muestra para que la presentación siga funcionando.
 
-## Demo de seguimiento con IA
+## Demo de seguimiento
 
-El perfil **Demo IA** combina tres superficies en una misma pantalla:
+El perfil **Seguimiento** combina tres superficies en una misma pantalla:
 
 - bandeja de oportunidades;
 - conversación móvil inspirada en WhatsApp;

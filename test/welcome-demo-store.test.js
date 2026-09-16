@@ -96,7 +96,7 @@ test('el chat de retención registra el mensaje una sola vez y actualiza la fich
       retentionDelta: -6,
       intent: 'dificultad de pago',
       nextAction: 'Contactar personalmente al cliente',
-      generatedBy: 'Generado por IA',
+      generatedBy: null,
     };
   };
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000, generate });
@@ -122,7 +122,7 @@ test('simular una semana genera seguimiento y la intervención personal toma el 
     retentionDelta: 1,
     intent: 'seguimiento preventivo',
     nextAction: 'Esperar respuesta',
-    generatedBy: 'Generado por IA',
+    generatedBy: null,
   });
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000, generate });
   const id = store.clients[1].id;
@@ -145,7 +145,7 @@ test('Bienvenida puede elegir y enviar un video contextual al chat', async () =>
       message: 'Te comparto esta historia porque conecta con el esfuerzo que venís haciendo. Cada proceso es distinto y primero necesitás completar el anticipo. ¿Qué te genera verla?',
       note: 'Se eligió el testimonio de la enfermera por su contexto.',
       selectedVideoId: 'nurse-home-v3',
-      generatedBy: 'Generado por IA',
+      generatedBy: null,
     };
   };
   const store = new WelcomeDemoStore({ now: () => 1_800_000_000_000, generate });

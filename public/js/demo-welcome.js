@@ -152,7 +152,7 @@ function renderSelectedClient() {
   elements.chatAvatar.textContent = client.initials;
   elements.chatName.textContent = client.name;
   elements.chatContact.textContent = `${client.phone} · ${client.welcomeAdvisor}`;
-  elements.chatState.textContent = typing ? 'Agente escribiendo…' : client.status === 'human' ? 'Atención personal' : 'Plan activo';
+  elements.chatState.textContent = typing ? 'Escribiendo…' : client.status === 'human' ? 'Atención personal' : 'Plan activo';
   elements.replyInput.placeholder = `Responder como ${firstName(client.name)}`;
   elements.replyInput.disabled = client.status === 'human';
   document.querySelectorAll('[data-advance-days]').forEach((button) => {
@@ -218,7 +218,7 @@ function renderMessages(client) {
 
   const messages = client.messages.map((item) => {
     if (item.role === 'time') return `<div class="welcome-time-passage">⌛ ${escapeHtml(item.text)}</div>`;
-    const generated = item.generatedBy ? `<span>✦ ${escapeHtml(item.generatedBy)}</span>` : '';
+    const generated = '';
     const video = item.video
       ? `<figure class="welcome-video-card"><video controls playsinline preload="metadata" aria-label="${escapeAttr(item.video.title)}"><source src="${escapeAttr(item.video.src)}" type="video/mp4">Tu navegador no puede reproducir este video.</video><figcaption><strong>▶ ${escapeHtml(item.video.title)}</strong><span>Video de acompañamiento · ${escapeHtml(item.video.durationLabel || '')}</span></figcaption></figure>`
       : '';
@@ -229,7 +229,7 @@ function renderMessages(client) {
     ? `<article class="welcome-message client optimistic ${optimistic.status}"><p>${escapeHtml(optimistic.text)}</p><footer><span>${optimistic.status === 'failed' ? 'Sin respuesta · podés reenviar' : 'Enviado · esperando respuesta'}</span><time>${formatTime(optimistic.createdAt)}</time></footer></article>`
     : '';
   const typingIndicator = typing
-    ? '<div class="welcome-typing" role="status"><div><i></i><i></i><i></i></div><span>El equipo de Bienvenida está escribiendo…</span></div>'
+    ? '<div class="welcome-typing" role="status"><div><i></i><i></i><i></i></div><span>Escribiendo…</span></div>'
     : '';
 
   elements.messageList.innerHTML = `<div class="welcome-day-label">DEMOSTRACIÓN · CONVERSACIÓN FICTICIA</div>${messages}${optimisticMessage}${typingIndicator}`;
@@ -298,7 +298,7 @@ async function advanceTime(button) {
     mergeClient(result.client);
     render();
     const labels = {
-      waiting: 'La IA decidió esperar para no ser invasiva.',
+      waiting: 'Se decidió esperar para no ser invasivo.',
       followup: 'Se generó un seguimiento preventivo.',
       risk: 'Se detectó riesgo y se recomendó intervención personal.',
     };

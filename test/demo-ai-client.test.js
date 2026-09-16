@@ -54,11 +54,11 @@ test('el chat permite adjuntar otro proyecto desde un selector propio', () => {
 
 test('el simulador ofrece el video de bienvenida y el chat lo reproduce en línea', () => {
   assert.match(view, /id="sendWelcomeVideo"/);
-  assert.match(view, /agente elija el mejor video/);
+  assert.match(view, /seleccionar el video más adecuado/);
   assert.match(client, /send-welcome-video/);
   assert.match(client, /ai-video-card/);
   assert.match(client, /videoFollowUpCount/);
-  assert.match(client, /El agente eligió y personalizó/);
+  assert.match(client, /Se seleccionó y personalizó/);
   assert.match(client, /send-welcome-video[\s\S]{0,160}timeoutMs: 50_000/);
 });
 
@@ -131,7 +131,7 @@ test('Bienvenida ofrece veinte clientes, chats y seguimiento de retención funci
   assert.match(aiRoutes, /\/welcome\/reset/);
   assert.match(welcomeClient, /sendClientReply/);
   assert.match(welcomeClient, /optimisticReplyFor/);
-  assert.match(welcomeClient, /El equipo de Bienvenida está escribiendo/);
+  assert.match(welcomeClient, /Escribiendo…/);
   assert.match(welcomeClient, /regenerateClients/);
   assert.match(welcomeClient, /sendWelcomeVideo/);
   assert.match(welcomeClient, /welcome-video-card/);

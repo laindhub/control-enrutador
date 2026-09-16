@@ -264,7 +264,7 @@ function renderSelectedLead() {
   });
   elements.sendWelcomeVideo.disabled = ['scheduled', 'thinking', 'human', 'cold'].includes(lead.status)
     || lead.messages.filter((item) => item.video?.id).length >= Number(state.snapshot.ai.videoFollowUpCount || 1);
-  elements.chatState.textContent = agentIsTyping(lead) ? 'Agente IA escribiendo…' : `Cuenta de ${lead.advisorName}`;
+  elements.chatState.textContent = agentIsTyping(lead) ? 'Escribiendo…' : `Cuenta de ${lead.advisorName}`;
   elements.opportunityName.textContent = lead.name;
   elements.opportunityStatus.textContent = statusLabel(lead.status);
   elements.opportunityStatus.className = `ai-status-chip ${lead.status}`;
@@ -326,16 +326,14 @@ function renderMessages(lead) {
       <div class="ai-building-copy"><strong>${escapeHtml(item.card.title)}</strong><small>${escapeHtml(item.card.address)}</small>${projectFacts}<a href="${escapeAttr(item.card.mapsUrl)}" target="_blank" rel="noopener noreferrer">⌖ Ver ubicación en Google Maps</a>${item.card.projectUrl ? `<a href="${escapeAttr(item.card.projectUrl)}" target="_blank" rel="noopener noreferrer">Ver proyecto en Spazios</a>` : ''}</div>
     </article>` : '';
     const video = item.video ? `<figure class="ai-video-card"><video controls playsinline preload="metadata" aria-label="${escapeAttr(item.video.title)}"><source src="${escapeAttr(item.video.src)}" type="video/mp4">Tu navegador no puede reproducir este video.</video><figcaption><strong>▶ ${escapeHtml(item.video.title)}</strong><span>Video de bienvenida · ${escapeHtml(item.video.durationLabel || '')}</span></figcaption></figure>` : '';
-    const generatedLabel = item.generatedBy
-      ? `<span class="ai-generated-label" title="${escapeAttr(item.generationStyle || 'Generado por IA')}">✦ ${escapeHtml(item.generatedBy)}</span>`
-      : '';
+    const generatedLabel = '';
     return `<article class="ai-bubble ${escapeAttr(item.role)}">${video}${card}<p>${escapeHtml(item.text)}</p><footer>${generatedLabel}<time>${formatTime(item.createdAt)}${item.role === 'advisor' ? '<span class="ai-checks">✓✓</span>' : ''}</time></footer></article>`;
   }).join('');
   const optimisticBubble = optimisticReply
     ? `<article class="ai-bubble lead ai-optimistic-message ${optimisticReply.status === 'failed' ? 'failed' : 'sending'}"><p>${escapeHtml(optimisticReply.text)}</p><footer><span class="ai-message-delivery">${optimisticReply.status === 'failed' ? 'Sin respuesta · podés reenviar' : 'Enviado · esperando respuesta'}</span><time>${formatTime(optimisticReply.createdAt)}</time></footer></article>`
     : '';
   const typing = typingActive
-    ? '<div class="ai-typing-row" role="status" aria-live="polite"><div class="ai-typing" aria-hidden="true"><i></i><i></i><i></i></div><span>El agente está escribiendo…</span></div>'
+    ? '<div class="ai-typing-row" role="status" aria-live="polite"><div class="ai-typing" aria-hidden="true"><i></i><i></i><i></i></div><span>Escribiendo…</span></div>'
     : '';
   elements.messageList.innerHTML = `<div class="ai-day-label">DEMOSTRACIÓN · HOY</div>${pending}${bubbles}${optimisticBubble}${typing}`;
   $('#sendNowButton')?.addEventListener('click', sendNow);
@@ -365,7 +363,7 @@ async function sendWelcomeVideo() {
       render();
     }
     const selectedVideo = [...response.lead.messages].reverse().find((item) => item.video)?.video;
-    toast(`El agente eligió y personalizó ${selectedVideo?.title || 'el video más pertinente'}.`);
+    toast(`Se seleccionó y personalizó ${selectedVideo?.title || 'el video más pertinente'}.`);
   } catch (error) {
     endAgentActivity(lead.id);
     toast(error.message, true);
@@ -452,9 +450,9 @@ async function advanceTime(button) {
       render();
     }
     const messages = {
-      waiting: 'El agente decidió esperar para no ser invasivo.',
-      followup: 'La IA generó un nuevo seguimiento por falta de respuesta.',
-      closed: 'La IA cerró la secuencia automática y dejó el lead en pausa.',
+      waiting: 'Se decidió esperar para no ser invasivo.',
+      followup: 'Se generó un nuevo seguimiento por falta de respuesta.',
+      closed: 'El seguimiento quedó en pausa después de los intentos sin respuesta.',
     };
     toast(messages[result.outcome] || 'Tiempo simulado.');
   } catch (error) {
@@ -775,15 +773,15 @@ function toast(message, isError = false) {
 }
 
 function statusLabel(status) {
-  return ({ scheduled: 'Programado', thinking: 'IA escribiendo', following: 'En seguimiento', handoff: 'Derivar al asesor', human: 'Atención personal', cold: 'En pausa', error: 'Revisar error' })[status] || 'Seguimiento';
+  return ({ scheduled: 'Programado', thinking: 'Escribiendo', following: 'En seguimiento', handoff: 'Derivar al asesor', human: 'Atención personal', cold: 'En pausa', error: 'Revisar error' })[status] || 'Seguimiento';
 }
 
 function nextActionLabel(lead) {
   if (lead.status === 'handoff') return 'Intervención personal del asesor';
   if (lead.status === 'human') return 'Conversación tomada por el asesor';
-  if (lead.status === 'thinking') return 'El agente está preparando una respuesta';
+  if (lead.status === 'thinking') return 'Se está preparando una respuesta';
   if (lead.status === 'cold') return 'Secuencia finalizada; puede reactivarse si el lead responde';
-  if (lead.status === 'error') return 'Revisar conexión con el servicio de IA';
+  if (lead.status === 'error') return 'Revisar conexión con el servicio';
   return 'Esperar respuesta del lead';
 }
 

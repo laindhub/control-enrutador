@@ -162,7 +162,7 @@ export class AiDemoStore {
           projectUrl: lead.projectUrl,
         },
       }));
-      lead.notes.unshift(note('Seguimiento', result.note || `Se envió una propuesta para visitar ${lead.buildingName}.`, createdAt));
+      lead.notes.unshift(note('Seguimiento', neutralizeLegacyAiText(result.note) || `Se envió una propuesta para visitar ${lead.buildingName}.`, createdAt));
       lead.status = 'following';
       lead.nextActionAt = createdAt + 24 * 60 * 60 * 1000;
       lead.updatedAt = createdAt;
@@ -219,7 +219,7 @@ export class AiDemoStore {
         generationStyle: result.generationStyle || null,
         replyToRequestId: requestId || null,
       }));
-      lead.notes.unshift(note('Seguimiento', result.note || `Se respondió a ${lead.name} y se actualizó el seguimiento.`, repliedAt));
+      lead.notes.unshift(note('Seguimiento', neutralizeLegacyAiText(result.note) || `Se respondió a ${lead.name} y se actualizó el seguimiento.`, repliedAt));
       const stopFollowUp = Boolean(result.stopFollowUp) || signals.stopFollowUp;
       const requiresHuman = !stopFollowUp && (Boolean(result.requiresHuman) || signals.requiresHuman || lead.interest >= 78);
       lead.humanHandoff = requiresHuman;
@@ -348,7 +348,7 @@ export class AiDemoStore {
       lead.nextActionAt = lead.status === 'handoff' ? null : sentAt + 96 * 60 * 60 * 1000;
       lead.notes.unshift(note(
         'Seguimiento',
-        result.note || `Tras una semana sin respuesta, el agente eligió y personalizó “${selectedVideo.title}”.`,
+        neutralizeLegacyAiText(result.note) || `Tras una semana sin respuesta, el agente eligió y personalizó “${selectedVideo.title}”.`,
         sentAt,
       ));
       this.emitChange('welcome-video-sent', id);
@@ -405,7 +405,7 @@ export class AiDemoStore {
       }));
       lead.notes.unshift(note(
         'Seguimiento',
-        result.note || `Se realizó el seguimiento ${lead.followUpCount} después de ${silentHours} horas sin respuesta.`,
+        neutralizeLegacyAiText(result.note) || `Se realizó el seguimiento ${lead.followUpCount} después de ${silentHours} horas sin respuesta.`,
         advancedAt,
       ));
 

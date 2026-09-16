@@ -95,7 +95,7 @@ export class WelcomeDemoStore {
       ai: {
         enabled: Boolean(config.groq.apiKey),
         model: config.groq.model,
-        mode: config.groq.apiKey ? 'IA conectada' : 'Respuestas de demostración',
+        mode: config.groq.apiKey ? 'Servicio disponible' : 'Modo demostración',
         videoFollowUpCount: WELCOME_VIDEOS.length,
       },
     };
@@ -142,7 +142,7 @@ export class WelcomeDemoStore {
       }));
       applyRetentionResult(client, result, repliedAt);
       client.notes.unshift(note(
-        result.requiresHuman ? 'Intervención recomendada' : 'Seguimiento IA',
+        result.requiresHuman ? 'Intervención recomendada' : 'Seguimiento',
         result.note || 'Se respondió al cliente y se actualizó su estado de retención.',
         repliedAt,
         result.requiresHuman ? 'risk' : 'success',
@@ -173,7 +173,7 @@ export class WelcomeDemoStore {
 
     if (days < 7 || client.status === 'closed') {
       client.nextAction = days < 3 ? 'Esperar y acompañar sin invadir' : 'Revisar si necesita ayuda con su próximo aporte';
-      client.notes.unshift(note('Tiempo simulado', `Pasaron ${days} días sin nueva interacción. La IA decidió no insistir todavía.`, simulatedAt));
+      client.notes.unshift(note('Tiempo simulado', `Pasaron ${days} días sin nueva interacción. Se decidió no insistir todavía.`, simulatedAt));
       return { client: structuredClone(client), outcome: 'waiting' };
     }
 
@@ -457,13 +457,13 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0, vi
     });
     if (!response.ok) {
       const details = await response.text();
-      const error = new Error(`El servicio de IA respondió ${response.status}: ${details.slice(0, 160)}`);
+      const error = new Error(`El servicio de mensajería respondió ${response.status}: ${details.slice(0, 160)}`);
       error.groqStatus = response.status;
       throw error;
     }
     const payload = await response.json();
     const parsed = parseJson(payload.choices?.[0]?.message?.content || '');
-    if (!parsed.message) throw new Error('La IA no devolvió un mensaje utilizable.');
+    if (!parsed.message) throw new Error('No se recibió un mensaje utilizable.');
     return {
       message: cleanMessage(parsed.message, 700),
       note: clean(parsed.note, 500),
@@ -471,13 +471,13 @@ async function generateWelcomeReply({ kind, client, history, elapsedDays = 0, vi
       retentionDelta: clampNumber(parsed.retentionDelta, -20, 15, 0),
       intent: clean(parsed.intent, 50),
       nextAction: clean(parsed.nextAction, 180),
-      generatedBy: 'Generado por IA',
+      generatedBy: null,
       selectedVideoId: clean(parsed.selectedVideoId, 80),
     };
   } catch (error) {
     if (!isRecoverable(error)) throw error;
     const fallback = fallbackWelcomeReply({ kind, client, history, elapsedDays, videos });
-    fallback.generatedBy = 'Respaldo automático';
+    fallback.generatedBy = null;
     return fallback;
   }
 }
@@ -507,7 +507,7 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays, videos = [] 
       intent: 'acompañamiento con testimonio',
       nextAction: 'Esperar la reacción del cliente al video',
       selectedVideoId: selected.id,
-      generatedBy: 'Modo demo local',
+      generatedBy: null,
     };
   }
   if (kind === 'followup') {
@@ -518,19 +518,19 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays, videos = [] 
       retentionDelta: 1,
       intent: 'seguimiento preventivo',
       nextAction: 'Esperar respuesta y revisar si necesita intervención personal',
-      generatedBy: 'Modo demo local',
+      generatedBy: null,
     };
   }
   const latest = normalizeText([...history].reverse().find(({ role }) => role === 'client')?.text || '');
   if (/baja|cancel|salir|dejar el plan|no quiero seguir|devol/.test(latest)) {
     return {
-      message: `Entiendo, ${firstName(client.name)}. Gracias por decírmelo con claridad. No quiero darte una respuesta automática sobre algo tan importante. Voy a dejar registrado lo que planteás para que ${firstName(client.welcomeAdvisor)} revise tu caso y pueda hablarlo con vos personalmente. ¿Preferís que te contacten por llamada o por este chat?`,
+      message: `Entiendo, ${firstName(client.name)}. Gracias por decírmelo con claridad. No quiero darte una respuesta general sobre algo tan importante. Voy a dejar registrado lo que planteás para que ${firstName(client.welcomeAdvisor)} revise tu caso y pueda hablarlo con vos personalmente. ¿Preferís que te contacten por llamada o por este chat?`,
       note: 'El cliente manifestó intención de abandonar o consultar una baja. Se solicita intervención personal.',
       requiresHuman: true,
       retentionDelta: -15,
       intent: 'riesgo de baja',
       nextAction: 'Contactar personalmente y revisar las condiciones del caso',
-      generatedBy: 'Modo demo local',
+      generatedBy: null,
     };
   }
   if (/no puedo|complic|gasto|plata|dinero|aporte|pagar/.test(latest)) {
@@ -541,7 +541,7 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays, videos = [] 
       retentionDelta: -6,
       intent: 'dificultad de pago',
       nextAction: 'Revisar la situación de aportes con el cliente',
-      generatedBy: 'Modo demo local',
+      generatedBy: null,
     };
   }
   if (/cac|ajuste|cuota/.test(latest)) {
@@ -552,7 +552,7 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays, videos = [] 
       retentionDelta: 2,
       intent: 'consulta sobre CAC',
       nextAction: 'Confirmar la información personal del plan',
-      generatedBy: 'Modo demo local',
+      generatedBy: null,
     };
   }
   return {
@@ -562,7 +562,7 @@ function fallbackWelcomeReply({ kind, client, history, elapsedDays, videos = [] 
     retentionDelta: 3,
     intent: 'consulta general',
     nextAction: 'Continuar el acompañamiento según su respuesta',
-    generatedBy: 'Modo demo local',
+    generatedBy: null,
   };
 }
 
@@ -717,8 +717,8 @@ function isRecoverable(error) {
 }
 
 function publicError(error) {
-  if (Number(error?.groqStatus) === 429) return 'El servicio de IA alcanzó temporalmente su límite de uso.';
-  if (error?.name === 'TimeoutError') return 'El servicio de IA demoró demasiado en responder.';
+  if (Number(error?.groqStatus) === 429) return 'El servicio de mensajería alcanzó temporalmente su límite de uso.';
+  if (error?.name === 'TimeoutError') return 'El servicio de mensajería demoró demasiado en responder.';
   return clean(error?.message || 'No se pudo generar la respuesta.', 180);
 }
 

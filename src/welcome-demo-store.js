@@ -143,7 +143,7 @@ export class WelcomeDemoStore {
       applyRetentionResult(client, result, repliedAt);
       client.notes.unshift(note(
         result.requiresHuman ? 'Intervención recomendada' : 'Seguimiento',
-        result.note || 'Se respondió al cliente y se actualizó su estado de retención.',
+        neutralizeLegacyAiText(result.note) || 'Se respondió al cliente y se actualizó su estado de retención.',
         repliedAt,
         result.requiresHuman ? 'risk' : 'success',
       ));
@@ -186,7 +186,7 @@ export class WelcomeDemoStore {
         generatedBy: result.generatedBy || null,
       }));
       applyRetentionResult(client, result, sentAt);
-      client.notes.unshift(note('Seguimiento preventivo', result.note || 'Se retomó el contacto para prevenir una posible baja.', sentAt, client.riskLevel === 'high' ? 'risk' : 'neutral'));
+      client.notes.unshift(note('Seguimiento preventivo', neutralizeLegacyAiText(result.note) || 'Se retomó el contacto para prevenir una posible baja.', sentAt, client.riskLevel === 'high' ? 'risk' : 'neutral'));
       return { client: structuredClone(client), outcome: result.requiresHuman ? 'risk' : 'followup' };
     } catch (error) {
       client.status = 'error';
@@ -220,7 +220,7 @@ export class WelcomeDemoStore {
       client.nextAction = 'Esperar la reacción del cliente al video compartido';
       client.notes.unshift(note(
         'Video compartido',
-        result.note || `Se eligió “${selectedVideo.title}” según el contexto del cliente.`,
+        neutralizeLegacyAiText(result.note) || `Se eligió “${selectedVideo.title}” según el contexto del cliente.`,
         sentAt,
         'success',
       ));

@@ -524,17 +524,32 @@ function hydrateProject(lead) {
   lead.projectImageUrl = selectedProject.imageUrl;
   lead.messages = Array.isArray(lead.messages)
     ? lead.messages.map((item) => {
-      if (!item.card) return item;
+      const sanitized = { ...item, generatedBy: null, generationStyle: null };
+      if (!item.card) return sanitized;
       let cardProject = selectedProject;
       try {
         cardProject = resolveProject(item.card.projectName || item.card.title);
       } catch {
         // Las tarjetas antiguas sin un proyecto reconocible corresponden al proyecto principal del lead.
       }
-      return { ...item, card: { ...item.card, ...projectCard(cardProject) } };
+      return { ...sanitized, card: { ...item.card, ...projectCard(cardProject) } };
     })
     : [];
+  lead.notes = Array.isArray(lead.notes)
+    ? lead.notes.map((item) => ({
+      ...item,
+      author: item.author === 'Agente IA' ? 'Seguimiento' : item.author,
+      text: neutralizeLegacyAiText(item.text),
+    }))
+    : [];
   return lead;
+}
+
+function neutralizeLegacyAiText(value) {
+  return String(value || '')
+    .replace(/Qwen(?: vía Groq)?/gi, 'El seguimiento')
+    .replace(/\bLa IA\b/gi, 'El seguimiento')
+    .replace(/\bIA\b/g, 'seguimiento');
 }
 
 async function generateWithGroq({ kind, lead, history, elapsedHours = 0, videos = [] }) {

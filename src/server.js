@@ -112,7 +112,7 @@ app.get('/health', async (req, res, next) => {
     });
   }
 
-  // El diagnóstico completo necesita cargar la misma sesión que usa Demo IA.
+  // El diagnóstico completo necesita cargar la misma sesión que usa Seguimiento.
   // Se aplica solo aquí para conservar el healthcheck de arranque aun si MySQL falla.
   return sessionMiddleware(req, res, (sessionError) => {
     if (sessionError) return next(sessionError);

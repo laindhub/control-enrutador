@@ -17,7 +17,7 @@
         <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños">
       </a>
       <div class="ai-appbar-actions">
-        <span id="aiMode" class="ai-mode"><i></i>Comprobando IA…</span>
+        <span id="aiMode" class="ai-mode"><i></i>Comprobando servicio…</span>
         <a href="/demo" class="ai-ghost-button ai-change-area-button">Cambiar área</a>
         <% if (canSwitchRole) { %>
           <form method="post" action="/demo/change-profile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Cambiar perfil</button></form>
@@ -57,7 +57,7 @@
               <button type="button" data-advance-hours="24">+1 día</button>
               <button type="button" data-advance-hours="72">+3 días</button>
               <button type="button" data-advance-hours="168">+7 días</button>
-              <button id="sendWelcomeVideo" class="ai-video-followup" type="button" aria-label="Simular una semana y dejar que el agente elija el mejor video">▶ Video</button>
+              <button id="sendWelcomeVideo" class="ai-video-followup" type="button" aria-label="Simular una semana y seleccionar el video más adecuado">▶ Video</button>
             </div>
           </div>
           <div id="messageList" class="ai-message-list" aria-live="polite"></div>
@@ -112,7 +112,7 @@
           </section>
           <section class="ai-advisor-style-card" aria-labelledby="advisorStyleTitle">
             <div class="ai-section-title">
-              <div><span class="ai-kicker">VOZ DEL AGENTE</span><h3 id="advisorStyleTitle">Personalidad del asesor</h3></div>
+              <div><span class="ai-kicker">VOZ DEL ASESOR</span><h3 id="advisorStyleTitle">Personalidad del asesor</h3></div>
               <span id="advisorStyleOwner" class="ai-style-owner"></span>
             </div>
             <p>Se aplica a todos los seguimientos de este asesor.</p>
@@ -142,7 +142,7 @@
             <button id="saveAdvisorStyle" class="ai-secondary-button" type="button">Guardar personalidad</button>
           </section>
           <section class="ai-notes-section">
-            <div class="ai-section-title"><div><span class="ai-kicker">REGISTRO AUTOMÁTICO</span><h3>Notas de seguimiento</h3></div><span id="notesCount" class="ai-note-count">0</span></div>
+            <div class="ai-section-title"><div><span class="ai-kicker">REGISTRO DE SEGUIMIENTO</span><h3>Notas de seguimiento</h3></div><span id="notesCount" class="ai-note-count">0</span></div>
             <div id="notesList" class="ai-notes-list"></div>
           </section>
         </div>
@@ -160,7 +160,7 @@
         <button id="closeLeadModal" class="ai-modal-close" type="button" aria-label="Cerrar">×</button>
         <span class="ai-kicker">NUEVO SEGUIMIENTO</span>
         <h2 id="leadModalTitle">Registrar un lead</h2>
-        <p>El agente enviará el primer mensaje desde la identidad del asesor y registrará la acción.</p>
+        <p>Se enviará el primer mensaje desde la identidad del asesor y la acción quedará registrada.</p>
         <form id="leadForm" class="ai-lead-form">
           <div class="ai-form-grid">
             <label>Nombre y apellido<input name="name" required value="Martín Sosa"></label>
@@ -183,7 +183,7 @@
             </label>
             <label>Ubicación<input id="buildingAddress" name="buildingAddress" readonly></label>
             <label class="ai-form-wide">Enlace de Google Maps<input id="mapsUrl" name="mapsUrl" type="url" readonly></label>
-            <label class="ai-form-wide">Contexto para el agente<textarea name="context" rows="3">Vino a la charla, decide con su pareja y prioriza cercanía al tren.</textarea></label>
+            <label class="ai-form-wide">Contexto del seguimiento<textarea name="context" rows="3">Vino a la charla, decide con su pareja y prioriza cercanía al tren.</textarea></label>
           </div>
           <div class="ai-modal-actions"><button id="cancelLeadModal" type="button" class="ai-secondary-button">Cancelar</button><button type="submit" class="ai-primary-button">Iniciar seguimiento</button></div>
         </form>

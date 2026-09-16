@@ -19,7 +19,7 @@ test('los videos se generan por etapas compactas y conservan respaldo ante el l�
   assert.match(storeSource, /catch \{[\s\S]{0,80}finalDraft = draft/);
   assert.match(storeSource, /generatedBy: null/);
   assert.match(storeSource, /Number\(error\?\.groqStatus\) === 429/);
-  assert.match(storeSource, /fallback\.generatedBy = 'Respaldo automático'/);
+  assert.match(storeSource, /fallback\.generatedBy = null/);
   assert.match(storeSource, /groqStatus\) === 429\) return 'El servicio de mensajería alcanzó temporalmente su límite de uso\.'/);
 });
 
@@ -347,7 +347,7 @@ test('cada mensaje del agente crea una nota dentro de la oportunidad', async () 
   await store.processDue();
   let lead = store.getLead(created.id);
   assert.equal(lead.messages.length, 1);
-  assert.equal(lead.messages[0].generatedBy, 'Generado por IA');
+  assert.equal(lead.messages[0].generatedBy, null);
   assert.match(lead.notes[0].text, /visita/i);
   clock += 1_000;
   lead = await store.receiveLeadMessage(created.id, 'Quiero verlo el sábado');

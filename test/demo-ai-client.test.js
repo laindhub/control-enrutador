@@ -144,13 +144,11 @@ test('el flujo operativo simula el recorrido completo y el acompañamiento intel
   assert.match(flowView, /buen día de 10 horas/);
   assert.match(flowClient, /window\.requestAnimationFrame/);
   assert.match(flowStyles, /@keyframes flowPulse/);
-  assert.match(flowView, /id="flowConstellationLayer"/);
-  assert.match(flowView, /id="graphIntelligence"/);
-  assert.match(flowClient, /function renderConstellation/);
-  assert.match(flowStyles, /\.flow-constellation-dot/);
-  assert.match(flowClient, /graphLayouts\.mobile/);
-  assert.match(flowClient, /function applyGraphLayout/);
-  assert.match(flowStyles, /\.flow-node \.node-core/);
+  assert.match(flowView, /id="intelligenceActivityGraph"/);
+  assert.match(flowView, /id="intelligenceSatelliteLayer"/);
+  assert.match(flowClient, /function renderIntelligenceGraph/);
+  assert.match(flowClient, /function animateIntelligencePulse/);
+  assert.match(flowStyles, /\.intelligence-satellite-dot/);
   assert.match(flowStyles, /prefers-reduced-motion/);
 });
 

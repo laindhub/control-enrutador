@@ -447,7 +447,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-300-node-intelligence-network-v41',
+          diagnosticRevision: 'demo-progressive-fluid-intelligence-network-v42',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -552,7 +552,9 @@ async function healthDiagnostics(req) {
           mobileFullWidthActivityGraph: false,
           originalOperationalFlowRestored: true,
           obsidianStyleIntelligenceActivityOnly: true,
-          intelligenceNetworkNodeCount: 300,
+          intelligenceNetworkInitialNodeCount: 24,
+          intelligenceNetworkMaximumNodeCount: 330,
+          progressiveIntelligenceNetworkGrowth: true,
           fluidCanvasIntelligenceAnimation: true,
         },
         demoWelcome: {

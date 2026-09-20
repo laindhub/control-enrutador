@@ -3,7 +3,17 @@
 
   const svg = document.getElementById('operationsFlowMap');
   const tokenLayer = document.getElementById('flowTokenLayer');
-  if (!svg || !tokenLayer) return;
+  const constellationLayer = document.getElementById('flowConstellationLayer');
+  const graphIntelligence = document.getElementById('graphIntelligence');
+  if (!svg || !tokenLayer || !constellationLayer) return;
+
+  const graphAnchors = {
+    reception: [120, 92], pretest: [340, 92], host: [560, 92],
+    charla1: [800, 52], charla2: [800, 164], direct: [800, 276],
+    routing: [1050, 164], advisory: [1050, 368], decision: [760, 368],
+    'sales-followup': [510, 542], retention: [1015, 542],
+  };
+  const renderedConstellation = new Map();
 
   const names = ['Lucía', 'Martín', 'Camila', 'Julián', 'Rocío', 'Santiago', 'Valentina', 'Federico', 'Carolina', 'Mariano', 'Florencia', 'Nicolás'];
   const questions = ['el anticipo obligatorio', 'cómo se ajusta la cuota por CAC', 'los plazos de financiación', 'la fecha de entrega del proyecto', 'cómo continuar con su plan de ahorro'];
@@ -54,6 +64,47 @@
     byId('engineAlerts').textContent = state.alerts;
     byId('engineRetention').textContent = state.retentionActions;
     byId('flowClock').textContent = clockText();
+    renderConstellation();
+  }
+
+  function constellationClass(stage) {
+    if (stage === 'retention') return 'retention';
+    if (stage === 'sales-followup' || stage === 'routing' || stage === 'advisory') return 'hot';
+    if (stage === 'decision' || stage === 'direct') return 'warm';
+    return '';
+  }
+
+  function renderConstellation() {
+    Object.entries(graphAnchors).forEach(([stage, [anchorX, anchorY]], stageIndex) => {
+      const target = Math.min(18, Math.ceil((state.counts[stage] || 0) / (stage === 'reception' ? 4 : 2)));
+      const rendered = renderedConstellation.get(stage) || 0;
+      for (let index = rendered; index < target; index += 1) {
+        const ring = Math.floor(index / 7);
+        const position = index % 7;
+        const topCluster = anchorY < 110;
+        const angle = topCluster
+          ? (.12 * Math.PI) + ((position / 7) * Math.PI * .78) + (ring * .09)
+          : ((position / 7) * Math.PI * 2) + (stageIndex * .61) + (ring * .28);
+        const radius = 50 + (ring * 18) + ((index % 3) * 4);
+        const x = anchorX + Math.cos(angle) * radius;
+        const y = anchorY + Math.sin(angle) * radius;
+        const className = constellationClass(stage);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', anchorX);
+        line.setAttribute('y1', anchorY);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', y);
+        line.setAttribute('class', `flow-constellation-link ${className}`);
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', x);
+        dot.setAttribute('cy', y);
+        dot.setAttribute('r', String(2.8 + ((index + stageIndex) % 3) * .7));
+        dot.setAttribute('class', `flow-constellation-dot ${className}`);
+        dot.style.animationDelay = `${((index + stageIndex) % 9) * 90}ms`;
+        constellationLayer.append(line, dot);
+      }
+      renderedConstellation.set(stage, target);
+    });
   }
 
   function activateStage(stage) {
@@ -116,7 +167,9 @@
   function intelligentAction(text, icon = '✦') {
     currentAction.textContent = text;
     intelligenceCore.classList.add('is-thinking');
+    graphIntelligence?.classList.add('is-thinking');
     window.setTimeout(() => intelligenceCore.classList.remove('is-thinking'), 900 / state.speed);
+    window.setTimeout(() => graphIntelligence?.classList.remove('is-thinking'), 900 / state.speed);
     addActivity(icon, text);
   }
 
@@ -240,6 +293,8 @@
     state.directReserved = 0;
     activity.innerHTML = '';
     tokenLayer.innerHTML = '';
+    constellationLayer.innerHTML = '';
+    renderedConstellation.clear();
     currentAction.textContent = 'Analizando recorridos y esperando actividad…';
     updateDashboard();
     addActivity('✦', 'Simulación del día iniciada. El circuito está listo.');

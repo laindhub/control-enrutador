@@ -28,11 +28,9 @@
   const activity = byId('flowActivity');
   const currentAction = byId('flowCurrentAction');
   const intelligenceCore = byId('intelligenceCore');
-  const intelligenceGraph = byId('intelligenceActivityGraph');
-  const intelligenceSatelliteLayer = byId('intelligenceSatelliteLayer');
-  const intelligencePulseLayer = byId('intelligencePulseLayer');
-  const intelligenceRendered = { messages: 0, answers: 0, alerts: 0, retention: 0 };
-  const intelligenceHubs = { messages: [68, 66], answers: [292, 62], alerts: [70, 218], retention: [292, 218] };
+  const intelligenceCanvas = byId('intelligenceGraphCanvas');
+  const intelligenceNetwork = { context: null, width: 0, height: 0, nodes: [], crossLinks: [], pulses: [], frame: null, startedAt: performance.now() };
+  const intelligenceHubs = { messages: [.27, .28], answers: [.73, .25], alerts: [.28, .73], retention: [.73, .72] };
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function clockText() {
@@ -59,41 +57,171 @@
     byId('engineAlerts').textContent = state.alerts;
     byId('engineRetention').textContent = state.retentionActions;
     byId('flowClock').textContent = clockText();
-    renderIntelligenceGraph();
   }
 
-  function intelligenceValues() {
-    return { messages: state.messages, answers: state.answers, alerts: state.alerts, retention: state.retentionActions };
-  }
+  function intelligenceValues() { return { messages: state.messages, answers: state.answers, alerts: state.alerts, retention: state.retentionActions }; }
 
-  function renderIntelligenceGraph() {
-    if (!intelligenceSatelliteLayer) return;
-    const values = intelligenceValues();
-    Object.entries(values).forEach(([type, value], typeIndex) => {
-      intelligenceGraph?.querySelector(`[data-intelligence-count="${type}"]`)?.replaceChildren(document.createTextNode(String(value)));
-      const target = Math.min(type === 'messages' ? 12 : 8, value);
+  function seededRandom() {
+    seededRandom.seed = (seededRandom.seed * 1664525 + 1013904223) >>> 0;
+    return seededRandom.seed / 4294967296;
+  }
+  seededRandom.seed = 20260920;
+
+  function initializeIntelligenceNetwork() {
+    if (!intelligenceCanvas) return;
+    intelligenceNetwork.context = intelligenceCanvas.getContext('2d', { alpha: false });
+    const groups = [['messages', 105], ['answers', 75], ['alerts', 60], ['retention', 60]];
+    groups.forEach(([type, count], groupIndex) => {
       const [hubX, hubY] = intelligenceHubs[type];
-      for (let index = intelligenceRendered[type]; index < target; index += 1) {
-        const angle = ((index / Math.max(5, target)) * Math.PI * 2) + typeIndex * .73;
-        const radius = 37 + Math.floor(index / 6) * 10;
-        const x = hubX + Math.cos(angle) * radius;
-        const y = hubY + Math.sin(angle) * radius;
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', hubX);
-        line.setAttribute('y1', hubY);
-        line.setAttribute('x2', x);
-        line.setAttribute('y2', y);
-        line.setAttribute('class', 'intelligence-satellite-link');
-        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dot.setAttribute('cx', x);
-        dot.setAttribute('cy', y);
-        dot.setAttribute('r', String(2.4 + (index % 3) * .55));
-        dot.setAttribute('class', `intelligence-satellite-dot ${type}`);
-        dot.style.animationDelay = `${(index % 6) * 80}ms`;
-        intelligenceSatelliteLayer.append(line, dot);
+      for (let index = 0; index < count; index += 1) {
+        const angle = index * 2.399963 + groupIndex * .67;
+        const spread = Math.sqrt((index + .7) / count) * .235;
+        intelligenceNetwork.nodes.push({
+          type,
+          baseX: hubX + Math.cos(angle) * spread,
+          baseY: hubY + Math.sin(angle) * spread * .72,
+          phase: seededRandom() * Math.PI * 2,
+          drift: .45 + seededRandom() * .85,
+          size: .7 + seededRandom() * 1.45,
+          highlightUntil: 0,
+          x: 0,
+          y: 0,
+        });
       }
-      intelligenceRendered[type] = target;
     });
+    for (let index = 0; index < 210; index += 1) {
+      const from = Math.floor(seededRandom() * intelligenceNetwork.nodes.length);
+      const sameGroup = seededRandom() < .72;
+      let to = Math.floor(seededRandom() * intelligenceNetwork.nodes.length);
+      if (sameGroup) {
+        const type = intelligenceNetwork.nodes[from].type;
+        const candidates = intelligenceNetwork.nodes.map((node, nodeIndex) => node.type === type ? nodeIndex : -1).filter((nodeIndex) => nodeIndex >= 0);
+        to = candidates[Math.floor(seededRandom() * candidates.length)];
+      }
+      if (from !== to) intelligenceNetwork.crossLinks.push([from, to]);
+    }
+    resizeIntelligenceCanvas();
+    if (reducedMotion) drawIntelligenceNetwork(performance.now());
+    else intelligenceNetwork.frame = window.requestAnimationFrame(drawIntelligenceNetwork);
+  }
+
+  function resizeIntelligenceCanvas() {
+    if (!intelligenceCanvas || !intelligenceNetwork.context) return;
+    const box = intelligenceCanvas.getBoundingClientRect();
+    const ratio = Math.min(1.75, window.devicePixelRatio || 1);
+    intelligenceNetwork.width = Math.max(280, box.width);
+    intelligenceNetwork.height = Math.max(280, box.height);
+    intelligenceCanvas.width = Math.round(intelligenceNetwork.width * ratio);
+    intelligenceCanvas.height = Math.round(intelligenceNetwork.height * ratio);
+    intelligenceNetwork.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  function categoryColor(type, alpha = 1) {
+    const colors = { messages: [53, 208, 157], answers: [81, 191, 213], alerts: [223, 184, 92], retention: [214, 141, 172] };
+    const color = colors[type] || [194, 205, 205];
+    return `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+  }
+
+  function drawIntelligenceNetwork(timestamp) {
+    const context = intelligenceNetwork.context;
+    if (!context) return;
+    const width = intelligenceNetwork.width;
+    const height = intelligenceNetwork.height;
+    const elapsed = (timestamp - intelligenceNetwork.startedAt) / 1000;
+    context.fillStyle = '#0b1114';
+    context.fillRect(0, 0, width, height);
+
+    intelligenceNetwork.nodes.forEach((node, index) => {
+      const driftX = Math.sin(elapsed * node.drift + node.phase) * (.004 + (index % 4) * .0014);
+      const driftY = Math.cos(elapsed * node.drift * .82 + node.phase) * (.0035 + (index % 3) * .0013);
+      node.x = (node.baseX + driftX) * width;
+      node.y = (node.baseY + driftY) * height;
+    });
+
+    context.lineWidth = .55;
+    intelligenceNetwork.nodes.forEach((node) => {
+      const [hubX, hubY] = intelligenceHubs[node.type];
+      context.strokeStyle = categoryColor(node.type, .075);
+      context.beginPath();
+      context.moveTo(hubX * width, hubY * height);
+      context.lineTo(node.x, node.y);
+      context.stroke();
+    });
+    context.strokeStyle = 'rgba(175,190,192,.055)';
+    intelligenceNetwork.crossLinks.forEach(([from, to]) => {
+      const start = intelligenceNetwork.nodes[from];
+      const end = intelligenceNetwork.nodes[to];
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.stroke();
+    });
+
+    const centerX = width * .5;
+    const centerY = height * .5;
+    Object.entries(intelligenceHubs).forEach(([type, [x, y]]) => {
+      context.strokeStyle = categoryColor(type, .24);
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(centerX, centerY);
+      context.lineTo(x * width, y * height);
+      context.stroke();
+    });
+
+    intelligenceNetwork.nodes.forEach((node, index) => {
+      const highlighted = node.highlightUntil > timestamp;
+      const colored = highlighted || index % 11 === 0;
+      context.fillStyle = colored ? categoryColor(node.type, highlighted ? 1 : .78) : `rgba(207,218,218,${.38 + (index % 5) * .075})`;
+      context.beginPath();
+      context.arc(node.x, node.y, node.size + (highlighted ? 1.8 : 0), 0, Math.PI * 2);
+      context.fill();
+    });
+
+    const values = intelligenceValues();
+    Object.entries(intelligenceHubs).forEach(([type, [x, y]]) => {
+      const px = x * width;
+      const py = y * height;
+      context.fillStyle = 'rgba(8,16,19,.92)';
+      context.strokeStyle = categoryColor(type, .88);
+      context.lineWidth = 1.6;
+      context.beginPath(); context.arc(px, py, 9.5, 0, Math.PI * 2); context.fill(); context.stroke();
+      context.fillStyle = categoryColor(type, 1);
+      context.beginPath(); context.arc(px, py, 4.2, 0, Math.PI * 2); context.fill();
+      context.fillStyle = 'rgba(218,230,228,.9)';
+      context.font = '800 9px system-ui, sans-serif';
+      context.textAlign = 'center';
+      context.fillText(String(values[type]), px, py - 14);
+    });
+
+    context.shadowColor = 'rgba(49,220,166,.65)';
+    context.shadowBlur = 16;
+    context.fillStyle = '#1cc38e';
+    context.beginPath(); context.arc(centerX, centerY, 12, 0, Math.PI * 2); context.fill();
+    context.shadowBlur = 0;
+    context.fillStyle = '#fff'; context.font = '900 13px system-ui, sans-serif'; context.fillText('✦', centerX, centerY + 4.5);
+
+    intelligenceNetwork.pulses = intelligenceNetwork.pulses.filter((pulse) => {
+      const progress = (timestamp - pulse.startedAt) / pulse.duration;
+      if (progress >= 1) return false;
+      const hub = intelligenceHubs[pulse.type];
+      const target = intelligenceNetwork.nodes[pulse.target];
+      let x; let y;
+      if (progress < .38) {
+        const part = progress / .38;
+        x = centerX + (hub[0] * width - centerX) * part;
+        y = centerY + (hub[1] * height - centerY) * part;
+      } else {
+        const part = (progress - .38) / .62;
+        x = hub[0] * width + (target.x - hub[0] * width) * part;
+        y = hub[1] * height + (target.y - hub[1] * height) * part;
+      }
+      context.shadowColor = categoryColor(pulse.type, 1); context.shadowBlur = 12;
+      context.fillStyle = categoryColor(pulse.type, 1);
+      context.beginPath(); context.arc(x, y, 3.5, 0, Math.PI * 2); context.fill(); context.shadowBlur = 0;
+      return true;
+    });
+
+    if (!reducedMotion) intelligenceNetwork.frame = window.requestAnimationFrame(drawIntelligenceNetwork);
   }
 
   function intelligenceTypeFor(icon) {
@@ -103,30 +231,15 @@
     return 'messages';
   }
 
-  function animateIntelligencePulse(type) {
-    const path = byId(`intelligence-path-${type}`);
-    const hub = intelligenceGraph?.querySelector(`[data-intelligence-hub="${type}"]`);
-    if (!path || !intelligencePulseLayer) return;
-    hub?.classList.add('is-active');
-    window.setTimeout(() => hub?.classList.remove('is-active'), 720 / state.speed);
-    const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    pulse.setAttribute('r', '4.5');
-    pulse.setAttribute('fill', type === 'alerts' ? '#dfb85c' : type === 'retention' ? '#d68dac' : type === 'answers' ? '#51bfd5' : '#35d09d');
-    pulse.setAttribute('class', 'intelligence-moving-pulse');
-    intelligencePulseLayer.appendChild(pulse);
-    const length = path.getTotalLength();
-    const duration = reducedMotion ? 60 : 620 / state.speed;
-    let startedAt = 0;
-    function frame(timestamp) {
-      if (!startedAt) startedAt = timestamp;
-      const progress = Math.min(1, (timestamp - startedAt) / duration);
-      const point = path.getPointAtLength(length * progress);
-      pulse.setAttribute('cx', point.x);
-      pulse.setAttribute('cy', point.y);
-      if (progress < 1) return window.requestAnimationFrame(frame);
-      pulse.remove();
+  function triggerIntelligencePulse(type) {
+    const matching = intelligenceNetwork.nodes.map((node, index) => node.type === type ? index : -1).filter((index) => index >= 0);
+    const target = matching[Math.floor(Math.random() * matching.length)] || 0;
+    intelligenceNetwork.pulses.push({ type, target, startedAt: performance.now(), duration: Math.max(520, 1200 / state.speed) });
+    for (let index = 0; index < 9; index += 1) {
+      const nodeIndex = matching[Math.floor(Math.random() * matching.length)];
+      if (intelligenceNetwork.nodes[nodeIndex]) intelligenceNetwork.nodes[nodeIndex].highlightUntil = performance.now() + 900;
     }
-    window.requestAnimationFrame(frame);
+    if (reducedMotion) drawIntelligenceNetwork(performance.now());
   }
 
   function activateStage(stage) {
@@ -190,7 +303,7 @@
     currentAction.textContent = text;
     intelligenceCore.classList.add('is-thinking');
     window.setTimeout(() => intelligenceCore.classList.remove('is-thinking'), 900 / state.speed);
-    animateIntelligencePulse(intelligenceTypeFor(icon));
+    triggerIntelligencePulse(intelligenceTypeFor(icon));
     addActivity(icon, text);
   }
 
@@ -314,9 +427,8 @@
     state.directReserved = 0;
     activity.innerHTML = '';
     tokenLayer.innerHTML = '';
-    if (intelligenceSatelliteLayer) intelligenceSatelliteLayer.innerHTML = '';
-    if (intelligencePulseLayer) intelligencePulseLayer.innerHTML = '';
-    Object.keys(intelligenceRendered).forEach((key) => { intelligenceRendered[key] = 0; });
+    intelligenceNetwork.pulses = [];
+    intelligenceNetwork.nodes.forEach((node) => { node.highlightUntil = 0; });
     currentAction.textContent = 'Analizando recorridos y esperando actividad…';
     updateDashboard();
     addActivity('✦', 'Simulación del día iniciada. El circuito está listo.');
@@ -334,6 +446,12 @@
     });
   });
 
+  initializeIntelligenceNetwork();
+  let intelligenceResizeTimer = null;
+  window.addEventListener('resize', () => {
+    window.clearTimeout(intelligenceResizeTimer);
+    intelligenceResizeTimer = window.setTimeout(resizeIntelligenceCanvas, 150);
+  });
   updateDashboard();
   addActivity('✦', 'El motor de seguimiento está observando el recorrido completo.');
   window.setTimeout(spawnPerson, 450);

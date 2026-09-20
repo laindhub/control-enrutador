@@ -18,6 +18,8 @@
     answers: 0,
     alerts: 0,
     retentionActions: 0,
+    dayFinished: false,
+    directReserved: 0,
   };
 
   const byId = (id) => document.getElementById(id);
@@ -37,12 +39,16 @@
   function updateDashboard() {
     document.querySelectorAll('[data-count]').forEach((label) => { label.textContent = state.counts[label.dataset.count] || 0; });
     byId('kpiArrivals').textContent = state.counts.reception;
-    byId('kpiPretests').textContent = state.counts.pretest;
+    const talks = state.counts.charla1 + state.counts.charla2;
+    const advisorFromTalk = Math.max(0, state.counts.advisory - state.counts.direct);
+    byId('kpiTalks').textContent = talks;
+    byId('kpiDirectPasses').textContent = `${state.counts.direct} pases directos`;
     byId('kpiAdvisories').textContent = state.counts.advisory;
+    byId('kpiAdvisorRate').textContent = `${talks ? Math.round((advisorFromTalk / talks) * 100) : 0}% de quienes tuvieron charla`;
     byId('kpiSales').textContent = state.counts.retention;
     byId('kpiFollowups').textContent = state.counts['sales-followup'] + state.counts.retention;
     const conversion = state.counts.advisory ? Math.round((state.counts.retention / state.counts.advisory) * 100) : 0;
-    byId('kpiConversion').textContent = `${conversion}% de conversión`;
+    byId('kpiConversion').textContent = `${conversion}% de asesorías · objetivo buen día: 5`;
     byId('engineMessages').textContent = state.messages;
     byId('engineAnswers').textContent = state.answers;
     byId('engineAlerts').textContent = state.alerts;
@@ -147,11 +153,13 @@
   }
 
   async function spawnPerson() {
-    if (!state.running || state.active >= 3) return;
+    if (!state.running || state.dayFinished || state.active >= 3) return;
     state.active += 1;
     const person = names[Math.floor(Math.random() * names.length)];
+    const directAllowed = state.counts.direct + state.directReserved < 10;
     const routePick = Math.random();
-    const route = routePick < .42 ? 'charla1' : routePick < .75 ? 'charla2' : 'direct';
+    const route = directAllowed && routePick < .045 ? 'direct' : routePick < .54 ? 'charla1' : 'charla2';
+    if (route === 'direct') state.directReserved += 1;
     const routeLabel = route === 'charla1' ? 'Charla 1' : route === 'charla2' ? 'Charla 2' : 'pase directo';
 
     try {
@@ -161,13 +169,24 @@
       await move('path-pretest-host', 'host');
       intelligentAction(`Pre-test de ${person} interpretado: el host recomienda ${routeLabel}.`, '⌁');
       await move(`path-host-${route}`, route);
+      if (route === 'direct') state.directReserved = Math.max(0, state.directReserved - 1);
+
+      if (route !== 'direct' && Math.random() >= .35) {
+        await move(`path-${route}-followup`, 'sales-followup', '#19c98d');
+        addActivity('◷', `${person} finalizó la charla sin pasar al asesor y continúa en seguimiento.`);
+        state.minutes += 3 + Math.floor(Math.random() * 3);
+        scheduleIntelligentFollowUp(person, false);
+        finishPersonIfDayEnded();
+        return;
+      }
+
       await move(`path-${route}-routing`, 'routing');
       addActivity('→', `${person} fue asignado al asesor disponible con su contexto.`);
       await move('path-routing-advisory', 'advisory', '#26b8d2');
       await move('path-advisory-decision', 'decision', '#f4bd5f');
 
-      const saleChance = route === 'direct' ? .36 : route === 'charla2' ? .31 : .24;
-      const sold = Math.random() < saleChance;
+      const nextSalesMilestone = (state.counts.retention + 1) * 11;
+      const sold = state.counts.retention < 5 && (state.counts.advisory >= nextSalesMilestone || Math.random() < .015);
       if (sold) {
         await move('path-decision-retention', 'retention', '#26b8d2');
         addActivity('✓', `${person} ingresó al plan en su primera visita.`);
@@ -175,11 +194,22 @@
         await move('path-decision-sales', 'sales-followup', '#19c98d');
         addActivity('◷', `${person} continúa en seguimiento para venta.`);
       }
-      state.minutes += 8 + Math.floor(Math.random() * 11);
+      state.minutes += 3 + Math.floor(Math.random() * 3);
       scheduleIntelligentFollowUp(person, sold);
+      finishPersonIfDayEnded();
     } finally {
       state.active -= 1;
     }
+  }
+
+  function finishPersonIfDayEnded() {
+    if (state.minutes < 19 * 60 || state.dayFinished) return;
+    state.minutes = 19 * 60;
+    state.dayFinished = true;
+    setRunning(false);
+    currentAction.textContent = `Jornada completa: ${state.counts.advisory} asesorías, ${state.counts.retention} ventas y ${state.counts.direct} pases directos.`;
+    addActivity('■', 'Finalizó la simulación de 10 horas. Podés reiniciarla para ver otro día.');
+    updateDashboard();
   }
 
   function scheduleNext() {
@@ -206,6 +236,8 @@
     state.alerts = 0;
     state.retentionActions = 0;
     state.minutes = 9 * 60;
+    state.dayFinished = false;
+    state.directReserved = 0;
     activity.innerHTML = '';
     tokenLayer.innerHTML = '';
     currentAction.textContent = 'Analizando recorridos y esperando actividad…';

@@ -70,9 +70,14 @@
               <defs>
                 <linearGradient id="flowNodeGradient" x1="0" x2="1"><stop offset="0" stop-color="#102a34"/><stop offset="1" stop-color="#143c43"/></linearGradient>
                 <linearGradient id="flowFinalGradient" x1="0" x2="1"><stop offset="0" stop-color="#0d6f55"/><stop offset="1" stop-color="#11a676"/></linearGradient>
+                <radialGradient id="flowGraphAura"><stop offset="0" stop-color="#24d69c" stop-opacity=".32"/><stop offset=".45" stop-color="#159a78" stop-opacity=".08"/><stop offset="1" stop-color="#071216" stop-opacity="0"/></radialGradient>
                 <filter id="flowGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                <filter id="flowSoftGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9"/></filter>
                 <marker id="flowArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5b7b83"/></marker>
               </defs>
+
+              <circle class="flow-graph-aura" cx="760" cy="345" r="330" fill="url(#flowGraphAura)"/>
+              <g id="flowConstellationLayer" class="flow-constellation-layer" aria-hidden="true"></g>
 
               <g class="flow-links" fill="none" marker-end="url(#flowArrow)">
                 <path id="path-reception-pretest" d="M205 92 H255"/>
@@ -110,6 +115,15 @@
               <text class="flow-outcome yes" x="908" y="456">SÍ · PRIMERA VISITA</text>
               <g class="flow-node final sales" data-stage="sales-followup" transform="translate(340 490)"><rect width="340" height="104" rx="22"/><text class="flow-node-eyebrow" x="22" y="30">OBJETIVO: CONVERTIR</text><text class="flow-node-title" x="22" y="60">Seguimiento comercial</text><text class="flow-node-detail" x="22" y="84">Respuestas · interés · derivación</text><text class="flow-node-count" data-count="sales-followup" x="310" y="63">0</text></g>
               <g class="flow-node final retention" data-stage="retention" transform="translate(865 490)"><rect width="300" height="104" rx="22"/><text class="flow-node-eyebrow" x="22" y="30">OBJETIVO: SOSTENER</text><text class="flow-node-title" x="22" y="60">Bienvenida y retención</text><text class="flow-node-detail" x="22" y="84">Aportes · dudas · riesgo de baja</text><text class="flow-node-count" data-count="retention" x="270" y="63">0</text></g>
+
+              <g class="flow-graph-intelligence-links" aria-hidden="true">
+                <path d="M760 632 Q650 620 510 594"/>
+                <path d="M760 632 Q890 620 1015 594"/>
+              </g>
+              <g id="graphIntelligence" class="flow-graph-intelligence" transform="translate(760 632)" aria-hidden="true">
+                <circle class="engine-halo" r="45"/><circle class="engine-orbit" r="28"/><circle class="engine-core" r="17"/>
+                <text y="4">✦</text><text class="engine-label" y="64">SEGUIMIENTO</text>
+              </g>
 
               <g id="flowTokenLayer" aria-hidden="true"></g>
             </svg>

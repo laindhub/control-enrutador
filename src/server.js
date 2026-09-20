@@ -447,7 +447,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-realistic-operational-flow-v37',
+          diagnosticRevision: 'demo-obsidian-graph-flow-v38',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -548,6 +548,7 @@ async function healthDiagnostics(req) {
           advisorPassRateFromTalk: 0.35,
           maximumDirectAdvisorPassesPerDay: 10,
           goodDayPlanSalesTarget: 5,
+          obsidianStyleActivityGraph: true,
         },
         demoWelcome: {
           accessible: authenticated && demoRole === 'ai',

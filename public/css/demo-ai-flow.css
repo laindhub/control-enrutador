@@ -116,6 +116,7 @@
 .flow-intelligence-core.is-thinking #intelligenceGraphCanvas { filter: brightness(1.18) saturate(1.18); }
 .intelligence-canvas-status { position: absolute; right: 13px; bottom: 10px; left: 13px; z-index: 2; display: flex; align-items: center; justify-content: space-between; pointer-events: none; color: #81969a; font-size: .57rem; font-weight: 850; letter-spacing: .1em; }
 .intelligence-canvas-status span { display: flex; gap: 6px; align-items: center; }
+.intelligence-canvas-status em { font-style: normal; }
 .intelligence-canvas-status i { width: 6px; height: 6px; border-radius: 50%; background: #31d09b; box-shadow: 0 0 9px rgba(49,208,155,.85); animation: flowLive 1.8s infinite; }
 .intelligence-canvas-status b { color: #55c9a6; font-size: inherit; }
 .intelligence-network-lines path { fill: none; stroke: rgba(171,192,194,.28); stroke-width: 1.15; stroke-dasharray: 3 5; animation: intelligenceDash 2.2s linear infinite; }

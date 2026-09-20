@@ -148,6 +148,9 @@ test('el flujo operativo simula el recorrido completo y el acompañamiento intel
   assert.match(flowView, /id="graphIntelligence"/);
   assert.match(flowClient, /function renderConstellation/);
   assert.match(flowStyles, /\.flow-constellation-dot/);
+  assert.match(flowClient, /graphLayouts\.mobile/);
+  assert.match(flowClient, /function applyGraphLayout/);
+  assert.match(flowStyles, /\.flow-node \.node-core/);
   assert.match(flowStyles, /prefers-reduced-motion/);
 });
 

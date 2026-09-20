@@ -144,6 +144,10 @@ test('el flujo operativo simula el recorrido completo y el acompañamiento intel
   assert.match(flowView, /buen día de 10 horas/);
   assert.match(flowClient, /window\.requestAnimationFrame/);
   assert.match(flowStyles, /@keyframes flowPulse/);
+  assert.match(flowView, /id="flowConstellationLayer"/);
+  assert.match(flowView, /id="graphIntelligence"/);
+  assert.match(flowClient, /function renderConstellation/);
+  assert.match(flowStyles, /\.flow-constellation-dot/);
   assert.match(flowStyles, /prefers-reduced-motion/);
 });
 

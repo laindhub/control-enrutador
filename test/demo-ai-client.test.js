@@ -6,11 +6,14 @@ const client = readFileSync(new URL('../public/js/demo-ai.js', import.meta.url),
 const view = readFileSync(new URL('../views/demo-ai.ejs', import.meta.url), 'utf8');
 const areaView = readFileSync(new URL('../views/demo-ai-area.ejs', import.meta.url), 'utf8');
 const welcomeView = readFileSync(new URL('../views/demo-welcome.ejs', import.meta.url), 'utf8');
+const flowView = readFileSync(new URL('../views/demo-ai-flow.ejs', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
 const customSelect = readFileSync(new URL('../public/js/custom-select.js', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../public/css/demo-ai.css', import.meta.url), 'utf8');
 const welcomeClient = readFileSync(new URL('../public/js/demo-welcome.js', import.meta.url), 'utf8');
 const welcomeStyles = readFileSync(new URL('../public/css/demo-welcome.css', import.meta.url), 'utf8');
+const flowClient = readFileSync(new URL('../public/js/demo-ai-flow.js', import.meta.url), 'utf8');
+const flowStyles = readFileSync(new URL('../public/css/demo-ai-flow.css', import.meta.url), 'utf8');
 const welcomeStore = readFileSync(new URL('../src/welcome-demo-store.js', import.meta.url), 'utf8');
 const aiRoutes = readFileSync(new URL('../src/routes/ai-demo.js', import.meta.url), 'utf8');
 
@@ -105,9 +108,11 @@ test('la oportunidad permite personalizar la voz de cada asesor', () => {
 test('el seguimiento separa asesoramiento de leads y seguimiento de bienvenida', () => {
   assert.match(server, /if \(area === 'leads'\)/);
   assert.match(server, /if \(area === 'welcome'\)/);
+  assert.match(server, /if \(area === 'flow'\)/);
   assert.match(server, /res\.render\('demo-ai-area'/);
   assert.match(areaView, /Asesorar leads/);
   assert.match(areaView, /Equipo de bienvenida/);
+  assert.match(areaView, /Flujo operativo del día/);
   assert.match(areaView, /Los historiales y criterios de seguimiento se mantienen separados/);
   assert.match(welcomeView, /Equipo de Bienvenida/);
   assert.match(welcomeView, /Personas acompañadas/);
@@ -116,6 +121,24 @@ test('el seguimiento separa asesoramiento de leads y seguimiento de bienvenida',
   assert.doesNotMatch(welcomeView, /porcentaje de oportunidad/i);
   assert.match(view, /Cambiar área/);
   assert.match(areaView, /<html lang="es" class="ai-scroll-page">/);
+});
+
+test('el flujo operativo simula el recorrido completo y el acompañamiento inteligente', () => {
+  assert.match(flowView, /id="operationsFlowMap"/);
+  assert.match(flowView, /data-stage="reception"/);
+  assert.match(flowView, /data-stage="pretest"/);
+  assert.match(flowView, /data-stage="charla1"/);
+  assert.match(flowView, /data-stage="charla2"/);
+  assert.match(flowView, /data-stage="direct"/);
+  assert.match(flowView, /data-stage="sales-followup"/);
+  assert.match(flowView, /data-stage="retention"/);
+  assert.match(flowView, /Motor inteligente/);
+  assert.match(flowClient, /function spawnPerson/);
+  assert.match(flowClient, /function animateAlongPath/);
+  assert.match(flowClient, /function scheduleIntelligentFollowUp/);
+  assert.match(flowClient, /window\.requestAnimationFrame/);
+  assert.match(flowStyles, /@keyframes flowPulse/);
+  assert.match(flowStyles, /prefers-reduced-motion/);
 });
 
 test('Bienvenida ofrece veinte clientes, chats y seguimiento de retención funcional', () => {

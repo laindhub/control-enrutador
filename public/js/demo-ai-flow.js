@@ -7,12 +7,37 @@
   const graphIntelligence = document.getElementById('graphIntelligence');
   if (!svg || !tokenLayer || !constellationLayer) return;
 
-  const graphAnchors = {
-    reception: [120, 92], pretest: [340, 92], host: [560, 92],
-    charla1: [800, 52], charla2: [800, 164], direct: [800, 276],
-    routing: [1050, 164], advisory: [1050, 368], decision: [760, 368],
-    'sales-followup': [510, 542], retention: [1015, 542],
+  const graphLayouts = {
+    desktop: {
+      viewBox: '0 0 1200 680', aura: [600, 335, 350], engine: [600, 620],
+      nodes: {
+        reception: [95, 285], pretest: [260, 205], host: [420, 285],
+        charla1: [590, 145], charla2: [615, 320], direct: [600, 485],
+        routing: [790, 270], advisory: [955, 300], decision: [1065, 440],
+        'sales-followup': [790, 555], retention: [1060, 585],
+      },
+    },
+    mobile: {
+      viewBox: '0 0 390 720', aura: [195, 350, 245], engine: [195, 665],
+      nodes: {
+        reception: [48, 72], pretest: [195, 55], host: [340, 92],
+        charla1: [82, 190], charla2: [285, 205], direct: [195, 290],
+        routing: [72, 375], advisory: [235, 390], decision: [326, 478],
+        'sales-followup': [103, 555], retention: [285, 575],
+      },
+    },
   };
+  const graphEdges = [
+    ['path-reception-pretest', 'reception', 'pretest', -12], ['path-pretest-host', 'pretest', 'host', 12],
+    ['path-host-charla1', 'host', 'charla1', -28], ['path-host-charla2', 'host', 'charla2', 12], ['path-host-direct', 'host', 'direct', 30],
+    ['path-charla1-routing', 'charla1', 'routing', -22], ['path-charla2-routing', 'charla2', 'routing', 18],
+    ['path-charla1-followup', 'charla1', 'sales-followup', 70], ['path-charla2-followup', 'charla2', 'sales-followup', 45],
+    ['path-direct-routing', 'direct', 'routing', -22], ['path-routing-advisory', 'routing', 'advisory', -10],
+    ['path-advisory-decision', 'advisory', 'decision', 18], ['path-decision-sales', 'decision', 'sales-followup', 46],
+    ['path-decision-retention', 'decision', 'retention', -25],
+  ];
+  let graphAnchors = graphLayouts.desktop.nodes;
+  let mobileGraph = false;
   const renderedConstellation = new Map();
 
   const names = ['Lucía', 'Martín', 'Camila', 'Julián', 'Rocío', 'Santiago', 'Valentina', 'Federico', 'Carolina', 'Mariano', 'Florencia', 'Nicolás'];
@@ -39,6 +64,35 @@
   const currentAction = byId('flowCurrentAction');
   const intelligenceCore = byId('intelligenceCore');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function curvedPath(from, to, bend = 0) {
+    const [x1, y1] = from;
+    const [x2, y2] = to;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const middleX = (x1 + x2) / 2 - (dy / length) * bend;
+    const middleY = (y1 + y2) / 2 + (dx / length) * bend;
+    return `M ${x1} ${y1} Q ${middleX.toFixed(1)} ${middleY.toFixed(1)} ${x2} ${y2}`;
+  }
+
+  function applyGraphLayout() {
+    mobileGraph = window.innerWidth <= 760;
+    const layout = mobileGraph ? graphLayouts.mobile : graphLayouts.desktop;
+    graphAnchors = layout.nodes;
+    svg.setAttribute('viewBox', layout.viewBox);
+    Object.entries(graphAnchors).forEach(([stage, [x, y]]) => {
+      svg.querySelector(`[data-stage="${stage}"]`)?.setAttribute('transform', `translate(${x} ${y})`);
+    });
+    graphEdges.forEach(([pathId, from, to, bend]) => byId(pathId)?.setAttribute('d', curvedPath(graphAnchors[from], graphAnchors[to], mobileGraph ? bend * .55 : bend)));
+    graphIntelligence?.setAttribute('transform', `translate(${layout.engine[0]} ${layout.engine[1]})`);
+    byId('path-engine-sales')?.setAttribute('d', curvedPath(layout.engine, graphAnchors['sales-followup'], mobileGraph ? 12 : -20));
+    byId('path-engine-retention')?.setAttribute('d', curvedPath(layout.engine, graphAnchors.retention, mobileGraph ? -12 : 20));
+    const aura = byId('flowGraphAura');
+    aura?.setAttribute('cx', layout.aura[0]);
+    aura?.setAttribute('cy', layout.aura[1]);
+    aura?.setAttribute('r', layout.aura[2]);
+  }
 
   function clockText() {
     const hours = Math.floor(state.minutes / 60) % 24;
@@ -81,11 +135,11 @@
       for (let index = rendered; index < target; index += 1) {
         const ring = Math.floor(index / 7);
         const position = index % 7;
-        const topCluster = anchorY < 110;
+        const topCluster = anchorY < (mobileGraph ? 120 : 110);
         const angle = topCluster
           ? (.12 * Math.PI) + ((position / 7) * Math.PI * .78) + (ring * .09)
           : ((position / 7) * Math.PI * 2) + (stageIndex * .61) + (ring * .28);
-        const radius = 50 + (ring * 18) + ((index % 3) * 4);
+        const radius = (mobileGraph ? 27 : 50) + (ring * (mobileGraph ? 10 : 18)) + ((index % 3) * (mobileGraph ? 2 : 4));
         const x = anchorX + Math.cos(angle) * radius;
         const y = anchorY + Math.sin(angle) * radius;
         const className = constellationClass(stage);
@@ -312,6 +366,20 @@
     });
   });
 
+  applyGraphLayout();
+  let graphResizeTimer = null;
+  window.addEventListener('resize', () => {
+    window.clearTimeout(graphResizeTimer);
+    graphResizeTimer = window.setTimeout(() => {
+      const wasMobile = mobileGraph;
+      applyGraphLayout();
+      if (wasMobile !== mobileGraph) {
+        constellationLayer.innerHTML = '';
+        renderedConstellation.clear();
+        renderConstellation();
+      }
+    }, 160);
+  });
   updateDashboard();
   addActivity('✦', 'El motor de seguimiento está observando el recorrido completo.');
   window.setTimeout(spawnPerson, 450);

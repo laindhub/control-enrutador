@@ -120,22 +120,8 @@
         <aside class="flow-intelligence-card">
           <header><span>ACOMPAÑAMIENTO ACTIVO</span><strong>Motor inteligente</strong></header>
           <div class="flow-intelligence-core" id="intelligenceCore" aria-label="Grafo en vivo de las acciones de seguimiento">
-            <svg id="intelligenceActivityGraph" viewBox="0 0 360 270" role="img" aria-label="Mensajes, respuestas, avisos y acciones de retención conectados al motor de seguimiento">
-              <defs><filter id="intelligenceGlow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-              <g class="intelligence-network-lines">
-                <path id="intelligence-path-messages" d="M180 135 Q120 112 68 66"/>
-                <path id="intelligence-path-answers" d="M180 135 Q238 105 292 62"/>
-                <path id="intelligence-path-alerts" d="M180 135 Q115 170 70 218"/>
-                <path id="intelligence-path-retention" d="M180 135 Q240 175 292 218"/>
-              </g>
-              <g id="intelligenceSatelliteLayer" class="intelligence-satellite-layer" aria-hidden="true"></g>
-              <g class="intelligence-hub messages" data-intelligence-hub="messages" transform="translate(68 66)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="4">↗</text><text class="hub-label" y="39">MENSAJES</text><text class="hub-count" data-intelligence-count="messages" y="-23">0</text></g>
-              <g class="intelligence-hub answers" data-intelligence-hub="answers" transform="translate(292 62)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="5">?</text><text class="hub-label" y="39">RESPUESTAS</text><text class="hub-count" data-intelligence-count="answers" y="-23">0</text></g>
-              <g class="intelligence-hub alerts" data-intelligence-hub="alerts" transform="translate(70 218)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="5">!</text><text class="hub-label" y="39">AVISOS</text><text class="hub-count" data-intelligence-count="alerts" y="-23">0</text></g>
-              <g class="intelligence-hub retention" data-intelligence-hub="retention" transform="translate(292 218)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="5">♥</text><text class="hub-label" y="39">RETENCIÓN</text><text class="hub-count" data-intelligence-count="retention" y="-23">0</text></g>
-              <g class="intelligence-center" transform="translate(180 135)"><circle class="center-aura" r="43"/><circle class="center-ring" r="31"/><circle class="center-core" r="22"/><text y="6">✦</text></g>
-              <g id="intelligencePulseLayer" aria-hidden="true"></g>
-            </svg>
+            <canvas id="intelligenceGraphCanvas" role="img" aria-label="Red animada de 300 nodos que representa mensajes, respuestas, avisos y acciones de retención"></canvas>
+            <div class="intelligence-canvas-status" aria-hidden="true"><span><i></i> 300 nodos activos</span><b>RED EN VIVO</b></div>
           </div>
           <div class="flow-current-action" aria-live="polite"><small>AHORA</small><p id="flowCurrentAction">Analizando recorridos y esperando actividad…</p></div>
           <div class="flow-engine-metrics">

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es" class="flow-scroll-page">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#07161c">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title><%= title %> · Más Dueños</title>
+    <link rel="icon" type="image/png" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="apple-touch-icon" href="<%= assetUrl('assets/favicon.png') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo-ai.css') %>">
+    <link rel="stylesheet" href="<%= assetUrl('css/demo-ai-flow.css') %>">
+  </head>
+  <body class="flow-page">
+    <header class="ai-appbar flow-appbar">
+      <a class="ai-brand" href="/demo" aria-label="Más Dueños">
+        <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños">
+      </a>
+      <div class="ai-appbar-actions">
+        <a href="/demo" class="ai-ghost-button">Cambiar área</a>
+        <% if (canSwitchRole) { %>
+          <form method="post" action="/demo/change-profile"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button flow-profile-button">Cambiar perfil</button></form>
+        <% } %>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="ai-ghost-button">Salir</button></form>
+      </div>
+    </header>
+
+    <main class="flow-shell">
+      <section class="flow-hero">
+        <div>
+          <span class="flow-kicker"><i></i> SIMULACIÓN EN VIVO · DÍA COMÚN</span>
+          <h1>De la recepción al seguimiento</h1>
+          <p>Personas avanzando por el circuito, decisiones comerciales y acompañamiento automático trabajando en paralelo.</p>
+        </div>
+        <div class="flow-controls" aria-label="Controles de la simulación">
+          <button type="button" id="flowToggle" class="flow-control primary">Pausar</button>
+          <div class="flow-speed" role="group" aria-label="Velocidad">
+            <button type="button" class="is-active" data-speed="1">1×</button>
+            <button type="button" data-speed="2">2×</button>
+            <button type="button" data-speed="4">4×</button>
+          </div>
+          <button type="button" id="flowReset" class="flow-control">Reiniciar</button>
+        </div>
+      </section>
+
+      <section class="flow-kpis" aria-label="Indicadores del día">
+        <article><span>Ingresos</span><strong id="kpiArrivals">0</strong><small>personas recibidas</small></article>
+        <article><span>Pre-tests</span><strong id="kpiPretests">0</strong><small>perfiles relevados</small></article>
+        <article><span>Asesorías</span><strong id="kpiAdvisories">0</strong><small>encuentros realizados</small></article>
+        <article class="positive"><span>Ventas</span><strong id="kpiSales">0</strong><small id="kpiConversion">0% de conversión</small></article>
+        <article class="accent"><span>Seguimientos</span><strong id="kpiFollowups">0</strong><small>acciones activas</small></article>
+      </section>
+
+      <section class="flow-workspace">
+        <article class="flow-map-card">
+          <header class="flow-card-header">
+            <div><span>RECORRIDO OPERATIVO</span><h2>Movimiento del día</h2></div>
+            <div class="flow-clock"><i></i><span id="flowClock">09:00</span></div>
+          </header>
+          <div class="flow-map-scroller">
+            <svg id="operationsFlowMap" class="flow-map" viewBox="0 0 1200 680" role="img" aria-labelledby="flowMapTitle flowMapDescription">
+              <title id="flowMapTitle">Flujo operativo desde recepción hasta seguimiento</title>
+              <desc id="flowMapDescription">Las personas pasan por recepción, pre-test y host. Luego pueden ir a charla uno, charla dos o directamente al asesor. Tras la asesoría pasan a seguimiento comercial o retención.</desc>
+              <defs>
+                <linearGradient id="flowNodeGradient" x1="0" x2="1"><stop offset="0" stop-color="#102a34"/><stop offset="1" stop-color="#143c43"/></linearGradient>
+                <linearGradient id="flowFinalGradient" x1="0" x2="1"><stop offset="0" stop-color="#0d6f55"/><stop offset="1" stop-color="#11a676"/></linearGradient>
+                <filter id="flowGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                <marker id="flowArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5b7b83"/></marker>
+              </defs>
+
+              <g class="flow-links" fill="none" marker-end="url(#flowArrow)">
+                <path id="path-reception-pretest" d="M205 92 H255"/>
+                <path id="path-pretest-host" d="M425 92 H475"/>
+                <path id="path-host-charla1" d="M645 92 C690 92 674 52 715 52"/>
+                <path id="path-host-charla2" d="M645 92 C690 92 674 164 715 164"/>
+                <path id="path-host-direct" d="M560 136 C560 245 670 276 715 276"/>
+                <path id="path-charla1-routing" d="M885 52 C940 52 920 164 965 164"/>
+                <path id="path-charla2-routing" d="M885 164 H965"/>
+                <path id="path-direct-routing" d="M885 276 C940 276 920 164 965 164"/>
+                <path id="path-routing-advisory" d="M1050 208 V324"/>
+                <path id="path-advisory-decision" d="M965 368 H845"/>
+                <path id="path-decision-sales" d="M675 368 C565 368 560 535 510 535"/>
+                <path id="path-decision-retention" d="M760 412 C760 500 920 535 965 535"/>
+              </g>
+
+              <g class="flow-node" data-stage="reception" transform="translate(35 48)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">ENTRADA</text><text class="flow-node-title" x="18" y="54">Recepción</text><text class="flow-node-count" data-count="reception" x="146" y="57">0</text></g>
+              <g class="flow-node" data-stage="pretest" transform="translate(255 48)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">PERFIL</text><text class="flow-node-title" x="18" y="54">Pre-test</text><text class="flow-node-count" data-count="pretest" x="146" y="57">0</text></g>
+              <g class="flow-node" data-stage="host" transform="translate(475 48)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">ORIENTACIÓN</text><text class="flow-node-title" x="18" y="54">Host</text><text class="flow-node-count" data-count="host" x="146" y="57">0</text></g>
+
+              <text class="flow-branch-label" x="715" y="22">RUTA SEGÚN PERFIL Y DISPONIBILIDAD</text>
+              <g class="flow-node secondary" data-stage="charla1" transform="translate(715 8)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">PRESENTACIÓN</text><text class="flow-node-title" x="18" y="54">Charla 1</text><text class="flow-node-count" data-count="charla1" x="146" y="57">0</text></g>
+              <g class="flow-node secondary" data-stage="charla2" transform="translate(715 120)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">PROFUNDIZACIÓN</text><text class="flow-node-title" x="18" y="54">Charla 2</text><text class="flow-node-count" data-count="charla2" x="146" y="57">0</text></g>
+              <g class="flow-node direct" data-stage="direct" transform="translate(715 232)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">SIN CHARLA</text><text class="flow-node-title" x="18" y="54">Pase directo</text><text class="flow-node-count" data-count="direct" x="146" y="57">0</text></g>
+
+              <g class="flow-node routing" data-stage="routing" transform="translate(965 120)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">ASIGNACIÓN</text><text class="flow-node-title" x="18" y="54">Enrutamiento</text><text class="flow-node-count" data-count="routing" x="146" y="57">0</text></g>
+              <g class="flow-node advisory" data-stage="advisory" transform="translate(965 324)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">CONVERSACIÓN</text><text class="flow-node-title" x="18" y="54">Asesoría</text><text class="flow-node-count" data-count="advisory" x="146" y="57">0</text></g>
+              <g class="flow-node decision" data-stage="decision" transform="translate(675 324)"><rect width="170" height="88" rx="44"/><text class="flow-node-eyebrow" x="24" y="29">DECISIÓN</text><text class="flow-node-title" x="24" y="56">¿Cerró venta?</text></g>
+
+              <text class="flow-outcome no" x="545" y="456">TODAVÍA NO</text>
+              <text class="flow-outcome yes" x="908" y="456">SÍ · PRIMERA VISITA</text>
+              <g class="flow-node final sales" data-stage="sales-followup" transform="translate(340 490)"><rect width="340" height="104" rx="22"/><text class="flow-node-eyebrow" x="22" y="30">OBJETIVO: CONVERTIR</text><text class="flow-node-title" x="22" y="60">Seguimiento comercial</text><text class="flow-node-detail" x="22" y="84">Respuestas · interés · derivación</text><text class="flow-node-count" data-count="sales-followup" x="310" y="63">0</text></g>
+              <g class="flow-node final retention" data-stage="retention" transform="translate(865 490)"><rect width="300" height="104" rx="22"/><text class="flow-node-eyebrow" x="22" y="30">OBJETIVO: SOSTENER</text><text class="flow-node-title" x="22" y="60">Bienvenida y retención</text><text class="flow-node-detail" x="22" y="84">Aportes · dudas · riesgo de baja</text><text class="flow-node-count" data-count="retention" x="270" y="63">0</text></g>
+
+              <g id="flowTokenLayer" aria-hidden="true"></g>
+            </svg>
+          </div>
+          <footer class="flow-map-legend"><span><i class="person"></i> Persona en recorrido</span><span><i class="commercial"></i> Seguimiento para venta</span><span><i class="retention"></i> Seguimiento de retención</span></footer>
+        </article>
+
+        <aside class="flow-intelligence-card">
+          <header><span>ACOMPAÑAMIENTO ACTIVO</span><strong>Motor inteligente</strong></header>
+          <div class="flow-intelligence-core" id="intelligenceCore" aria-hidden="true">
+            <span class="orbit one"></span><span class="orbit two"></span><span class="orbit three"></span>
+            <div class="core-center">✦</div>
+            <i class="signal s1"></i><i class="signal s2"></i><i class="signal s3"></i><i class="signal s4"></i>
+          </div>
+          <div class="flow-current-action" aria-live="polite"><small>AHORA</small><p id="flowCurrentAction">Analizando recorridos y esperando actividad…</p></div>
+          <div class="flow-engine-metrics">
+            <div><strong id="engineMessages">0</strong><span>mensajes enviados</span></div>
+            <div><strong id="engineAnswers">0</strong><span>preguntas respondidas</span></div>
+            <div><strong id="engineAlerts">0</strong><span>avisos al equipo</span></div>
+            <div><strong id="engineRetention">0</strong><span>acciones de retención</span></div>
+          </div>
+          <div class="flow-activity-heading"><span>Actividad reciente</span><i id="activityStatus">EN VIVO</i></div>
+          <ol id="flowActivity" class="flow-activity" aria-live="polite"></ol>
+        </aside>
+      </section>
+
+      <section class="flow-logic">
+        <article><i>1</i><div><strong>Comprende</strong><p>El pre-test y la conversación forman un contexto; no se copia texto sin interpretar.</p></div></article>
+        <article><i>2</i><div><strong>Actúa</strong><p>Responde dudas, programa contactos y mantiene el seguimiento sin reemplazar al asesor.</p></div></article>
+        <article><i>3</i><div><strong>Escala</strong><p>Cuando crece el interés o aparece riesgo de baja, deriva el caso con su historial completo.</p></div></article>
+      </section>
+    </main>
+    <script src="<%= assetUrl('js/demo-ai-flow.js') %>" defer></script>
+  </body>
+</html>

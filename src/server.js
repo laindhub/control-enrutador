@@ -447,7 +447,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-operational-flow-v36',
+          diagnosticRevision: 'demo-realistic-operational-flow-v37',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -544,6 +544,10 @@ async function healthDiagnostics(req) {
           operationalDayFlow: true,
           animatedFlowSimulation: true,
           intelligentFollowUpVisualization: true,
+          realisticDailyFunnel: true,
+          advisorPassRateFromTalk: 0.35,
+          maximumDirectAdvisorPassesPerDay: 10,
+          goodDayPlanSalesTarget: 5,
         },
         demoWelcome: {
           accessible: authenticated && demoRole === 'ai',

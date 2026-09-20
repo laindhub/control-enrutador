@@ -64,49 +64,52 @@
             <div class="flow-clock"><i></i><span id="flowClock">09:00</span></div>
           </header>
           <div class="flow-map-scroller">
-            <svg id="operationsFlowMap" class="flow-map" viewBox="0 0 1200 680" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="flowMapTitle flowMapDescription">
+            <svg id="operationsFlowMap" class="flow-map" viewBox="0 0 1200 680" role="img" aria-labelledby="flowMapTitle flowMapDescription">
               <title id="flowMapTitle">Flujo operativo desde recepción hasta seguimiento</title>
               <desc id="flowMapDescription">Las personas pasan por recepción, pre-test y host. Luego pueden ir a charla uno, charla dos o directamente al asesor. Tras la asesoría pasan a seguimiento comercial o retención.</desc>
               <defs>
                 <linearGradient id="flowNodeGradient" x1="0" x2="1"><stop offset="0" stop-color="#102a34"/><stop offset="1" stop-color="#143c43"/></linearGradient>
                 <linearGradient id="flowFinalGradient" x1="0" x2="1"><stop offset="0" stop-color="#0d6f55"/><stop offset="1" stop-color="#11a676"/></linearGradient>
-                <radialGradient id="flowGraphAura"><stop offset="0" stop-color="#24d69c" stop-opacity=".32"/><stop offset=".45" stop-color="#159a78" stop-opacity=".08"/><stop offset="1" stop-color="#071216" stop-opacity="0"/></radialGradient>
                 <filter id="flowGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                <filter id="flowSoftGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9"/></filter>
                 <marker id="flowArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5b7b83"/></marker>
               </defs>
 
-              <circle id="flowGraphAura" class="flow-graph-aura" cx="600" cy="340" r="330" fill="url(#flowGraphAura)"/>
-              <g id="flowConstellationLayer" class="flow-constellation-layer" aria-hidden="true"></g>
-
-              <g class="flow-links" fill="none">
-                <path id="path-reception-pretest"/><path id="path-pretest-host"/>
-                <path id="path-host-charla1"/><path id="path-host-charla2"/><path id="path-host-direct"/>
-                <path id="path-charla1-routing"/><path id="path-charla2-routing"/>
-                <path id="path-charla1-followup"/><path id="path-charla2-followup"/>
-                <path id="path-direct-routing"/><path id="path-routing-advisory"/>
-                <path id="path-advisory-decision"/><path id="path-decision-sales"/><path id="path-decision-retention"/>
+              <g class="flow-links" fill="none" marker-end="url(#flowArrow)">
+                <path id="path-reception-pretest" d="M205 92 H255"/>
+                <path id="path-pretest-host" d="M425 92 H475"/>
+                <path id="path-host-charla1" d="M645 92 C690 92 674 52 715 52"/>
+                <path id="path-host-charla2" d="M645 92 C690 92 674 164 715 164"/>
+                <path id="path-host-direct" d="M560 136 C560 245 670 276 715 276"/>
+                <path id="path-charla1-routing" d="M885 52 C940 52 920 164 965 164"/>
+                <path id="path-charla2-routing" d="M885 164 H965"/>
+                <path id="path-charla1-followup" d="M800 96 C800 420 590 430 510 490"/>
+                <path id="path-charla2-followup" d="M800 208 C800 430 620 448 540 490"/>
+                <path id="path-direct-routing" d="M885 276 C940 276 920 164 965 164"/>
+                <path id="path-routing-advisory" d="M1050 208 V324"/>
+                <path id="path-advisory-decision" d="M965 368 H845"/>
+                <path id="path-decision-sales" d="M675 368 C565 368 560 535 510 535"/>
+                <path id="path-decision-retention" d="M760 412 C760 500 920 535 965 535"/>
               </g>
 
-              <g class="flow-node" data-stage="reception"><circle class="node-halo" r="45"/><circle class="node-core" r="31"/><text class="flow-node-count" data-count="reception" y="6">0</text><text class="flow-node-title" y="57">Recepción</text></g>
-              <g class="flow-node" data-stage="pretest"><circle class="node-halo" r="45"/><circle class="node-core" r="31"/><text class="flow-node-count" data-count="pretest" y="6">0</text><text class="flow-node-title" y="57">Pre-test</text></g>
-              <g class="flow-node" data-stage="host"><circle class="node-halo" r="45"/><circle class="node-core" r="31"/><text class="flow-node-count" data-count="host" y="6">0</text><text class="flow-node-title" y="57">Host</text></g>
-              <g class="flow-node secondary" data-stage="charla1"><circle class="node-halo" r="45"/><circle class="node-core" r="31"/><text class="flow-node-count" data-count="charla1" y="6">0</text><text class="flow-node-title" y="57">Charla 1</text></g>
-              <g class="flow-node secondary" data-stage="charla2"><circle class="node-halo" r="45"/><circle class="node-core" r="31"/><text class="flow-node-count" data-count="charla2" y="6">0</text><text class="flow-node-title" y="57">Charla 2</text></g>
-              <g class="flow-node direct" data-stage="direct"><circle class="node-halo" r="45"/><circle class="node-core" r="31"/><text class="flow-node-count" data-count="direct" y="6">0</text><text class="flow-node-title" y="57">Pase directo</text></g>
-              <g class="flow-node routing" data-stage="routing"><circle class="node-halo" r="49"/><circle class="node-core" r="34"/><text class="flow-node-count" data-count="routing" y="6">0</text><text class="flow-node-title" y="62">Enrutamiento</text><text class="flow-node-rate" y="78">≈35% pasa</text></g>
-              <g class="flow-node advisory" data-stage="advisory"><circle class="node-halo" r="49"/><circle class="node-core" r="34"/><text class="flow-node-count" data-count="advisory" y="6">0</text><text class="flow-node-title" y="62">Asesoría</text></g>
-              <g class="flow-node decision" data-stage="decision"><circle class="node-halo" r="50"/><circle class="node-core" r="36"/><text class="node-symbol" y="6">?</text><text class="flow-node-title" y="64">¿Cerró venta?</text></g>
-              <g class="flow-node final sales" data-stage="sales-followup"><circle class="node-halo" r="58"/><circle class="node-core" r="42"/><text class="flow-node-count" data-count="sales-followup" y="7">0</text><text class="flow-node-title" y="72">Seguimiento comercial</text><text class="flow-node-rate" y="89">≈65% sin asesoría</text></g>
-              <g class="flow-node final retention" data-stage="retention"><circle class="node-halo" r="58"/><circle class="node-core" r="42"/><text class="flow-node-count" data-count="retention" y="7">0</text><text class="flow-node-title" y="72">Bienvenida y retención</text><text class="flow-node-rate" y="89">Compró el plan</text></g>
+              <g class="flow-node" data-stage="reception" transform="translate(35 48)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">ENTRADA</text><text class="flow-node-title" x="18" y="54">Recepción</text><text class="flow-node-count" data-count="reception" x="146" y="57">0</text></g>
+              <g class="flow-node" data-stage="pretest" transform="translate(255 48)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">PERFIL</text><text class="flow-node-title" x="18" y="54">Pre-test</text><text class="flow-node-count" data-count="pretest" x="146" y="57">0</text></g>
+              <g class="flow-node" data-stage="host" transform="translate(475 48)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">ORIENTACIÓN</text><text class="flow-node-title" x="18" y="54">Host</text><text class="flow-node-count" data-count="host" x="146" y="57">0</text></g>
 
-              <g class="flow-graph-intelligence-links" aria-hidden="true">
-                <path id="path-engine-sales"/><path id="path-engine-retention"/>
-              </g>
-              <g id="graphIntelligence" class="flow-graph-intelligence" aria-hidden="true">
-                <circle class="engine-halo" r="45"/><circle class="engine-orbit" r="28"/><circle class="engine-core" r="17"/>
-                <text y="4">✦</text><text class="engine-label" y="64">SEGUIMIENTO</text>
-              </g>
+              <text class="flow-branch-label" x="715" y="22">RUTA SEGÚN PERFIL Y DISPONIBILIDAD</text>
+              <g class="flow-node secondary" data-stage="charla1" transform="translate(715 8)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">PRESENTACIÓN</text><text class="flow-node-title" x="18" y="54">Charla 1</text><text class="flow-node-count" data-count="charla1" x="146" y="57">0</text></g>
+              <g class="flow-node secondary" data-stage="charla2" transform="translate(715 120)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">PROFUNDIZACIÓN</text><text class="flow-node-title" x="18" y="54">Charla 2</text><text class="flow-node-count" data-count="charla2" x="146" y="57">0</text></g>
+              <g class="flow-node direct" data-stage="direct" transform="translate(715 232)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">SIN CHARLA</text><text class="flow-node-title" x="18" y="54">Pase directo</text><text class="flow-node-count" data-count="direct" x="146" y="57">0</text></g>
+
+              <g class="flow-node routing" data-stage="routing" transform="translate(965 120)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">ASIGNACIÓN</text><text class="flow-node-title" x="18" y="54">Enrutamiento</text><text class="flow-node-count" data-count="routing" x="146" y="57">0</text></g>
+              <text class="flow-rate-label advisor-rate" x="900" y="112">≈35% PASA</text>
+              <text class="flow-rate-label followup-rate" x="688" y="448">≈65% SIGUE SIN ASESORÍA</text>
+              <g class="flow-node advisory" data-stage="advisory" transform="translate(965 324)"><rect width="170" height="88" rx="18"/><text class="flow-node-eyebrow" x="18" y="27">CONVERSACIÓN</text><text class="flow-node-title" x="18" y="54">Asesoría</text><text class="flow-node-count" data-count="advisory" x="146" y="57">0</text></g>
+              <g class="flow-node decision" data-stage="decision" transform="translate(675 324)"><rect width="170" height="88" rx="44"/><text class="flow-node-eyebrow" x="24" y="29">DECISIÓN</text><text class="flow-node-title" x="24" y="56">¿Cerró venta?</text></g>
+
+              <text class="flow-outcome no" x="545" y="456">TODAVÍA NO</text>
+              <text class="flow-outcome yes" x="908" y="456">SÍ · PRIMERA VISITA</text>
+              <g class="flow-node final sales" data-stage="sales-followup" transform="translate(340 490)"><rect width="340" height="104" rx="22"/><text class="flow-node-eyebrow" x="22" y="30">OBJETIVO: CONVERTIR</text><text class="flow-node-title" x="22" y="60">Seguimiento comercial</text><text class="flow-node-detail" x="22" y="84">Respuestas · interés · derivación</text><text class="flow-node-count" data-count="sales-followup" x="310" y="63">0</text></g>
+              <g class="flow-node final retention" data-stage="retention" transform="translate(865 490)"><rect width="300" height="104" rx="22"/><text class="flow-node-eyebrow" x="22" y="30">OBJETIVO: SOSTENER</text><text class="flow-node-title" x="22" y="60">Bienvenida y retención</text><text class="flow-node-detail" x="22" y="84">Aportes · dudas · riesgo de baja</text><text class="flow-node-count" data-count="retention" x="270" y="63">0</text></g>
 
               <g id="flowTokenLayer" aria-hidden="true"></g>
             </svg>
@@ -116,10 +119,23 @@
 
         <aside class="flow-intelligence-card">
           <header><span>ACOMPAÑAMIENTO ACTIVO</span><strong>Motor inteligente</strong></header>
-          <div class="flow-intelligence-core" id="intelligenceCore" aria-hidden="true">
-            <span class="orbit one"></span><span class="orbit two"></span><span class="orbit three"></span>
-            <div class="core-center">✦</div>
-            <i class="signal s1"></i><i class="signal s2"></i><i class="signal s3"></i><i class="signal s4"></i>
+          <div class="flow-intelligence-core" id="intelligenceCore" aria-label="Grafo en vivo de las acciones de seguimiento">
+            <svg id="intelligenceActivityGraph" viewBox="0 0 360 270" role="img" aria-label="Mensajes, respuestas, avisos y acciones de retención conectados al motor de seguimiento">
+              <defs><filter id="intelligenceGlow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+              <g class="intelligence-network-lines">
+                <path id="intelligence-path-messages" d="M180 135 Q120 112 68 66"/>
+                <path id="intelligence-path-answers" d="M180 135 Q238 105 292 62"/>
+                <path id="intelligence-path-alerts" d="M180 135 Q115 170 70 218"/>
+                <path id="intelligence-path-retention" d="M180 135 Q240 175 292 218"/>
+              </g>
+              <g id="intelligenceSatelliteLayer" class="intelligence-satellite-layer" aria-hidden="true"></g>
+              <g class="intelligence-hub messages" data-intelligence-hub="messages" transform="translate(68 66)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="4">↗</text><text class="hub-label" y="39">MENSAJES</text><text class="hub-count" data-intelligence-count="messages" y="-23">0</text></g>
+              <g class="intelligence-hub answers" data-intelligence-hub="answers" transform="translate(292 62)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="5">?</text><text class="hub-label" y="39">RESPUESTAS</text><text class="hub-count" data-intelligence-count="answers" y="-23">0</text></g>
+              <g class="intelligence-hub alerts" data-intelligence-hub="alerts" transform="translate(70 218)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="5">!</text><text class="hub-label" y="39">AVISOS</text><text class="hub-count" data-intelligence-count="alerts" y="-23">0</text></g>
+              <g class="intelligence-hub retention" data-intelligence-hub="retention" transform="translate(292 218)"><circle class="hub-ring" r="27"/><circle class="hub-core" r="18"/><text y="5">♥</text><text class="hub-label" y="39">RETENCIÓN</text><text class="hub-count" data-intelligence-count="retention" y="-23">0</text></g>
+              <g class="intelligence-center" transform="translate(180 135)"><circle class="center-aura" r="43"/><circle class="center-ring" r="31"/><circle class="center-core" r="22"/><text y="6">✦</text></g>
+              <g id="intelligencePulseLayer" aria-hidden="true"></g>
+            </svg>
           </div>
           <div class="flow-current-action" aria-live="polite"><small>AHORA</small><p id="flowCurrentAction">Analizando recorridos y esperando actividad…</p></div>
           <div class="flow-engine-metrics">

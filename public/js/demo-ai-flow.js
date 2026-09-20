@@ -3,42 +3,7 @@
 
   const svg = document.getElementById('operationsFlowMap');
   const tokenLayer = document.getElementById('flowTokenLayer');
-  const constellationLayer = document.getElementById('flowConstellationLayer');
-  const graphIntelligence = document.getElementById('graphIntelligence');
-  if (!svg || !tokenLayer || !constellationLayer) return;
-
-  const graphLayouts = {
-    desktop: {
-      viewBox: '0 0 1200 680', aura: [600, 335, 350], engine: [600, 620],
-      nodes: {
-        reception: [95, 285], pretest: [260, 205], host: [420, 285],
-        charla1: [590, 145], charla2: [615, 320], direct: [600, 485],
-        routing: [790, 270], advisory: [955, 300], decision: [1065, 440],
-        'sales-followup': [790, 555], retention: [1060, 585],
-      },
-    },
-    mobile: {
-      viewBox: '0 0 390 720', aura: [195, 350, 245], engine: [195, 665],
-      nodes: {
-        reception: [48, 72], pretest: [195, 55], host: [340, 92],
-        charla1: [82, 190], charla2: [285, 205], direct: [195, 290],
-        routing: [72, 375], advisory: [235, 390], decision: [326, 478],
-        'sales-followup': [103, 555], retention: [285, 575],
-      },
-    },
-  };
-  const graphEdges = [
-    ['path-reception-pretest', 'reception', 'pretest', -12], ['path-pretest-host', 'pretest', 'host', 12],
-    ['path-host-charla1', 'host', 'charla1', -28], ['path-host-charla2', 'host', 'charla2', 12], ['path-host-direct', 'host', 'direct', 30],
-    ['path-charla1-routing', 'charla1', 'routing', -22], ['path-charla2-routing', 'charla2', 'routing', 18],
-    ['path-charla1-followup', 'charla1', 'sales-followup', 70], ['path-charla2-followup', 'charla2', 'sales-followup', 45],
-    ['path-direct-routing', 'direct', 'routing', -22], ['path-routing-advisory', 'routing', 'advisory', -10],
-    ['path-advisory-decision', 'advisory', 'decision', 18], ['path-decision-sales', 'decision', 'sales-followup', 46],
-    ['path-decision-retention', 'decision', 'retention', -25],
-  ];
-  let graphAnchors = graphLayouts.desktop.nodes;
-  let mobileGraph = false;
-  const renderedConstellation = new Map();
+  if (!svg || !tokenLayer) return;
 
   const names = ['Lucía', 'Martín', 'Camila', 'Julián', 'Rocío', 'Santiago', 'Valentina', 'Federico', 'Carolina', 'Mariano', 'Florencia', 'Nicolás'];
   const questions = ['el anticipo obligatorio', 'cómo se ajusta la cuota por CAC', 'los plazos de financiación', 'la fecha de entrega del proyecto', 'cómo continuar con su plan de ahorro'];
@@ -63,36 +28,12 @@
   const activity = byId('flowActivity');
   const currentAction = byId('flowCurrentAction');
   const intelligenceCore = byId('intelligenceCore');
+  const intelligenceGraph = byId('intelligenceActivityGraph');
+  const intelligenceSatelliteLayer = byId('intelligenceSatelliteLayer');
+  const intelligencePulseLayer = byId('intelligencePulseLayer');
+  const intelligenceRendered = { messages: 0, answers: 0, alerts: 0, retention: 0 };
+  const intelligenceHubs = { messages: [68, 66], answers: [292, 62], alerts: [70, 218], retention: [292, 218] };
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function curvedPath(from, to, bend = 0) {
-    const [x1, y1] = from;
-    const [x2, y2] = to;
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const middleX = (x1 + x2) / 2 - (dy / length) * bend;
-    const middleY = (y1 + y2) / 2 + (dx / length) * bend;
-    return `M ${x1} ${y1} Q ${middleX.toFixed(1)} ${middleY.toFixed(1)} ${x2} ${y2}`;
-  }
-
-  function applyGraphLayout() {
-    mobileGraph = window.innerWidth <= 760;
-    const layout = mobileGraph ? graphLayouts.mobile : graphLayouts.desktop;
-    graphAnchors = layout.nodes;
-    svg.setAttribute('viewBox', layout.viewBox);
-    Object.entries(graphAnchors).forEach(([stage, [x, y]]) => {
-      svg.querySelector(`[data-stage="${stage}"]`)?.setAttribute('transform', `translate(${x} ${y})`);
-    });
-    graphEdges.forEach(([pathId, from, to, bend]) => byId(pathId)?.setAttribute('d', curvedPath(graphAnchors[from], graphAnchors[to], mobileGraph ? bend * .55 : bend)));
-    graphIntelligence?.setAttribute('transform', `translate(${layout.engine[0]} ${layout.engine[1]})`);
-    byId('path-engine-sales')?.setAttribute('d', curvedPath(layout.engine, graphAnchors['sales-followup'], mobileGraph ? 12 : -20));
-    byId('path-engine-retention')?.setAttribute('d', curvedPath(layout.engine, graphAnchors.retention, mobileGraph ? -12 : 20));
-    const aura = byId('flowGraphAura');
-    aura?.setAttribute('cx', layout.aura[0]);
-    aura?.setAttribute('cy', layout.aura[1]);
-    aura?.setAttribute('r', layout.aura[2]);
-  }
 
   function clockText() {
     const hours = Math.floor(state.minutes / 60) % 24;
@@ -118,47 +59,74 @@
     byId('engineAlerts').textContent = state.alerts;
     byId('engineRetention').textContent = state.retentionActions;
     byId('flowClock').textContent = clockText();
-    renderConstellation();
+    renderIntelligenceGraph();
   }
 
-  function constellationClass(stage) {
-    if (stage === 'retention') return 'retention';
-    if (stage === 'sales-followup' || stage === 'routing' || stage === 'advisory') return 'hot';
-    if (stage === 'decision' || stage === 'direct') return 'warm';
-    return '';
+  function intelligenceValues() {
+    return { messages: state.messages, answers: state.answers, alerts: state.alerts, retention: state.retentionActions };
   }
 
-  function renderConstellation() {
-    Object.entries(graphAnchors).forEach(([stage, [anchorX, anchorY]], stageIndex) => {
-      const target = Math.min(18, Math.ceil((state.counts[stage] || 0) / (stage === 'reception' ? 4 : 2)));
-      const rendered = renderedConstellation.get(stage) || 0;
-      for (let index = rendered; index < target; index += 1) {
-        const ring = Math.floor(index / 7);
-        const position = index % 7;
-        const topCluster = anchorY < (mobileGraph ? 120 : 110);
-        const angle = topCluster
-          ? (.12 * Math.PI) + ((position / 7) * Math.PI * .78) + (ring * .09)
-          : ((position / 7) * Math.PI * 2) + (stageIndex * .61) + (ring * .28);
-        const radius = (mobileGraph ? 27 : 50) + (ring * (mobileGraph ? 10 : 18)) + ((index % 3) * (mobileGraph ? 2 : 4));
-        const x = anchorX + Math.cos(angle) * radius;
-        const y = anchorY + Math.sin(angle) * radius;
-        const className = constellationClass(stage);
+  function renderIntelligenceGraph() {
+    if (!intelligenceSatelliteLayer) return;
+    const values = intelligenceValues();
+    Object.entries(values).forEach(([type, value], typeIndex) => {
+      intelligenceGraph?.querySelector(`[data-intelligence-count="${type}"]`)?.replaceChildren(document.createTextNode(String(value)));
+      const target = Math.min(type === 'messages' ? 12 : 8, value);
+      const [hubX, hubY] = intelligenceHubs[type];
+      for (let index = intelligenceRendered[type]; index < target; index += 1) {
+        const angle = ((index / Math.max(5, target)) * Math.PI * 2) + typeIndex * .73;
+        const radius = 37 + Math.floor(index / 6) * 10;
+        const x = hubX + Math.cos(angle) * radius;
+        const y = hubY + Math.sin(angle) * radius;
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', anchorX);
-        line.setAttribute('y1', anchorY);
+        line.setAttribute('x1', hubX);
+        line.setAttribute('y1', hubY);
         line.setAttribute('x2', x);
         line.setAttribute('y2', y);
-        line.setAttribute('class', `flow-constellation-link ${className}`);
+        line.setAttribute('class', 'intelligence-satellite-link');
         const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         dot.setAttribute('cx', x);
         dot.setAttribute('cy', y);
-        dot.setAttribute('r', String(2.8 + ((index + stageIndex) % 3) * .7));
-        dot.setAttribute('class', `flow-constellation-dot ${className}`);
-        dot.style.animationDelay = `${((index + stageIndex) % 9) * 90}ms`;
-        constellationLayer.append(line, dot);
+        dot.setAttribute('r', String(2.4 + (index % 3) * .55));
+        dot.setAttribute('class', `intelligence-satellite-dot ${type}`);
+        dot.style.animationDelay = `${(index % 6) * 80}ms`;
+        intelligenceSatelliteLayer.append(line, dot);
       }
-      renderedConstellation.set(stage, target);
+      intelligenceRendered[type] = target;
     });
+  }
+
+  function intelligenceTypeFor(icon) {
+    if (icon === '♥') return 'retention';
+    if (icon === '?' || icon === '↵') return 'answers';
+    if (icon === '!') return 'alerts';
+    return 'messages';
+  }
+
+  function animateIntelligencePulse(type) {
+    const path = byId(`intelligence-path-${type}`);
+    const hub = intelligenceGraph?.querySelector(`[data-intelligence-hub="${type}"]`);
+    if (!path || !intelligencePulseLayer) return;
+    hub?.classList.add('is-active');
+    window.setTimeout(() => hub?.classList.remove('is-active'), 720 / state.speed);
+    const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pulse.setAttribute('r', '4.5');
+    pulse.setAttribute('fill', type === 'alerts' ? '#dfb85c' : type === 'retention' ? '#d68dac' : type === 'answers' ? '#51bfd5' : '#35d09d');
+    pulse.setAttribute('class', 'intelligence-moving-pulse');
+    intelligencePulseLayer.appendChild(pulse);
+    const length = path.getTotalLength();
+    const duration = reducedMotion ? 60 : 620 / state.speed;
+    let startedAt = 0;
+    function frame(timestamp) {
+      if (!startedAt) startedAt = timestamp;
+      const progress = Math.min(1, (timestamp - startedAt) / duration);
+      const point = path.getPointAtLength(length * progress);
+      pulse.setAttribute('cx', point.x);
+      pulse.setAttribute('cy', point.y);
+      if (progress < 1) return window.requestAnimationFrame(frame);
+      pulse.remove();
+    }
+    window.requestAnimationFrame(frame);
   }
 
   function activateStage(stage) {
@@ -221,9 +189,8 @@
   function intelligentAction(text, icon = '✦') {
     currentAction.textContent = text;
     intelligenceCore.classList.add('is-thinking');
-    graphIntelligence?.classList.add('is-thinking');
     window.setTimeout(() => intelligenceCore.classList.remove('is-thinking'), 900 / state.speed);
-    window.setTimeout(() => graphIntelligence?.classList.remove('is-thinking'), 900 / state.speed);
+    animateIntelligencePulse(intelligenceTypeFor(icon));
     addActivity(icon, text);
   }
 
@@ -347,8 +314,9 @@
     state.directReserved = 0;
     activity.innerHTML = '';
     tokenLayer.innerHTML = '';
-    constellationLayer.innerHTML = '';
-    renderedConstellation.clear();
+    if (intelligenceSatelliteLayer) intelligenceSatelliteLayer.innerHTML = '';
+    if (intelligencePulseLayer) intelligencePulseLayer.innerHTML = '';
+    Object.keys(intelligenceRendered).forEach((key) => { intelligenceRendered[key] = 0; });
     currentAction.textContent = 'Analizando recorridos y esperando actividad…';
     updateDashboard();
     addActivity('✦', 'Simulación del día iniciada. El circuito está listo.');
@@ -366,20 +334,6 @@
     });
   });
 
-  applyGraphLayout();
-  let graphResizeTimer = null;
-  window.addEventListener('resize', () => {
-    window.clearTimeout(graphResizeTimer);
-    graphResizeTimer = window.setTimeout(() => {
-      const wasMobile = mobileGraph;
-      applyGraphLayout();
-      if (wasMobile !== mobileGraph) {
-        constellationLayer.innerHTML = '';
-        renderedConstellation.clear();
-        renderConstellation();
-      }
-    }, 160);
-  });
   updateDashboard();
   addActivity('✦', 'El motor de seguimiento está observando el recorrido completo.');
   window.setTimeout(spawnPerson, 450);

@@ -70,6 +70,9 @@
 .flow-kpis span { font-size: .69rem; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
 .flow-kpis strong { display: block; margin: 5px 0 2px; font-size: 2rem; line-height: 1; }
 .flow-kpis small { overflow: hidden; font-size: .75rem; white-space: nowrap; text-overflow: ellipsis; }
+.flow-assumptions { display: flex; flex-wrap: wrap; gap: 9px; margin: -5px 0 16px; }
+.flow-assumptions span { padding: 8px 12px; border: 1px solid rgba(169,218,216,.12); border-radius: 999px; background: rgba(13,34,42,.62); color: #8eabb2; font-size: .72rem; }
+.flow-assumptions b { color: #7becce; }
 
 .flow-workspace { display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(310px, .85fr); gap: 16px; align-items: stretch; }
 .flow-map-card, .flow-intelligence-card { min-width: 0; border: 1px solid rgba(169,218,216,.13); border-radius: 24px; background: rgba(10, 29, 36, .92); box-shadow: 0 24px 80px rgba(0,0,0,.2); overflow: hidden; }
@@ -93,6 +96,8 @@
 .flow-node-detail { fill: #b3d3d0; font-size: 13px; }
 .flow-node-count { fill: #7becce; font-size: 19px; font-weight: 900; text-anchor: end; }
 .flow-branch-label, .flow-outcome { fill: #6f929a; font-size: 10px; font-weight: 850; letter-spacing: 1.3px; }
+.flow-rate-label { fill: #6adbbb; font-size: 10px; font-weight: 900; letter-spacing: 1.2px; }
+.flow-rate-label.followup-rate { fill: #e6b95f; }
 .flow-outcome.yes { fill: #64dcb9; }
 .flow-outcome.no { fill: #efc16f; }
 .flow-token { filter: url(#flowGlow); }

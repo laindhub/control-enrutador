@@ -29,7 +29,7 @@
   const currentAction = byId('flowCurrentAction');
   const intelligenceCore = byId('intelligenceCore');
   const intelligenceCanvas = byId('intelligenceGraphCanvas');
-  const intelligenceNetwork = { context: null, width: 0, height: 0, nodes: [], crossLinks: [], pulses: [], frame: null, startedAt: performance.now() };
+  const intelligenceNetwork = { context: null, width: 0, height: 0, nodes: [], crossLinks: [], pulses: [], frame: null, startedAt: performance.now(), visibleCount: 24, targetCount: 24, lastRevealAt: 0 };
   const intelligenceHubs = { messages: [.27, .28], answers: [.73, .25], alerts: [.28, .73], retention: [.73, .72] };
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -70,7 +70,7 @@
   function initializeIntelligenceNetwork() {
     if (!intelligenceCanvas) return;
     intelligenceNetwork.context = intelligenceCanvas.getContext('2d', { alpha: false });
-    const groups = [['messages', 105], ['answers', 75], ['alerts', 60], ['retention', 60]];
+    const groups = [['messages', 115], ['answers', 80], ['alerts', 70], ['retention', 65]];
     groups.forEach(([type, count], groupIndex) => {
       const [hubX, hubY] = intelligenceHubs[type];
       for (let index = 0; index < count; index += 1) {
@@ -80,6 +80,9 @@
           type,
           baseX: hubX + Math.cos(angle) * spread,
           baseY: hubY + Math.sin(angle) * spread * .72,
+          orbitAngle: angle,
+          orbitRadius: spread,
+          orbitSpeed: (.035 + seededRandom() * .075) * (index % 2 ? 1 : -1),
           phase: seededRandom() * Math.PI * 2,
           drift: .45 + seededRandom() * .85,
           size: .7 + seededRandom() * 1.45,
@@ -89,7 +92,11 @@
         });
       }
     });
-    for (let index = 0; index < 210; index += 1) {
+    for (let index = intelligenceNetwork.nodes.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(seededRandom() * (index + 1));
+      [intelligenceNetwork.nodes[index], intelligenceNetwork.nodes[swapIndex]] = [intelligenceNetwork.nodes[swapIndex], intelligenceNetwork.nodes[index]];
+    }
+    for (let index = 0; index < 260; index += 1) {
       const from = Math.floor(seededRandom() * intelligenceNetwork.nodes.length);
       const sameGroup = seededRandom() < .72;
       let to = Math.floor(seededRandom() * intelligenceNetwork.nodes.length);
@@ -128,18 +135,28 @@
     const width = intelligenceNetwork.width;
     const height = intelligenceNetwork.height;
     const elapsed = (timestamp - intelligenceNetwork.startedAt) / 1000;
+    if (intelligenceNetwork.visibleCount < intelligenceNetwork.targetCount && timestamp - intelligenceNetwork.lastRevealAt >= Math.max(18, 58 / state.speed)) {
+      intelligenceNetwork.visibleCount += 1;
+      intelligenceNetwork.lastRevealAt = timestamp;
+      const counter = byId('intelligenceNodeCount');
+      if (counter) counter.textContent = `${intelligenceNetwork.visibleCount} nodos activos`;
+    }
+    const visibleNodes = intelligenceNetwork.nodes.slice(0, intelligenceNetwork.visibleCount);
     context.fillStyle = '#0b1114';
     context.fillRect(0, 0, width, height);
 
-    intelligenceNetwork.nodes.forEach((node, index) => {
-      const driftX = Math.sin(elapsed * node.drift + node.phase) * (.004 + (index % 4) * .0014);
-      const driftY = Math.cos(elapsed * node.drift * .82 + node.phase) * (.0035 + (index % 3) * .0013);
-      node.x = (node.baseX + driftX) * width;
-      node.y = (node.baseY + driftY) * height;
+    visibleNodes.forEach((node, index) => {
+      const [hubX, hubY] = intelligenceHubs[node.type];
+      const orbit = node.orbitAngle + elapsed * node.orbitSpeed;
+      const breathing = 1 + Math.sin(elapsed * node.drift + node.phase) * .075;
+      const driftX = Math.sin(elapsed * node.drift * 1.4 + node.phase) * (.006 + (index % 4) * .0016);
+      const driftY = Math.cos(elapsed * node.drift * 1.15 + node.phase) * (.005 + (index % 3) * .0015);
+      node.x = (hubX + Math.cos(orbit) * node.orbitRadius * breathing + driftX) * width;
+      node.y = (hubY + Math.sin(orbit) * node.orbitRadius * .72 * breathing + driftY) * height;
     });
 
     context.lineWidth = .55;
-    intelligenceNetwork.nodes.forEach((node) => {
+    visibleNodes.forEach((node) => {
       const [hubX, hubY] = intelligenceHubs[node.type];
       context.strokeStyle = categoryColor(node.type, .075);
       context.beginPath();
@@ -149,6 +166,7 @@
     });
     context.strokeStyle = 'rgba(175,190,192,.055)';
     intelligenceNetwork.crossLinks.forEach(([from, to]) => {
+      if (from >= intelligenceNetwork.visibleCount || to >= intelligenceNetwork.visibleCount) return;
       const start = intelligenceNetwork.nodes[from];
       const end = intelligenceNetwork.nodes[to];
       context.beginPath();
@@ -168,7 +186,7 @@
       context.stroke();
     });
 
-    intelligenceNetwork.nodes.forEach((node, index) => {
+    visibleNodes.forEach((node, index) => {
       const highlighted = node.highlightUntil > timestamp;
       const colored = highlighted || index % 11 === 0;
       context.fillStyle = colored ? categoryColor(node.type, highlighted ? 1 : .78) : `rgba(207,218,218,${.38 + (index % 5) * .075})`;
@@ -232,7 +250,7 @@
   }
 
   function triggerIntelligencePulse(type) {
-    const matching = intelligenceNetwork.nodes.map((node, index) => node.type === type ? index : -1).filter((index) => index >= 0);
+    const matching = intelligenceNetwork.nodes.slice(0, intelligenceNetwork.visibleCount).map((node, index) => node.type === type ? index : -1).filter((index) => index >= 0);
     const target = matching[Math.floor(Math.random() * matching.length)] || 0;
     intelligenceNetwork.pulses.push({ type, target, startedAt: performance.now(), duration: Math.max(520, 1200 / state.speed) });
     for (let index = 0; index < 9; index += 1) {
@@ -240,6 +258,16 @@
       if (intelligenceNetwork.nodes[nodeIndex]) intelligenceNetwork.nodes[nodeIndex].highlightUntil = performance.now() + 900;
     }
     if (reducedMotion) drawIntelligenceNetwork(performance.now());
+  }
+
+  function growIntelligenceNetwork(amount = 1) {
+    intelligenceNetwork.targetCount = Math.min(intelligenceNetwork.nodes.length, intelligenceNetwork.targetCount + amount);
+    if (reducedMotion) {
+      intelligenceNetwork.visibleCount = intelligenceNetwork.targetCount;
+      const counter = byId('intelligenceNodeCount');
+      if (counter) counter.textContent = `${intelligenceNetwork.visibleCount} nodos activos`;
+      drawIntelligenceNetwork(performance.now());
+    }
   }
 
   function activateStage(stage) {
@@ -252,6 +280,7 @@
   function arrive(stage) {
     state.counts[stage] = (state.counts[stage] || 0) + 1;
     activateStage(stage);
+    growIntelligenceNetwork(stage === 'sales-followup' || stage === 'retention' ? 4 : 2);
     updateDashboard();
   }
 
@@ -303,7 +332,9 @@
     currentAction.textContent = text;
     intelligenceCore.classList.add('is-thinking');
     window.setTimeout(() => intelligenceCore.classList.remove('is-thinking'), 900 / state.speed);
-    triggerIntelligencePulse(intelligenceTypeFor(icon));
+    const intelligenceType = intelligenceTypeFor(icon);
+    growIntelligenceNetwork(intelligenceType === 'messages' ? 9 : 12);
+    triggerIntelligencePulse(intelligenceType);
     addActivity(icon, text);
   }
 
@@ -429,6 +460,11 @@
     tokenLayer.innerHTML = '';
     intelligenceNetwork.pulses = [];
     intelligenceNetwork.nodes.forEach((node) => { node.highlightUntil = 0; });
+    intelligenceNetwork.visibleCount = 24;
+    intelligenceNetwork.targetCount = 24;
+    intelligenceNetwork.lastRevealAt = 0;
+    const nodeCounter = byId('intelligenceNodeCount');
+    if (nodeCounter) nodeCounter.textContent = '24 nodos activos';
     currentAction.textContent = 'Analizando recorridos y esperando actividad…';
     updateDashboard();
     addActivity('✦', 'Simulación del día iniciada. El circuito está listo.');

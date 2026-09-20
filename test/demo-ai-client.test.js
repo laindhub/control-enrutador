@@ -144,11 +144,15 @@ test('el flujo operativo simula el recorrido completo y el acompañamiento intel
   assert.match(flowView, /buen día de 10 horas/);
   assert.match(flowClient, /window\.requestAnimationFrame/);
   assert.match(flowStyles, /@keyframes flowPulse/);
-  assert.match(flowView, /id="intelligenceActivityGraph"/);
-  assert.match(flowView, /id="intelligenceSatelliteLayer"/);
-  assert.match(flowClient, /function renderIntelligenceGraph/);
-  assert.match(flowClient, /function animateIntelligencePulse/);
-  assert.match(flowStyles, /\.intelligence-satellite-dot/);
+  assert.match(flowView, /id="intelligenceGraphCanvas"/);
+  assert.match(flowView, /300 nodos activos/);
+  assert.match(flowClient, /\['messages', 105\]/);
+  assert.match(flowClient, /\['answers', 75\]/);
+  assert.match(flowClient, /\['alerts', 60\]/);
+  assert.match(flowClient, /\['retention', 60\]/);
+  assert.match(flowClient, /function drawIntelligenceNetwork/);
+  assert.match(flowClient, /function triggerIntelligencePulse/);
+  assert.match(flowStyles, /#intelligenceGraphCanvas/);
   assert.match(flowStyles, /prefers-reduced-motion/);
 });
 

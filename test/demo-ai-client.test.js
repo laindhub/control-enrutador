@@ -136,6 +136,12 @@ test('el flujo operativo simula el recorrido completo y el acompañamiento intel
   assert.match(flowClient, /function spawnPerson/);
   assert.match(flowClient, /function animateAlongPath/);
   assert.match(flowClient, /function scheduleIntelligentFollowUp/);
+  assert.match(flowClient, /Math\.random\(\) >= \.35/);
+  assert.match(flowClient, /state\.counts\.direct \+ state\.directReserved < 10/);
+  assert.match(flowClient, /state\.counts\.retention < 5/);
+  assert.match(flowView, /≈35%/);
+  assert.match(flowView, /≤10/);
+  assert.match(flowView, /buen día de 10 horas/);
   assert.match(flowClient, /window\.requestAnimationFrame/);
   assert.match(flowStyles, /@keyframes flowPulse/);
   assert.match(flowStyles, /prefers-reduced-motion/);

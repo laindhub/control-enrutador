@@ -258,12 +258,6 @@ app.get('/demo', requireAuth, requireAlphaAccess, async (req, res, next) => {
           canSwitchRole: req.session.user.role === 'demo',
         });
       }
-      if (area === 'flow') {
-        return res.render('demo-ai-flow', {
-          title: 'Flujo operativo del día',
-          canSwitchRole: req.session.user.role === 'demo',
-        });
-      }
       return res.redirect('/demo');
     }
     if (role === 'router' || role === 'advisor') {
@@ -447,7 +441,7 @@ async function healthDiagnostics(req) {
         release: {
           version: process.env.npm_package_version || '1.0.0',
           commit: firstDefinedEnv('GIT_COMMIT_SHA', 'COMMIT_SHA', 'HOSTINGER_GIT_COMMIT', 'SOURCE_VERSION'),
-          diagnosticRevision: 'demo-progressive-fluid-intelligence-network-v42',
+          diagnosticRevision: 'demo-white-label-followup-v35',
         },
         instance: {
           fingerprint: createHash('sha256').update(`${os.hostname()}:${process.pid}`).digest('hex').slice(0, 12),
@@ -541,21 +535,6 @@ async function healthDiagnostics(req) {
           preservesTesterConversations: true,
           welcomeContextualVideos: true,
           welcomeVideoCount: 3,
-          operationalDayFlow: true,
-          animatedFlowSimulation: true,
-          intelligentFollowUpVisualization: true,
-          realisticDailyFunnel: true,
-          advisorPassRateFromTalk: 0.35,
-          maximumDirectAdvisorPassesPerDay: 10,
-          goodDayPlanSalesTarget: 5,
-          obsidianStyleActivityGraph: true,
-          mobileFullWidthActivityGraph: false,
-          originalOperationalFlowRestored: true,
-          obsidianStyleIntelligenceActivityOnly: true,
-          intelligenceNetworkInitialNodeCount: 24,
-          intelligenceNetworkMaximumNodeCount: 330,
-          progressiveIntelligenceNetworkGrowth: true,
-          fluidCanvasIntelligenceAnimation: true,
         },
         demoWelcome: {
           accessible: authenticated && demoRole === 'ai',

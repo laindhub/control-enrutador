@@ -688,9 +688,6 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-area-option.welcome .ai-area-icon {
   background: #bb2439;
 }
-.ai-area-option.flow .ai-area-icon {
-  background: linear-gradient(135deg, #116c8a, #12a779);
-}
 .ai-area-option strong,
 .ai-area-option small {
   display: block;

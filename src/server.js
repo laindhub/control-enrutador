@@ -12,6 +12,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { Server as SocketIOServer } from 'socket.io';
 import { config, validateConfig } from './config.js';
+import { publicStartupError } from './startup-error.js';
 import { pool } from './db.js';
 import { cleanupExpiredRecords, initializeDatabase } from './schema.js';
 import {
@@ -641,37 +642,3 @@ function firstDefinedEnv(...names) {
   return value ? String(value).slice(0, 40) : 'unknown';
 }
 
-function publicStartupError(error) {
-  const message = String(error?.message || 'Error desconocido');
-  const code = String(error?.code || inferStartupCode(message));
-
-  return {
-    code,
-    message: sanitizeStartupMessage(error, message),
-  };
-}
-
-function inferStartupCode(message) {
-  if (message.startsWith('Faltan variables de entorno obligatorias:')) return 'CONFIG_MISSING';
-  if (message.startsWith('SESSION_SECRET')) return 'CONFIG_SESSION_SECRET';
-  if (message.startsWith('ROUTER_PASSWORD')) return 'CONFIG_ROUTER_PASSWORD';
-  if (message.startsWith('ADMIN_PASSWORD')) return 'CONFIG_ADMIN_PASSWORD';
-  return 'STARTUP_FAILED';
-}
-
-function sanitizeStartupMessage(error, message) {
-  if (message.startsWith('Faltan variables de entorno obligatorias:')) return message;
-  if (message.startsWith('SESSION_SECRET')) return message;
-  if (message.startsWith('ROUTER_PASSWORD')) return message;
-  if (message.startsWith('ADMIN_PASSWORD')) return message;
-
-  const mysqlCodes = {
-    ER_ACCESS_DENIED_ERROR: 'MySQL rechazó el usuario o la contraseña configurados.',
-    ER_BAD_DB_ERROR: 'La base indicada en DB_NAME no existe o no es accesible.',
-    ECONNREFUSED: 'No se pudo conectar con MySQL en DB_HOST/DB_PORT.',
-    ENOTFOUND: 'No se pudo resolver el host configurado en DB_HOST.',
-    ETIMEDOUT: 'La conexión con MySQL agotó el tiempo de espera.',
-  };
-
-  return mysqlCodes[error?.code] || 'Falló la inicialización. Revisá las variables de base de datos y los logs del despliegue.';
-}

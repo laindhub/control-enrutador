@@ -32,7 +32,7 @@ export async function initializeDatabase() {
 
 async function seedUsers(connection) {
   const configuredUsers = [
-    { username: config.bootstrap.presenterAdminUsername, password: config.bootstrap.presenterAdminPassword, role: 'presenter_admin' },
+    { username: config.bootstrap.presenterAdminUsername, password: config.bootstrap.presenterAdminPassword || '', role: 'presenter_admin' },
     {
       username: config.bootstrap.routerUsername,
       password: config.bootstrap.routerPassword,
@@ -62,7 +62,7 @@ async function seedUsers(connection) {
   );
   if (fingerprintRows[0]?.meta_value === fingerprint) return;
 
-  const users = configuredUsers.filter(({ username, password }) => username && password);
+  const users = configuredUsers.filter(({ username, password, role }) => username && (role === 'presenter_admin' || password));
 
   if (!config.bootstrap.demoUsername || !config.bootstrap.demoPassword) {
     await connection.query("UPDATE users SET active = FALSE WHERE role = 'demo'");

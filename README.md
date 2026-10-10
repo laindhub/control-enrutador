@@ -170,10 +170,11 @@ a `/presentador`. Cada cuenta accede solamente a sus ventas y transferencias.
 La cuenta inicial con administración se crea al arrancar con estas variables:
 
 - `PRESENTER_ADMIN_USERNAME`: usuario exclusivo para este panel.
-- `PRESENTER_ADMIN_PASSWORD`: contraseña de entre 12 y 72 caracteres.
+- `PRESENTER_ADMIN_PASSWORD`: contraseña opcional; puede quedar vacía.
 
-Ambas son opcionales para mantener compatible el acceso anterior; si se usa una,
-se debe configurar también la otra. No reutilizar `ADMIN_USERNAME`: el acceso
+El usuario es opcional para mantener compatible el acceso anterior. Si se
+configura el usuario y se deja vacía u omite la contraseña, se ingresa solo con
+el usuario. Las cuentas nuevas también aceptan contraseña corta o vacía. No reutilizar `ADMIN_USERNAME`: el acceso
 administrativo del enrutador conserva su función. Las contraseñas iniciales se
 sincronizan desde el entorno y se guardan con bcrypt. Desde Administración de
 presentadores se crean o desactivan las otras cuentas y se define una comisión
@@ -200,3 +201,11 @@ El panel tiene manifiesto y service worker para instalarse como PWA en Android.
 No almacena datos de clientes ni sesiones en caché; necesita conexión para leer
 o guardar. Un mismo anuncio en una misma fecha no se puede cargar dos veces.
 Las tablas de ventas y pagos no forman parte de la retención anual de atenciones.
+
+### Sesiones persistentes
+
+Las sesiones permanecen en `user_sessions` de MySQL y la cookie se renueva con
+cada petición (400 días, límite de los navegadores modernos). Un redeploy no las
+borra. Mantener el mismo `SESSION_SECRET`, base MySQL y dominio. Salir destruye
+la sesión; desactivar una cuenta revoca su acceso. Borrar cookies o datos del
+navegador, o superar el plazo sin abrir la app, requiere volver a ingresar.

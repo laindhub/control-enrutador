@@ -97,7 +97,7 @@ export function createPresenterRouter() {
  });
  router.post('/users',adminAccess,async(req,res)=>{
   const username=text(req.body.username,80),password=String(req.body.password||'');
-  if(username.length<3||password.length<12||password.length>72)return res.status(400).json({error:'Usuario: mínimo 3 caracteres. Contraseña: entre 12 y 72 caracteres.'});
+  if(username.length<3||Buffer.byteLength(password,'utf8')>72)return res.status(400).json({error:'Usuario: mínimo 3 caracteres. La contraseña es opcional y admite hasta 72 bytes.'});
   const hash=await bcrypt.hash(password,12);
   try{await pool.execute("INSERT INTO users (username,password_hash,role) VALUES (?,?,'presenter')",[username,hash]);res.status(201).json({ok:true});}catch(error){if(error.code==='ER_DUP_ENTRY')return res.status(409).json({error:'Ese usuario ya existe.'});throw error;}
  });

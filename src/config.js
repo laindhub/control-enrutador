@@ -52,10 +52,7 @@ export const config = {
 };
 
 export function validateConfig() {
-  const hasPresenterUser = Boolean(config.bootstrap.presenterAdminUsername);
-  const hasPresenterPass = Boolean(config.bootstrap.presenterAdminPassword);
-  if (hasPresenterUser !== hasPresenterPass) throw new Error('Configurá PRESENTER_ADMIN_USERNAME y PRESENTER_ADMIN_PASSWORD juntos.');
-  if (hasPresenterPass && (config.bootstrap.presenterAdminPassword.length < 12 || config.bootstrap.presenterAdminPassword.length > 72)) throw new Error('PRESENTER_ADMIN_PASSWORD debe contener entre 12 y 72 caracteres.');
+  if (Buffer.byteLength(config.bootstrap.presenterAdminPassword || '', 'utf8') > 72) throw new Error('PRESENTER_ADMIN_PASSWORD admite hasta 72 bytes.');
   if (config.env !== 'production') return;
   const missing = requiredProductionVariables.filter((name) => !process.env[name]);
   if (missing.length) {

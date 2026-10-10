@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import bcrypt from 'bcryptjs';
 import ejs from 'ejs';
 import { pool } from '../src/db.js';
-import { sessionStore, verifyCsrf } from '../src/auth.js';
+import { authenticate, sessionStore, verifyCsrf } from '../src/auth.js';
 import { createPresenterRouter } from '../src/routes/presenters.js';
 import { destinationForUser } from '../src/navigation.js';
 
@@ -40,6 +41,17 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
     assert.equal((await request('/payments/99','DELETE')).status,404);
     assert.equal((await request('/sales/99/lead')).status,404);
     assert.ok(calls.every(c => c.params[1]===7 && c.sql.includes('user_id=?')));
+    for (const password of ['', '123', '1234567']) {
+      calls.length=0;
+      const response=await request('/users','POST','presenter_admin',{username:'nicole',password});
+      assert.equal(response.status,201);
+      const hash=calls[0].params[1];
+      assert.ok(await bcrypt.compare(password,hash));
+      pool.execute=async()=>[[{id:9,username:'nicole',role:'presenter',password_hash:hash}]];
+      assert.equal((await authenticate('nicole',password)).id,9);
+      assert.equal(await authenticate('nicole',password+'wrong'),null);
+      pool.execute=async(sql,params)=>{calls.push({sql,params});return [[]];};
+    }
     assert.equal(destinationForUser({role:'presenter'}),'/presentador');
     assert.equal(destinationForUser({role:'presenter_admin'}),'/presentador');
   } finally {

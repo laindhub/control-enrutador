@@ -14,7 +14,7 @@ export const sessionStore = new MySQLStore(
     // librería intenta crearla en paralelo puede fallar antes de onReady() y
     // dejar el proceso esperando indefinidamente.
     createDatabaseTable: false,
-    expiration: 1000 * 60 * 60 * 24 * 365,
+    expiration: 1000 * 60 * 60 * 24 * 400,
     clearExpired: true,
     checkExpirationInterval: 1000 * 60 * 15,
     schema: { tableName: 'user_sessions' },
@@ -22,20 +22,22 @@ export const sessionStore = new MySQLStore(
   pool,
 );
 
-export const sessionMiddleware = session({
+export const sessionOptions = {
   name: 'control_enrutador_sid',
   secret: config.sessionSecret,
   store: sessionStore,
   resave: false,
   saveUninitialized: false,
-  rolling: false,
+  rolling: true,
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
     secure: config.env === 'production',
-    maxAge: 1000 * 60 * 60 * 24 * 365,
+    maxAge: 1000 * 60 * 60 * 24 * 400,
   },
-});
+};
+
+export const sessionMiddleware = session(sessionOptions);
 
 const SESSION_USER_VALIDATION_MS = 60 * 1000;
 

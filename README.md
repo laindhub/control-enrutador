@@ -210,12 +210,15 @@ borra. Mantener el mismo `SESSION_SECRET`, base MySQL y dominio. Salir destruye
 la sesión; desactivar una cuenta revoca su acceso. Borrar cookies o datos del
 navegador, o superar el plazo sin abrir la app, requiere volver a ingresar.
 
-### Chromium en el despliegue
+### Chromium y aislamiento del sincronizador
 
-`npm install` ejecuta la instalación del Chromium que necesita el sincronizador,
-con los binarios dentro de las dependencias del proyecto para conservarlos al
-desplegar. También se puede ejecutar `npm run sync:browser` en el build. Si
-Hostinger omite postinstall, usar ese comando explícitamente. La instalación no
-interrumpe la app de ventas si falla: el panel indica el diagnóstico. Las
-bibliotecas del sistema deben estar disponibles en el alojamiento; descargarse
-el navegador no garantiza que el plan permita ejecutarlo.
+La instalación normal de la web no descarga ni ejecuta Chromium. `npm run
+sync:browser` queda como un comando explícito para preparar el servidor del
+sincronizador. `npm run sync:leads` permite ejecutarlo por separado, con las
+mismas variables MySQL, usuario y PIN del origen.
+
+El proceso web solo inicia el sincronizador si `LEAD_SYNC_IN_WEB=true` además
+de `LEAD_SYNC_ENABLED=true`. Mantener `LEAD_SYNC_IN_WEB` omitida o en false en
+Hostinger hasta verificar que el alojamiento soporta Chromium y sus bibliotecas.
+Los fallos de sincronización no deben afectar el despliegue ni los recursos de
+la aplicación de ventas.

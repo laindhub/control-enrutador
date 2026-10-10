@@ -357,7 +357,7 @@ async function initializeApplication() {
     validateConfig();
     await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
-    try { startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
+    try { if (process.env.LEAD_SYNC_IN_WEB === 'true') startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
     console.log('Control Enrutador inicializado correctamente.');
 
     cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));
@@ -641,4 +641,3 @@ function firstDefinedEnv(...names) {
   const value = names.map((name) => process.env[name]).find(Boolean);
   return value ? String(value).slice(0, 40) : 'unknown';
 }
-

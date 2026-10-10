@@ -41,6 +41,14 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
     assert.equal((await request('/payments/99','DELETE')).status,404);
     assert.equal((await request('/sales/99/lead')).status,404);
     assert.ok(calls.every(c => c.params[1]===7 && c.sql.includes('user_id=?')));
+    calls.length=0;
+    await request('/leads?phone=5491165721929&name=Sandra%20Mabel&date=2026-10-10&advisor=Diana');
+    assert.equal(calls.length,1);
+    assert.ok(calls[0].sql.includes('AND advisor LIKE ?'));
+    assert.deepEqual(calls[0].params,['1165721929','Sandra%','2026-10-10','Diana%']);
+    calls.length=0;
+    await request('/leads?name=Sandra&date=2026-10-10&advisor=Diana');
+    assert.deepEqual(calls[0].params,['Sandra%','2026-10-10','Diana%']);
     for (const password of ['', '123', '1234567']) {
       calls.length=0;
       const response=await request('/users','POST','presenter_admin',{username:'nicole',password});

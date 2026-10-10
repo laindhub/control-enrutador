@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "dotenv": "^17.2.2",
     "ejs": "^3.1.10",
     "exceljs": "^4.4.0",
@@ -27,11 +27,16 @@
     "helmet": "^8.1.0",
     "luxon": "^3.7.2",
     "mysql2": "^3.24.4",
-    "socket.io": "^4.8.1",
-    "playwright": "^1.56.0"
+    "playwright": "^1.56.0",
+    "socket.io": "^4.8.1"
   },
   "overrides": {
     "mysql2": "^3.24.4",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "proxy-addr": "^2.0.8",
+    "engine.io": "^6.6.11",
+    "ip-address": "^10.7.3",
+    "brace-expansion@^1.1.7": "^1.1.21",
+    "brace-expansion@^2.0.1": "^2.1.7"
   }
 }

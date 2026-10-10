@@ -2,7 +2,7 @@
   "name": "control-enrutador",
   "version": "1.0.0",
   "private": true,
-  "description": "Control interno de atenciones para la sucursal Liniers de Más Dueños.",
+  "description": "Control interno de atenciones para la sucursal Liniers de M\u00e1s Due\u00f1os.",
   "type": "module",
   "engines": {
     "node": ">=20 <25"
@@ -11,7 +11,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check src/ai-demo-knowledge.js && node --check src/ai-demo-store.js && node --check src/routes/ai-demo.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js && node --check public/js/demo-ai.js"
+    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check src/ai-demo-knowledge.js && node --check src/ai-demo-store.js && node --check src/routes/ai-demo.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js && node --check public/js/demo-ai.js",
+    "sync:leads": "node scripts/sync-leads.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -26,7 +27,8 @@
     "helmet": "^8.1.0",
     "luxon": "^3.7.2",
     "mysql2": "^3.24.4",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "playwright": "^1.56.0"
   },
   "overrides": {
     "mysql2": "^3.24.4",

@@ -1,3 +1,4 @@
+import { startLeadSync } from './lead-sync.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -349,6 +350,7 @@ async function initializeApplication() {
     validateConfig();
     await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
+    try { startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
     console.log('Control Enrutador inicializado correctamente.');
 
     cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));

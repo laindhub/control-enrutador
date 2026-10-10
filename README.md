@@ -159,7 +159,44 @@ y cantidades leídas. Los registros externos no se borran por desaparecer de la
 lista diaria y no se consideran ventas: la venta viene del anuncio pegado. Estas
 tablas contienen datos personales; no exponerlas mediante una API pública.
 
-Este cambio prepara la sincronización. Aún no incluye el panel de ventas, la
-extracción con Groq ni la vinculación de ventas con visitas históricas. El worker
-periódico toma el día actual; la búsqueda histórica observada en el sitio es un
-flujo diferente, pendiente de integrar.
+El worker periódico toma el día actual. El panel de presentadores vincula las
+ventas a las visitas que ya se hayan sincronizado y conservado. La búsqueda
+histórica directamente en el sitio externo sigue pendiente de integrar.
+
+## Panel de presentadores
+
+La misma pantalla de login envía las cuentas `presenter` y `presenter_admin`
+a `/presentador`. Cada cuenta accede solamente a sus ventas y transferencias.
+La cuenta inicial con administración se crea al arrancar con estas variables:
+
+- `PRESENTER_ADMIN_USERNAME`: usuario exclusivo para este panel.
+- `PRESENTER_ADMIN_PASSWORD`: contraseña de entre 12 y 72 caracteres.
+
+Ambas son opcionales para mantener compatible el acceso anterior; si se usa una,
+se debe configurar también la otra. No reutilizar `ADMIN_USERNAME`: el acceso
+administrativo del enrutador conserva su función. Las contraseñas iniciales se
+sincronizan desde el entorno y se guardan con bcrypt. Desde Administración de
+presentadores se crean o desactivan las otras cuentas y se define una comisión
+común con fecha de vigencia. El valor inicial es ARS 32.000; las ventas guardadas
+conservan su comisión al cambiar tarifas o editar sus datos.
+
+Una nueva venta requiere seleccionar la fecha del anuncio y admite pegar texto
+para extracción con `GROQ_API_KEY` y `GROQ_MODEL` ya existentes. La función de
+extracción es independiente de Seguimiento, no usa sus prompts ni genera mensajes
+para clientes. El resultado siempre se revisa antes de guardar. Si Groq falla o
+no tiene clave, se pueden completar los datos manualmente. El teléfono permite
+buscar coincidencias en las fichas que el sincronizador haya guardado; no es
+necesario que exista una ficha para registrar una venta.
+
+Las carpetas van de jueves a miércoles. El jueves/viernes de pago esperado son
+14/15 días después del jueves inicial: carpeta 1–7 de octubre → pago 15/16 de
+octubre. Las transferencias se asignan a una carpeta y pueden ser parciales. El
+resumen mensual cuenta ventas por fecha de anuncio y dinero recibido por fecha
+de transferencia; el saldo total compara todas las carpetas. Eliminaciones son
+lógicas y quedan fuera de los cálculos. Los datos se guardan en MySQL, no solo en
+el dispositivo. Los respaldos físicos dependen del servicio MySQL del alojamiento.
+
+El panel tiene manifiesto y service worker para instalarse como PWA en Android.
+No almacena datos de clientes ni sesiones en caché; necesita conexión para leer
+o guardar. Un mismo anuncio en una misma fecha no se puede cargar dos veces.
+Las tablas de ventas y pagos no forman parte de la retención anual de atenciones.

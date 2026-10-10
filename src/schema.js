@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { pool } from './db.js';
 import { config } from './config.js';
 
-const SCHEMA_VERSION = '4';
+const SCHEMA_VERSION = '5';
 const META_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS system_meta (
   meta_key VARCHAR(100) PRIMARY KEY,
   meta_value TEXT NOT NULL,
@@ -32,6 +32,7 @@ export async function initializeDatabase() {
 
 async function seedUsers(connection) {
   const configuredUsers = [
+    { username: config.bootstrap.presenterAdminUsername, password: config.bootstrap.presenterAdminPassword, role: 'presenter_admin' },
     {
       username: config.bootstrap.routerUsername,
       password: config.bootstrap.routerPassword,
@@ -70,12 +71,15 @@ async function seedUsers(connection) {
     await connection.query("UPDATE users SET active = FALSE WHERE role = 'advisor'");
   }
 
+  const names = users.map(user => user.username.toLowerCase());
+  if (new Set(names).size !== names.length) throw new Error('Los usuarios configurados deben tener nombres distintos.');
   for (const user of users) {
     const [existing] = await connection.execute('SELECT id, password_hash, role, active FROM users WHERE username = ? LIMIT 1', [
       user.username,
     ]);
     if (existing.length) {
       const current = existing[0];
+      if (user.role === 'presenter_admin' && current.role !== 'presenter_admin') throw new Error('El usuario administrador de presentadores ya existe con otro rol.');
       const passwordMatches = await bcrypt.compare(user.password, current.password_hash);
       if (passwordMatches && current.role === user.role && Boolean(current.active)) continue;
       const hash = passwordMatches ? current.password_hash : await bcrypt.hash(user.password, 12);
@@ -121,6 +125,7 @@ export async function cleanupExpiredRecords() {
 }
 
 const schemaStatements = [
+
   `CREATE TABLE IF NOT EXISTS user_sessions (
     session_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
     expires INT UNSIGNED NOT NULL,
@@ -134,7 +139,7 @@ const schemaStatements = [
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(80) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('router', 'admin', 'advisor', 'demo') NOT NULL,
+    role ENUM('router', 'admin', 'advisor', 'demo', 'presenter', 'presenter_admin') NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -143,7 +148,7 @@ const schemaStatements = [
   `DELETE FROM users WHERE CAST(role AS CHAR) = 'ai_demo'`,
 
   `ALTER TABLE users
-    MODIFY role ENUM('router', 'admin', 'advisor', 'demo') NOT NULL`,
+    MODIFY role ENUM('router', 'admin', 'advisor', 'demo', 'presenter', 'presenter_admin') NOT NULL`,
 
   `CREATE TABLE IF NOT EXISTS operators (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -216,4 +221,28 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS app_locks (
     lock_name VARCHAR(80) PRIMARY KEY
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS presenter_commissions (
+    effective_date DATE PRIMARY KEY, amount INT UNSIGNED NOT NULL,
+    updated_by INT UNSIGNED NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `INSERT IGNORE INTO presenter_commissions (effective_date,amount) VALUES ('1970-01-01',32000)`,
+  `CREATE TABLE IF NOT EXISTS presenter_sales (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL,
+    announced_date DATE NOT NULL, client_name VARCHAR(255) NOT NULL,
+    phone VARCHAR(40) NULL, advisor VARCHAR(255) NOT NULL DEFAULT '',
+    presenter_label VARCHAR(255) NOT NULL DEFAULT '', quota INT UNSIGNED NULL,
+    commission INT UNSIGNED NOT NULL, notes TEXT NOT NULL, raw_text TEXT NOT NULL,
+    fingerprint CHAR(64) NULL, source_visit_id CHAR(36) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, deleted_at DATETIME NULL,
+    UNIQUE KEY uq_presenter_sale (user_id,fingerprint), KEY idx_presenter_date (user_id,announced_date),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS presenter_payments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL,
+    folder_start DATE NOT NULL, paid_date DATE NOT NULL, amount INT UNSIGNED NOT NULL,
+    notes TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at DATETIME NULL,
+    KEY idx_presenter_payment (user_id,folder_start), FOREIGN KEY (user_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
 ];

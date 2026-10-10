@@ -28,6 +28,8 @@ export const config = {
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
   },
   bootstrap: {
+    presenterAdminUsername: process.env.PRESENTER_ADMIN_USERNAME,
+    presenterAdminPassword: process.env.PRESENTER_ADMIN_PASSWORD,
     routerUsername: process.env.ROUTER_USERNAME,
     routerPassword: process.env.ROUTER_PASSWORD,
     adminUsername: process.env.ADMIN_USERNAME,
@@ -50,6 +52,10 @@ export const config = {
 };
 
 export function validateConfig() {
+  const hasPresenterUser = Boolean(config.bootstrap.presenterAdminUsername);
+  const hasPresenterPass = Boolean(config.bootstrap.presenterAdminPassword);
+  if (hasPresenterUser !== hasPresenterPass) throw new Error('Configurá PRESENTER_ADMIN_USERNAME y PRESENTER_ADMIN_PASSWORD juntos.');
+  if (hasPresenterPass && (config.bootstrap.presenterAdminPassword.length < 12 || config.bootstrap.presenterAdminPassword.length > 72)) throw new Error('PRESENTER_ADMIN_PASSWORD debe contener entre 12 y 72 caracteres.');
   if (config.env !== 'production') return;
   const missing = requiredProductionVariables.filter((name) => !process.env[name]);
   if (missing.length) {

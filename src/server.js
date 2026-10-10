@@ -1,3 +1,4 @@
+import { createPresenterRouter, presenterAccess } from './routes/presenters.js';
 import { startLeadSync } from './lead-sync.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -229,6 +230,11 @@ app.post('/operator', verifyCsrf, requireAuth, requireRole('router'), async (req
 app.get('/', requireAuth, requireRole('router'), requireOperator, (req, res) => {
   res.render('app', { title: 'Control Enrutador', operator: req.session.operator });
 });
+
+app.get('/presentador.webmanifest', (_req,res) => res.sendFile(path.join(publicRoot,'presentador.webmanifest')));
+app.get('/presentador-sw.js', (_req,res) => res.set('Service-Worker-Allowed','/presentador').sendFile(path.join(publicRoot,'presentador-sw.js')));
+app.get('/presentador', requireAuth, presenterAccess, (_req, res) => res.render('presenter', { title: 'Mis ventas' }));
+app.use('/api/presenters', verifyCsrf, createPresenterRouter());
 
 app.get('/admin', requireAuth, requireRole('admin'), (_req, res) => {
   res.render('admin', { title: 'Panel de administración' });

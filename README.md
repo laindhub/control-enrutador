@@ -209,3 +209,13 @@ cada petición (400 días, límite de los navegadores modernos). Un redeploy no 
 borra. Mantener el mismo `SESSION_SECRET`, base MySQL y dominio. Salir destruye
 la sesión; desactivar una cuenta revoca su acceso. Borrar cookies o datos del
 navegador, o superar el plazo sin abrir la app, requiere volver a ingresar.
+
+### Chromium en el despliegue
+
+`npm install` ejecuta la instalación del Chromium que necesita el sincronizador,
+con los binarios dentro de las dependencias del proyecto para conservarlos al
+desplegar. También se puede ejecutar `npm run sync:browser` en el build. Si
+Hostinger omite postinstall, usar ese comando explícitamente. La instalación no
+interrumpe la app de ventas si falla: el panel indica el diagnóstico. Las
+bibliotecas del sistema deben estar disponibles en el alojamiento; descargarse
+el navegador no garantiza que el plan permita ejecutarlo.

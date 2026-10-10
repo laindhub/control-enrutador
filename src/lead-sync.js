@@ -1,4 +1,5 @@
 import { pool } from './db.js';
+import { leadSyncError } from './lead-sync-error.js';
 import { argentinaDate, normalizeDetail, visitId } from './lead-sync-data.js';
 
 const ORIGIN = 'https://liniers.xn--somosmasdueos-skb.com';
@@ -35,6 +36,7 @@ async function initializeTables() {
 }
 async function openPage() {
   if (page && !page.isClosed()) return;
+  process.env.PLAYWRIGHT_BROWSERS_PATH ||= '0';
   const { chromium } = await import('playwright');
   browser = await chromium.launch({ headless: true, ...(process.env.LEAD_SYNC_CHROMIUM_PATH ? { executablePath: process.env.LEAD_SYNC_CHROMIUM_PATH } : {}) });
   const context = await browser.newContext({ timezoneId: 'America/Argentina/Buenos_Aires' });
@@ -93,19 +95,25 @@ export async function syncLeadsOnce() {
   running = true;
   let connection;
   let locked = false;
+  let stage = 'config';
   try {
     const options = settings();
+    stage = 'database';
     await initializeTables();
     connection = await pool.getConnection();
     const [lock] = await connection.query("SELECT GET_LOCK('external_leads_sync', 0) AS acquired");
     locked = Number(lock[0].acquired) === 1;
     if (!locked) return { skipped: true };
     await connection.query('UPDATE lead_sync_state SET last_attempt_at = UTC_TIMESTAMP() WHERE id = 1');
+    stage = 'browser';
     await openPage();
+    stage = 'login';
     await ensureLogin(options);
     const date = argentinaDate();
+    stage = 'list';
     const visits = await readList();
     if (date !== argentinaDate()) throw new Error('Cambio de día durante la lectura.');
+    stage = 'database';
     await connection.beginTransaction();
     try {
       for (const visit of visits) await connection.execute(`INSERT INTO external_lead_visits
@@ -119,7 +127,9 @@ export async function syncLeadsOnce() {
       ORDER BY detail_synced_at, first_seen_at LIMIT ?`, [date, options.refresh, options.batch]);
     let updated = 0;
     for (const row of pending) {
+      stage = 'detail';
       const detail = await readDetail(row.source_visit_id);
+      stage = 'database';
       await connection.execute(`UPDATE external_lead_visits SET name = ?, phone = ?, advisor = ?, promoter = ?, detail_json = ?, detail_synced_at = UTC_TIMESTAMP() WHERE source_visit_id = ?`, [detail.name, detail.phone, detail.advisor, detail.promoter, JSON.stringify(detail), row.source_visit_id]);
       updated++;
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -128,7 +138,7 @@ export async function syncLeadsOnce() {
     return { visits: visits.length, details: updated };
   } catch (error) {
     // No imprimir errores del navegador: podrían incluir valores introducidos o datos de clientes.
-    const message = error.code === 'LEAD_AUTH_PAUSED' ? error.message : error.code === 'ERR_MODULE_NOT_FOUND' ? 'Falta instalar Playwright.' : 'No se pudo sincronizar. Revisá acceso, Chromium, conexión y estructura del sitio.';
+    const message = leadSyncError(error, stage);
     if (locked) await connection.execute('UPDATE lead_sync_state SET last_error = ? WHERE id = 1', [message]).catch(() => {});
     await browser?.close().catch(() => {});
     browser = undefined; page = undefined;

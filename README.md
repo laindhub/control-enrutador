@@ -114,3 +114,52 @@ npm audit --omit=dev
 Cada domingo, el supervisor abre **Horarios**, selecciona la nueva semana, puede copiar la anterior y adapta las celdas según la imagen enviada por WhatsApp. `LIBRE` y `ACADEMIA` se representan como **No trabaja**.
 
 Los cambios de personal y de horarios quedan registrados en la auditoría. Las atenciones corregidas no se borran físicamente: se marcan como anuladas y permanecen disponibles para el supervisor y el Excel.
+
+## Sincronización de leads externos (opcional)
+
+El worker lee exclusivamente la lista visible de `/floor/visits` y sus fichas.
+No crea ni modifica movimientos en el sistema externo. Este sitio usa acciones
+Next.js para el acceso; el conector utiliza Playwright y Chromium, sin fijar
+identificadores internos de acciones que cambian en cada despliegue.
+
+### Preparación en el alojamiento
+
+1. Verificar que el entorno permita ejecutar Chromium y sus bibliotecas del sistema.
+   El soporte de Node.js por sí solo no garantiza esta capacidad. En un entorno
+   compatible, instalarlo con `npx playwright install chromium`. Si ya está instalado,
+   configurar `LEAD_SYNC_CHROMIUM_PATH` con su ruta. No desactivar su sandbox.
+2. Configurar `LEAD_SYNC_ACCOUNT_NAME` con el nombre completo de la cuenta y
+   `LEAD_SYNC_PIN` con su PIN existente, exclusivamente en variables de entorno.
+3. Ejecutar `npm run sync:leads` antes de habilitar la ejecución periódica.
+4. Comprobar `lead_sync_state` y `external_lead_visits` en MySQL. Solo después de
+   verificar una ejecución real exitosa, activar `LEAD_SYNC_ENABLED=true` y reiniciar.
+
+El worker arranca junto al servidor una vez lista la base. Corre cada 15 minutos
+(ajustable con `LEAD_SYNC_INTERVAL_MINUTES`, mínimo 5) y usa un bloqueo MySQL para
+impedir ejecuciones simultáneas. Un cron puede ejecutar `npm run sync:leads` como
+alternativa; no es necesario usar ambos mecanismos.
+
+La sesión externa permanece en memoria: no se exporta la sesión del usuario ni se
+crean archivos de cookies. Si caduca, el worker vuelve a entrar con sus variables.
+Un intento de PIN que no confirma el acceso suspende la autenticación hasta
+reiniciar, para evitar intentos repetidos y bloqueos. No se imprimen PIN, cookies,
+nombres, teléfonos ni errores completos del navegador.
+
+Cada visita conserva su ID original, fecha, resumen, teléfono normalizado,
+asesor, promotor y ficha completa con preguntas y recorrido. Las fichas se leen
+por lotes de 30 (`LEAD_SYNC_DETAIL_BATCH`) con un segundo entre lecturas y se
+refrescan después de 60 minutos (`LEAD_SYNC_DETAIL_REFRESH_MINUTES`). Al haber
+muchas visitas, completar todas las fichas requiere varios ciclos. La lista debe
+coincidir con la cantidad de personas que muestra el sitio; de lo contrario se
+rechaza ese ciclo para no guardar una lectura incompleta. Cambios en el diseño o
+paginación del sitio requieren revisar el conector.
+
+`lead_sync_state` conserva último intento, última ejecución exitosa, error general
+y cantidades leídas. Los registros externos no se borran por desaparecer de la
+lista diaria y no se consideran ventas: la venta viene del anuncio pegado. Estas
+tablas contienen datos personales; no exponerlas mediante una API pública.
+
+Este cambio prepara la sincronización. Aún no incluye el panel de ventas, la
+extracción con Groq ni la vinculación de ventas con visitas históricas. El worker
+periódico toma el día actual; la búsqueda histórica observada en el sitio es un
+flujo diferente, pendiente de integrar.

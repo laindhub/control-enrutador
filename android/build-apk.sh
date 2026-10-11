@@ -16,7 +16,7 @@ rm -rf "$build/classes" "$build/dex"
 mkdir -p "$build/classes" "$build/dex"
 "$tools/aapt2" compile --dir app/src/main/res -o "$build/resources.zip"
 "$tools/aapt2" link -o "$build/base.apk" -I "$platform" --manifest app/src/main/AndroidManifest.xml \
-  -A app/src/main/assets --version-code 7 --version-name 1.2.0 "$build/resources.zip"
+  -A app/src/main/assets --version-code 8 --version-name 1.2.1 "$build/resources.zip"
 find app/src/main/java -name '*.java' -print > "$build/sources.txt"
 if command -v javac >/dev/null; then compiler=(javac); else compiler=(java -m jdk.compiler/com.sun.tools.javac.Main); fi
 "${compiler[@]}" -encoding UTF-8 --release 8 -classpath "$platform" -d "$build/classes" @"$build/sources.txt"
@@ -33,6 +33,6 @@ if [[ ! -f "$keystore" ]]; then
     -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Mas Duenos Testing,O=Laind,C=AR' >/dev/null
 fi
 "$tools/apksigner" sign --ks "$keystore" --ks-key-alias androiddebugkey --ks-pass pass:android \
-  --key-pass pass:android --out dist/masduenos-salon-1.2.0.apk "$build/aligned.apk"
-"$tools/apksigner" verify --verbose dist/masduenos-salon-1.2.0.apk
-echo 'APK: android/dist/masduenos-salon-1.2.0.apk'
+  --key-pass pass:android --out dist/masduenos-salon-1.2.1.apk "$build/aligned.apk"
+"$tools/apksigner" verify --verbose dist/masduenos-salon-1.2.1.apk
+echo 'APK: android/dist/masduenos-salon-1.2.1.apk'

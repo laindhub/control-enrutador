@@ -1,3 +1,10 @@
+export function browserStartupDiagnostic(error, env = process.env) {
+ let message = String(error?.message || error?.code || 'Sin detalle');
+ for (const key of ['LEAD_SYNC_ACCOUNT_NAME', 'LEAD_SYNC_PIN', 'MYSQL_PASSWORD', 'DB_PASSWORD']) {
+  if (env[key]) message = message.split(env[key]).join('[oculto]');
+ }
+ return message.replace(/https?:\/\/\S+/gi, '[URL omitida]').slice(0, 6000);
+}
 export function leadSyncError(error, stage) {
  const message=String(error?.message||'');
  if(error?.code==='LEAD_AUTH_PAUSED')return 'Acceso no confirmado. Se suspendieron los intentos de PIN hasta reiniciar.';

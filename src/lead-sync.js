@@ -1,6 +1,6 @@
 import { pool } from './db.js';
 import { launchLeadBrowser } from './lead-browser.js';
-import { leadSyncError } from './lead-sync-error.js';
+import { leadSyncError, browserStartupDiagnostic } from './lead-sync-error.js';
 import { argentinaDate, normalizeDetail, visitId } from './lead-sync-data.js';
 
 const ORIGIN = 'https://liniers.xn--somosmasdueos-skb.com';
@@ -145,7 +145,8 @@ export async function syncLeadsOnce() {
     if (locked) await connection.execute('UPDATE lead_sync_state SET last_error = ? WHERE id = 1', [message]).catch(() => {});
     await browser?.close().catch(() => {});
     browser = undefined; page = undefined;
-    throw Object.assign(new Error(message), { authenticationPaused: authPaused });
+    throw Object.assign(new Error(message), { authenticationPaused: authPaused,
+      browserDiagnostic: stage === 'browser' ? browserStartupDiagnostic(error) : undefined });
   } finally {
     if (locked) await connection.query("SELECT RELEASE_LOCK('external_leads_sync')").catch(() => {});
     connection?.release();

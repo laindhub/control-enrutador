@@ -25,6 +25,8 @@ function startLeadSync() {
    env:{...env,LEAD_SYNC_WORKER:'true'},
   });
   child.on('message', result => {
+   if (result?.success === false && result.error) console.error('Sincronización de leads:', result.error);
+   if (result?.browserDiagnostic) console.error('Diagnóstico de arranque de Chromium:', result.browserDiagnostic);
    if (result?.authenticationPaused) authPaused = true;
    if (result?.success) { successful = true; remaining = Number(result.remaining) || 0; }
   });

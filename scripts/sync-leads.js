@@ -5,7 +5,8 @@ try {
  if (process.send) process.send({ ...result, success: !result.skipped });
  else console.log(result);
 } catch (error) {
- if (process.send) process.send({success:false,authenticationPaused:Boolean(error.authenticationPaused)});
+ if (process.send) process.send({success:false,authenticationPaused:Boolean(error.authenticationPaused),
+  error: error.message, browserDiagnostic:error.browserDiagnostic});
  console.error(error.message); process.exitCode = 1;
 } finally {
  await stopLeadSync(); await pool.end();

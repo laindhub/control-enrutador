@@ -13,6 +13,9 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -59,6 +62,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        configureLightStatusBar();
         CookieManager.getInstance().setAcceptCookie(true);
         try (InputStream input = getAssets().open("salon-navigation.js")) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -111,6 +115,23 @@ public final class MainActivity extends Activity {
             }
         };
         connectivity.registerDefaultNetworkCallback(networkCallback);
+    }
+
+    /** Keep the clock, signal and battery dark against the salon's white status-bar background. */
+    private void configureLightStatusBar() {
+        Window window = getWindow();
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.setStatusBarColor(Color.WHITE);
+        View decor = window.getDecorView();
+        decor.setSystemUiVisibility(decor.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController controller = decor.getWindowInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsAppearance(
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS);
+            }
+        }
     }
 
     private Button button(String label, Runnable action) {
@@ -241,6 +262,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume(); resumed = true;
+        configureLightStatusBar();
         for (int i = 0; i < pages.length; i++) { pages[i].onResume(); if (failed[i]) scheduleRetry(i, 1000); }
     }
     @Override protected void onPause() {

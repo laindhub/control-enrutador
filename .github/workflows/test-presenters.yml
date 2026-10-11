@@ -1,0 +1,28 @@
+name: Test presenter administration
+on:
+  push:
+    paths:
+      - 'src/routes/presenter*'
+      - 'src/presenter-*'
+      - 'src/schema.js'
+      - 'public/js/presenter*'
+      - 'views/presenter.ejs'
+      - 'test/presenter*'
+      - 'package*.json'
+      - '.github/workflows/test-presenters.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+      - run: node --test test/presenter-admin.test.js test/presenter-sales.test.js test/presenter-leads.test.js

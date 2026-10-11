@@ -136,7 +136,7 @@
     visitsNav=nav;
     if(nav.getAttribute('data-md-visits-bottom-nav')===null) nav.setAttribute('data-md-visits-bottom-nav','');
     const content=document.querySelector('main');
-    if(content && content!==nav && !hasAncestor(nav,content)) {
+    if(content && content!==nav) {
       if(visitsContent && visitsContent!==content) visitsContent.removeAttribute('data-md-visits-scroll-content');
       visitsContent=content;
       if(content.getAttribute('data-md-visits-scroll-content')===null) content.setAttribute('data-md-visits-scroll-content','');

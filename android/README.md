@@ -1,13 +1,13 @@
-# Más Dueños · Salón Android 1.2.0
+# Más Dueños · Salón Android 1.2.1 (fuentes listas, APK pendiente)
 
 Android 8.0 o posterior. Esta versión conserva el salón completo y su barra **Puestos / Hoy / Yo**. No hay una barra nativa superior ni se reemplaza **Yo** por otra pantalla.
 
 ## Uso
 
-1. Instalá `masduenos-salon-1.2.0.apk` sobre la versión anterior. Se mantiene el mismo paquete y firma, con `versionCode=5`.
+1. Cuando esté disponible el instalador `masduenos-salon-1.2.1.apk` **firmado con la misma clave del 1.2.0**, instalalo sobre la versión anterior. Mantiene el mismo paquete y usa `versionCode=8`.
 2. Entrá al salón con tu cuenta habitual.
-3. **Yo** abre la página original `/floor/activity`, con sus pasos, derivaciones, conversiones y actividad.
-4. Debajo aparece **Mis ventas y comisiones**, con Ventas, Carpetas, Pagos y Gestión según el rol. Registrar y editar ventas, vincular visitas y registrar pagos utiliza las mismas APIs y permisos del panel web.
+3. **Yo** abre la página original `/floor/activity`, con sus pasos, derivaciones y conversiones. El panel de métricas propio aparece antes del historial **«lo que hice»**, incluso cuando crecen las derivaciones.
+4. **Mis ventas y comisiones** aparece antes del historial original, con Ventas, Carpetas, Pagos y Gestión según el rol. Registrar y editar ventas, vincular visitas y registrar pagos utiliza las mismas APIs y permisos del panel web.
 5. Si todavía no conectaste tu cuenta propia, tocá **Conectar mis ventas**. El login se abre temporalmente a pantalla completa; al terminar vuelve automáticamente a la actividad original y carga la sección de ventas. El botón Atrás permite cancelar y volver al salón.
 
 Las cuentas de ambos servicios siguen siendo independientes. La app no conoce ni comparte contraseñas. Las cookies persisten según la vigencia de cada servidor. iPhone continúa usando la web.
@@ -31,9 +31,9 @@ sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
 ANDROID_SDK_ROOT=/ruta/al/sdk MASDUENOS_DEBUG_KEYSTORE=/ruta/privada/clave.keystore bash android/build-apk.sh
 ```
 
-Resultado: `android/dist/masduenos-salon-1.2.0.apk`. La clave de firma de prueba se conserva fuera del repositorio; debe reutilizarse para actualizar instalaciones anteriores. No subirla a GitHub. También se puede abrir `android/` en Android Studio (Gradle 8.11.1 / plugin 8.9.2).
+Resultado: `android/dist/masduenos-salon-1.2.1.apk`. La clave de firma de prueba se conserva fuera del repositorio; debe reutilizarse para actualizar instalaciones anteriores. No subirla a GitHub. También se puede abrir `android/` en Android Studio (Gradle 8.11.1 / plugin 8.9.2).
 
-Instalador publicado en `public/assets/android/masduenos-salon-1.2.0.apk`. Los cambios web de esta versión deben desplegarse junto con el APK.
+El instalador que sigue publicado en `public/assets/android/masduenos-salon-1.2.0.apk` es la versión anterior y **no contiene** esta corrección. No se publicó aún el instalador 1.2.1: requiere Android SDK 35 y la clave de firma original. No sustituir la APK existente por una nueva firmada con otra clave, porque Android no la aceptará como actualización.
 
 La sesión se prepara antes de cargar el iframe y mantiene `SameSite=None` también después del login y las peticiones de datos. Las ventas no esperan a la importación de fichas.
 

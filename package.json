@@ -11,7 +11,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check src/ai-demo-knowledge.js && node --check src/ai-demo-store.js && node --check src/routes/ai-demo.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js && node --check public/js/demo-ai.js && node --check src/routes/presenters.js && node --check src/presenter-sales.js && node --check public/js/presenter.js && node --check public/presentador-sw.js",
+    "check": "node --check src/server.js && node --check src/routes/api.js && node --check src/routes/admin.js && node --check src/routes/demo.js && node --check src/demo-store.js && node --check src/ai-demo-knowledge.js && node --check src/ai-demo-store.js && node --check src/routes/ai-demo.js && node --check public/js/app.js && node --check public/js/admin.js && node --check public/js/demo.js && node --check public/js/demo-ai.js && node --check src/routes/presenters.js && node --check src/presenter-sales.js && node --check public/js/presenter.js && node --check public/presentador-sw.js && node --check src/routes/presenter-admin.js && node --check public/js/presenter-admin.js",
     "sync:leads": "node scripts/sync-leads.js",
     "sync:browser": "node scripts/install-lead-browser.js"
   },

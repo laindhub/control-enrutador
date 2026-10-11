@@ -270,3 +270,18 @@ dialog[open].is-closing::backdrop { animation:backdrop-out 160ms ease both; }
 .metric .metric-note{display:block;margin-top:10px;font-size:12px;line-height:1.45;font-weight:400;color:#727977;overflow-wrap:anywhere}
 
 .sales-threshold-counts{margin-bottom:10px;color:#263d34;font-weight:600;font-size:12px;gap:4px}.sales-threshold-bar{margin-top:0}
+
+/* Team administration reuses the presenter's existing cards and typography. */
+#admin-presenter-workspace { margin:20px 0; }
+#admin-presenter-workspace > h4 { margin:24px 0 12px; font-size:1.05rem; }
+.admin-person-actions { display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 24px; }
+.admin-person-actions button { flex:1 1 190px;min-width:0; }
+#admin-person-sales .card,#admin-person-leads .card { margin:12px 0; }
+#admin-person-sales .row-actions { justify-content:flex-end; }
+#admin-audit-list .mini-row { flex-wrap:wrap;gap:8px; }
+#admin-person-select,#admin-month { width:100%;max-width:100%;min-width:0; }
+@media (max-width:600px) {
+  .admin-person-actions { display:grid;grid-template-columns:1fr; }
+  .admin-person-actions button { width:100%; }
+  #admin-person-sales .sale-row,#admin-person-leads .sale-row { flex-wrap:wrap;gap:8px; }
+}

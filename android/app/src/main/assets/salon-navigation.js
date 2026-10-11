@@ -1,17 +1,58 @@
 (() => {
   'use strict';
-  if (location.protocol !== 'https:' || location.hostname !== 'liniers.xn--somosmasdueos-skb.com' ||
-      window.__masDuenosSalesNavigation) return;
-  window.__masDuenosSalesNavigation = true;
-  // Delegation survives SPA rerenders. Only a navigation control labelled exactly “Yo” is changed.
-  document.addEventListener('click', event => {
-    if (!/^\/floor(?:\/|$)/.test(location.pathname)) return;
-    const control = event.target.closest('a, button, [role="tab"], [role="button"]');
-    if (!control || control.closest('form') || control.hasAttribute('download')) return;
-    const label = (control.innerText || control.textContent || '').trim();
-    if (label !== 'Yo' && control.getAttribute('aria-label') !== 'Yo') return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    location.href = 'https://masduenos.laind.io/presentador';
-  }, true);
+  if (location.origin !== 'https://liniers.xn--somosmasdueos-skb.com' || window.__mdActivityIntegration) return;
+  window.__mdActivityIntegration = true;
+  const ownOrigin = 'https://masduenos.laind.io';
+  let scheduled = false;
+  function sync() {
+    scheduled = false;
+    const existing = document.getElementById('md-sales-integration');
+    if (location.pathname.replace(/\/$/, '') !== '/floor/activity') {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    let main = document.querySelector('main');
+    if (!main) {
+      const title = [...document.querySelectorAll('h1,h2')].find(h => h.textContent.trim() === 'Mi actividad');
+      main = title?.parentElement?.parentElement;
+    }
+    if (!main) return;
+    const section = document.createElement('section');
+    section.id = 'md-sales-integration';
+    section.setAttribute('aria-label', 'Mis ventas y comisiones');
+    section.style.cssText = 'margin:32px 0 0;padding:28px 0 12px;border-top:1px solid #e5e5e5;width:100%;min-width:0';
+    const heading = document.createElement('h2');
+    heading.textContent = 'Mis ventas y comisiones';
+    heading.style.cssText = 'font:inherit;font-size:24px;font-weight:600;margin:0 0 8px;color:#111';
+    const frame = document.createElement('iframe');
+    frame.id = 'md-sales-frame';
+    frame.title = 'Ventas, carpetas y pagos';
+    frame.src = ownOrigin + '/presentador/integrado';
+    frame.style.cssText = 'display:block;width:100%;height:360px;border:0;background:white';
+    section.append(heading, frame);
+    main.append(section);
+  }
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(sync);
+  }
+  new MutationObserver(schedule).observe(document.documentElement, {childList:true,subtree:true});
+  window.addEventListener('popstate', schedule);
+  for (const method of ['pushState', 'replaceState']) {
+    const original = history[method];
+    history[method] = function(...args) { const result=original.apply(this,args); schedule(); return result; };
+  }
+  window.addEventListener('message', event => {
+    const frame = document.getElementById('md-sales-frame');
+    if (!frame || event.origin !== ownOrigin || event.source !== frame.contentWindow) return;
+    if (event.data?.type === 'md-sales-height' && Number.isFinite(event.data.height))
+      frame.style.height = Math.max(260, Math.min(16000, event.data.height)) + 'px';
+  });
+  window.addEventListener('md-sales-connected', () => {
+    const frame = document.getElementById('md-sales-frame');
+    if (frame) frame.src = ownOrigin + '/presentador/integrado?t=' + Date.now();
+  });
+  schedule();
 })();

@@ -3,25 +3,41 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../android/app/src/main/assets/salon-navigation.js',import.meta.url),'utf8');
-function setup(host='liniers.xn--somosmasdueos-skb.com',path='/floor') {
-  const location={hostname:host,pathname:path,protocol:'https:',href:'unchanged'},listeners=[];
-  const context={location,window:{},document:{addEventListener:(...args)=>listeners.push(args)}};
-  vm.runInNewContext(source,context);return {context,location,listeners};
+function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com') {
+ const events=new Map(),observers=[];
+ class Element {
+  constructor(tag){this.tag=tag;this.children=[];this.style={};this.contentWindow={};}
+  append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}}
+  setAttribute(){}
+  remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
+ }
+ const main=new Element('main'),original=new Element('p');original.textContent='136 derivaciones';main.append(original);
+ function find(id,n=main){if(n.id===id)return n;for(const child of n.children){const found=find(id,child);if(found)return found;}return null;}
+ const location={origin,pathname:path,href:origin+path};
+ const window={addEventListener:(name,fn)=>events.set(name,fn)};
+ const context={location,window,document:{documentElement:{},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
+  MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
+  requestAnimationFrame:fn=>fn(),history:{pushState(){},replaceState(){}},Date};
+ vm.runInNewContext(source,context);
+ return {events,observers,location,context,main,original,find,sync:()=>observers.forEach(fn=>fn())};
 }
-function click(p,label,form=false) {
-  let stopped=false;const control={innerText:label,getAttribute:()=>null,hasAttribute:()=>false,closest:()=>form?{}:null};
-  p.listeners[0][1]({target:{closest:()=>control},preventDefault(){stopped=true;},stopImmediatePropagation(){}});return stopped;
-}
-test('only the original Yo control navigates to sales, including nested icons',()=>{
-  const p=setup();assert.equal(click(p,'Hoy'),false);assert.equal(p.location.href,'unchanged');
-  assert.equal(click(p,'Yo'),true);assert.equal(p.location.href,'https://masduenos.laind.io/presentador');
+test('activity gains sales without replacing its content or intercepting original navigation',()=>{
+ const p=setup('/floor/activity');
+ assert.equal(p.main.children[0],p.original);assert.equal(p.original.textContent,'136 derivaciones');
+ assert.ok(p.find('md-sales-integration'));assert.equal(p.find('md-sales-frame').src,'https://masduenos.laind.io/presentador/integrado');
+ assert.equal(p.events.has('click'),false);assert.equal(p.location.href,'https://liniers.xn--somosmasdueos-skb.com/floor/activity');
 });
-test('login-to-floor SPA navigation and replacement controls retain the listener without duplicate registration',()=>{
-  const p=setup(undefined,'/login');assert.equal(click(p,'Yo'),false);
-  p.location.pathname='/floor';assert.equal(click(p,'Yo'),true);
-  vm.runInNewContext(source,p.context);assert.equal(p.listeners.length,1);
+test('SPA navigation inserts once, removes the section elsewhere, and recreates it on return',()=>{
+ const p=setup();assert.equal(p.find('md-sales-integration'),null);
+ p.location.pathname='/floor/activity';p.sync();p.sync();assert.equal(p.main.children.length,2);
+ p.location.pathname='/floor';p.sync();assert.equal(p.main.children.length,1);
+ p.location.pathname='/floor/activity';p.sync();assert.equal(p.main.children.length,2);
+ vm.runInNewContext(source,p.context);assert.equal(p.observers.length,1);
 });
-test('untrusted origins and controls in forms are not modified',()=>{
-  assert.equal(setup('example.com').listeners.length,0);
-  assert.equal(click(setup(),'Yo',true),false);
+test('resize accepts only the actual sales frame and bounds its height',()=>{
+ const p=setup('/floor/activity'),frame=p.find('md-sales-frame'),onMessage=p.events.get('message');
+ onMessage({origin:'https://example.com',source:frame.contentWindow,data:{type:'md-sales-height',height:999}});assert.equal(frame.style.height,undefined);
+ onMessage({origin:'https://masduenos.laind.io',source:{},data:{type:'md-sales-height',height:999}});assert.equal(frame.style.height,undefined);
+ onMessage({origin:'https://masduenos.laind.io',source:frame.contentWindow,data:{type:'md-sales-height',height:999}});assert.equal(frame.style.height,'999px');
 });
+test('other origins are untouched',()=>{const p=setup('/floor/activity','https://example.com');assert.equal(p.observers.length,0);assert.equal(p.main.children.length,1);});

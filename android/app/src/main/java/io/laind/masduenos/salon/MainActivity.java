@@ -32,12 +32,12 @@ import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 
-/** Two ordinary HTTPS WebViews; no native JavaScript bridge and no access to credentials. */
+/** Original salon with an embedded sales section. A second view is used only for sales sign-in. */
 public final class MainActivity extends Activity {
     private static final String SALON_HOST = "liniers.xn--somosmasdueos-skb.com";
     private static final String SALES_HOST = "masduenos.laind.io";
     private static final String SALON_URL = "https://" + SALON_HOST + "/floor";
-    private static final String SALES_URL = "https://" + SALES_HOST + "/presentador";
+    private static final String SALES_URL = "https://" + SALES_HOST + "/presentador?salon=1";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final boolean[] failed = {false, false};
     private final boolean[] retrySafe = {true, true};
@@ -48,7 +48,6 @@ public final class MainActivity extends Activity {
     private ProgressBar progress;
     private LinearLayout errorBox;
     private TextView errorText;
-    private Button salonButton, salesButton;
     private int selected = 0;
     private boolean resumed;
     private String navigationScript = "";
@@ -64,28 +63,18 @@ public final class MainActivity extends Activity {
             byte[] buffer = new byte[4096]; int count;
             while ((count = input.read(buffer)) != -1) bytes.write(buffer, 0, count);
             navigationScript = new String(bytes.toByteArray(), StandardCharsets.UTF_8);
-        } catch (Exception ignored) { Toast.makeText(this, "Usá Mis ventas para abrir tu panel.", Toast.LENGTH_LONG).show(); }
+        } catch (Exception ignored) { Toast.makeText(this, "No se pudo cargar la integración de ventas.", Toast.LENGTH_LONG).show(); }
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.WHITE);
         setContentView(root);
-        // Android 15 edge-to-edge: protect the native toolbar, page and web bottom navigation.
+        // Android 15 edge-to-edge: preserve the page and its original bottom navigation.
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
                 insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets.consumeSystemWindowInsets();
         });
-        LinearLayout toolbar = new LinearLayout(this);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        salonButton = button("Salón", () -> select(0));
-        salesButton = button("Mis ventas", () -> select(1));
-        toolbar.addView(salonButton, new LinearLayout.LayoutParams(0, dp(48), 1));
-        toolbar.addView(salesButton, new LinearLayout.LayoutParams(0, dp(48), 1));
-        Button reload = button("↻", () -> { attempts[selected] = 0; pages[selected].reload(); });
-        reload.setContentDescription("Actualizar la página actual");
-        toolbar.addView(reload, new LinearLayout.LayoutParams(dp(52), dp(48)));
-        root.addView(toolbar);
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         root.addView(progress, new LinearLayout.LayoutParams(-1, dp(3)));
@@ -145,7 +134,7 @@ public final class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setSupportMultipleWindows(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(page, false);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(page, index == 0);
         page.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 if (!request.isForMainFrame()) return false;
@@ -153,9 +142,7 @@ public final class MainActivity extends Activity {
                 if (trusted(uri)) {
                     int destination = SALES_HOST.equals(uri.getHost()) ? 1 : 0;
                     if (destination != index) {
-                        // “Yo” keeps the existing sales view, including its selected tab and login.
-                        if (!(destination == 1 && "/presentador".equals(uri.getPath()) && pages[1].getUrl() != null))
-                            pages[destination].loadUrl(uri.toString());
+                        pages[destination].loadUrl(uri.toString());
                         select(destination);
                         return true;
                     }
@@ -175,6 +162,15 @@ public final class MainActivity extends Activity {
                 Uri uri = Uri.parse(url);
                 if (!failed[index] && SALON_HOST.equals(uri.getHost()) && trusted(uri))
                     view.evaluateJavascript(navigationScript, null);
+                // The only separate view is the first-party sign-in required by the sales account.
+                // Once connected, return to the unchanged activity and refresh its embedded section.
+                if (!failed[index] && index == 1 && SALES_HOST.equals(uri.getHost()) && "/presentador".equals(uri.getPath())) {
+                    if (!"1".equals(uri.getQueryParameter("salon"))) view.loadUrl(SALES_URL);
+                    else {
+                        select(0);
+                        pages[0].evaluateJavascript("window.dispatchEvent(new Event('md-sales-connected'))", null);
+                    }
+                }
                 if (selected == index) progress.setVisibility(View.GONE);
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
@@ -185,6 +181,7 @@ public final class MainActivity extends Activity {
             @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
                 if (!request.isForMainFrame()) return;
                 int status = response.getStatusCode();
+                if (index == 1 && status == 401 && "/login".equals(request.getUrl().getPath())) return;
                 retrySafe[index] = "GET".equals(request.getMethod());
                 if (status == 408 || status == 429 || status >= 500)
                     fail(index, "El servicio está reconectando. Esperá unos segundos.", true);
@@ -215,8 +212,6 @@ public final class MainActivity extends Activity {
     private void select(int index) {
         selected = index == 1 ? 1 : 0;
         for (int i = 0; i < pages.length; i++) pages[i].setVisibility(i == selected ? View.VISIBLE : View.GONE);
-        salonButton.setTextColor(selected == 0 ? Color.rgb(216,37,27) : Color.DKGRAY);
-        salesButton.setTextColor(selected == 1 ? Color.rgb(216,37,27) : Color.DKGRAY);
         errorBox.setVisibility(failed[selected] ? View.VISIBLE : View.GONE);
         errorText.setText(errors[selected]);
         progress.setProgress(pages[selected].getProgress());
@@ -249,8 +244,8 @@ public final class MainActivity extends Activity {
         for (int i = 0; i < pages.length; i++) { Bundle pageState = new Bundle(); pages[i].saveState(pageState); state.putBundle("page" + i, pageState); }
     }
     @Override public void onBackPressed() {
-        if (pages[selected].canGoBack()) pages[selected].goBack();
-        else if (selected == 1) select(0);
+        if (selected == 1) select(0);
+        else if (pages[selected].canGoBack()) pages[selected].goBack();
         else super.onBackPressed();
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {

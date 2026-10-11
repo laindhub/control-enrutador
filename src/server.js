@@ -1,4 +1,5 @@
 import { createPresenterRouter, presenterAccess } from './routes/presenters.js';
+import { enableSalonSession, allowSalonFrame } from './presenter-embed.js';
 import { startLeadSync, stopLeadSync } from './lead-sync-runner.js';
 process.once('SIGTERM', () => { stopLeadSync().finally(() => process.exit(0)); });
 process.once('SIGINT', () => { stopLeadSync().finally(() => process.exit(0)); });
@@ -236,7 +237,11 @@ app.get('/', requireAuth, requireRole('router'), requireOperator, (req, res) => 
 
 app.get('/presentador.webmanifest', (_req,res) => res.sendFile(path.join(publicRoot,'presentador.webmanifest')));
 app.get('/presentador-sw.js', (_req,res) => res.set('Service-Worker-Allowed','/presentador').sendFile(path.join(publicRoot,'presentador-sw.js')));
-app.get('/presentador', requireAuth, presenterAccess, (_req, res) => res.render('presenter', { title: 'Mis ventas' }));
+app.get('/presentador/integrado', allowSalonFrame, (req,res,next) => {
+  if (!req.session.user) return res.render('presenter-connect');
+  return presenterAccess(req,res,() => res.render('presenter', { title:'Mis ventas', embedded:true }));
+});
+app.get('/presentador', enableSalonSession, requireAuth, presenterAccess, (_req, res) => res.render('presenter', { title: 'Mis ventas', embedded:false }));
 app.use('/api/presenters', verifyCsrf, createPresenterRouter());
 
 app.get('/admin', requireAuth, requireRole('admin'), (_req, res) => {

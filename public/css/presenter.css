@@ -222,3 +222,15 @@ footer { padding: 32px 0 8px; text-align: center; font-size: 11px; color: var(--
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+/* The salon supplies its own header and bottom navigation. Keep this module in the page flow. */
+body.embedded { padding:0; min-height:0; }
+.embedded .top { display:none; }
+.embedded .shell { width:100%; max-width:none; margin:0; padding:0 0 16px; }
+.embedded .tabs { position:static; inset:auto; display:flex; flex-wrap:wrap; gap:4px; width:100%; padding:8px 0; margin:0 0 20px; background:white; box-shadow:none; border:0; min-height:0; }
+.embedded .tabs button { flex:1; min-width:70px; min-height:44px; border-radius:10px; padding:10px 8px; font-size:14px; }
+.embedded .tabs button svg { display:none; }
+.embedded .intro { margin:0 0 24px; padding:0; }
+.embedded .intro h1 { display:none; }
+.embedded .intro p { margin:0 0 16px; font-size:16px; }
+.embedded .card { padding:20px; }
+.embedded .section-head { gap:12px; flex-wrap:wrap; }

@@ -13,7 +13,7 @@
    if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(updateUrl)history.replaceState(null,'','#'+tab);
-  window.scrollTo({top:0,behavior:'instant'});
+  if(!document.body.classList.contains('embedded'))window.scrollTo({top:0,behavior:'instant'});
  }
  async function api(path,body,method='GET') {
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
@@ -97,5 +97,20 @@
  window.addEventListener('pagehide',()=>clearTimeout(retryTimer));
  showPanel(location.hash.slice(1),false);
  window.addEventListener('hashchange',()=>showPanel(location.hash.slice(1),false));
- load();if('serviceWorker'in navigator)navigator.serviceWorker.register('/presentador-sw.js',{scope:'/presentador'}).catch(()=>{});
+ if(document.body.classList.contains('embedded')){
+  let pending=false;
+  const resize=()=>{
+   if(pending)return;pending=true;
+   requestAnimationFrame(()=>{
+    pending=false;
+    const dialog=[...document.querySelectorAll('dialog')].some(d=>d.open);
+    const height=Math.max(document.body.scrollHeight,dialog?850:260);
+    window.parent.postMessage({type:'md-sales-height',height},'https://liniers.xn--somosmasdueos-skb.com');
+   });
+  };
+  new ResizeObserver(resize).observe(document.body);
+  new MutationObserver(resize).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','open']});
+  resize();
+ }
+ load();if(!document.body.classList.contains('embedded')&&'serviceWorker'in navigator)navigator.serviceWorker.register('/presentador-sw.js',{scope:'/presentador'}).catch(()=>{});
 })();

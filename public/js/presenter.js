@@ -2,7 +2,7 @@
  const $=s=>document.querySelector(s);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const ars=v=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(v);
  const date=v=>v?new Intl.DateTimeFormat('es-AR',{day:'numeric',month:'short'}).format(new Date(v+'T12:00:00')):'—';
- let state,removeAction,loading=false;
+ let state,removeAction,loading=false,retryTimer,retryAttempt=0;
  function showPanel(tab,updateUrl=true){
   const allowed=['sales','folders','payments','admin'];
   if(!allowed.includes(tab)||!$('#panel-'+tab))tab='sales';
@@ -15,8 +15,28 @@
   if(updateUrl)history.replaceState(null,'','#'+tab);
   window.scrollTo({top:0,behavior:'instant'});
  }
- async function api(path,body,method='GET') {const response=await fetch('/api/presenters'+path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json','x-csrf-token':$('meta[name="csrf-token"]').content},...(body?{body:JSON.stringify(body)}:{})});let result;try{result=await response.json();}catch{throw Error('No se pudo conectar. Recargá la página.');}if(!response.ok)throw Error(result.error||'No se pudo completar la operación.');return result;}
- function notify(message,error=false){const n=$('#notice');n.className='notice'+(error?' error':'');n.textContent=message;n.hidden=false;n.scrollIntoView({behavior:'smooth',block:'nearest'});}
+ async function api(path,body,method='GET') {
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
+  try{
+   const response=await fetch('/api/presenters'+path,{method,credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','x-csrf-token':$('meta[name="csrf-token"]').content},...(body?{body:JSON.stringify(body)}:{})});
+   let result;try{result=await response.json();}catch{result={error:'No se pudo leer la respuesta del servidor.'};}
+   if(!response.ok){
+    const error=Error(result.error||'No se pudo completar la operación.');error.status=response.status;
+    const retryAfter=response.headers.get('Retry-After');
+    error.retryAfter=retryAfter?( /^\d+$/.test(retryAfter)?Number(retryAfter)*1000:Math.max(0,Date.parse(retryAfter)-Date.now()) ):0;
+    throw error;
+   }
+   if(!result||result.error)throw Error(result?.error||'No se pudo leer la respuesta del servidor.');
+   return result;
+  }catch(error){
+   if(!error.status&&(error.name==='AbortError'||error.name==='TypeError')){
+    throw Error(method==='GET'?'No se pudo conectar con el servidor.':'No se pudo confirmar la operación. Actualizá la lista antes de reintentar para comprobar si quedó guardada.');
+   }
+   throw error;
+  }finally{clearTimeout(timeout);}
+ }
+ function notify(message,error=false){const n=$('#notice');n.dataset.kind='message';n.className='notice'+(error?' error':'');n.textContent=message;n.hidden=false;n.scrollIntoView({behavior:'smooth',block:'nearest'});}
+ function connectionNotice(message,error=false){const n=$('#notice');n.dataset.kind='connection';n.className='notice'+(error?' error':'');n.textContent=message;n.hidden=false;}
  function empty(message){return `<div class="empty">${esc(message)}</div>`;}
  function actions(kind,item){return `<div class="row-actions">${kind==='sales'?`<button data-edit="${item.id}">Editar</button>`:''}<button data-delete="${item.id}" data-kind="${kind}">Eliminar</button></div>`;}
  function render() {
@@ -31,7 +51,26 @@
    $('#sync-status').innerHTML=`<h3>Sincronización de leads</h3><p class="muted">${state.sync?`Última ejecución correcta: ${esc(state.sync.last_success_at||'Todavía no hay una')} UTC · ${Number(state.sync.visits_seen)} visitas en la lista · ${Number(state.sync.details_updated)} fichas leídas en esa ejecución. Total: ${Number(state.sync.completed_total||0)} completas · ${Number(state.sync.pending_total||0)} pendientes.`:'El sincronizador todavía no tiene ejecuciones registradas.'}</p>${state.sync?.last_error?`<p class="form-error">${esc(state.sync.last_error)}</p>`:''}${state.user.role==='presenter_admin'?`<button id="sync-now" class="secondary" ${state.syncRunning?'disabled':''}>${state.syncRunning?'Sincronizando…':'Sincronizar ahora'}</button>`:''}`;
   }
  }
- async function load(){if(loading)return;loading=true;try{state=await api('/state');if(!$('#month').value)$('#month').value=state.today.slice(0,7);render();}catch(error){notify(error.message,true);}finally{loading=false;}}
+ async function load(){
+  clearTimeout(retryTimer);
+  if(loading)return;
+  if(navigator.onLine===false){connectionNotice('Sin conexión. Tus datos visibles se conservan; reconectaremos automáticamente.');return;}
+  loading=true;
+  try{
+   const nextState=await api('/state');
+   state=nextState;if(!$('#month').value)$('#month').value=state.today.slice(0,7);render();retryAttempt=0;
+   if($('#notice').dataset.kind==='connection')$('#notice').hidden=true;
+  }catch(error){
+   const temporary=!error.status||[408,429,500,502,503,504].includes(error.status);
+   if(temporary){
+    connectionNotice(state?'Reconectando… Podés seguir consultando tus datos.':'Conectando… El panel se actualizará automáticamente.');
+    if(!document.hidden&&navigator.onLine!==false){
+     const delay=Math.max(Math.min(30000,2000*2**Math.min(retryAttempt++,4)),Math.min(300000,error.retryAfter||0));
+     retryTimer=setTimeout(load,delay);
+    }
+   }else connectionNotice(error.status===401?'Tu sesión venció. Volvé a iniciar sesión para continuar.':error.message,true);
+  }finally{loading=false;}
+ }
  const saleForm=$('#sale-form');const field=name=>saleForm.elements.namedItem(name);
  function estimate(){if(!state)return;const rate=state.rates.find(r=>r.effective_date<=field('date').value);const original=state.sales.find(s=>String(s.id)===field('id').value);$('#sale-estimate').textContent='Comisión de esta venta: '+ars(original?original.commission:rate?.amount??32000)+(original?' · conserva su importe original.':' · según la fecha del anuncio.');}
  function leadQuery(){return '/leads?'+new URLSearchParams({phone:field('phone').value,name:field('clientName').value,date:field('date').value,advisor:field('advisor').value});}
@@ -52,7 +91,10 @@
  saleForm.onsubmit=async event=>{event.preventDefault();const b=saleForm.querySelector('[type="submit"]');b.disabled=true;$('#sale-error').textContent='';try{const body=Object.fromEntries(new FormData(saleForm));body.quota=body.quota===''?null:Number(body.quota);await api('/sales'+(body.id?'/'+body.id:''),body,body.id?'PATCH':'POST');$('#sale-dialog').close();await load();notify('Venta guardada. Tu carpeta se actualizó.');}catch(error){$('#sale-error').textContent=error.message;}finally{b.disabled=false;}};
  $('#payment-form').onsubmit=async event=>{event.preventDefault();const form=event.currentTarget,b=form.querySelector('button');b.disabled=true;try{await api('/payments',Object.fromEntries(new FormData(form)),'POST');$('#payment-dialog').close();await load();notify('Pago registrado.');}catch(error){$('#payment-error').textContent=error.message;}finally{b.disabled=false;}};
  for(const [selector,path,message] of [['#rate-form','/rates','Comisión actualizada. Las ventas guardadas conservaron su importe.'],['#user-form','/users','Cuenta de presentador creada.']])if($(selector))$(selector).onsubmit=async event=>{event.preventDefault();const form=event.currentTarget,b=form.querySelector('button');b.disabled=true;try{await api(path,Object.fromEntries(new FormData(form)),'POST');form.reset();await load();notify(message);}catch(error){notify(error.message,true);}finally{b.disabled=false;}};
- window.addEventListener('online',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
+ window.addEventListener('online',()=>{retryAttempt=0;load();});
+ window.addEventListener('offline',()=>{clearTimeout(retryTimer);connectionNotice('Sin conexión. Tus datos visibles se conservan; reconectaremos automáticamente.');});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(retryTimer);else{retryAttempt=0;load();}});
+ window.addEventListener('pagehide',()=>clearTimeout(retryTimer));
  showPanel(location.hash.slice(1),false);
  window.addEventListener('hashchange',()=>showPanel(location.hash.slice(1),false));
  load();if('serviceWorker'in navigator)navigator.serviceWorker.register('/presentador-sw.js',{scope:'/presentador'}).catch(()=>{});

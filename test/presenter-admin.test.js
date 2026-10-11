@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import ejs from 'ejs';
+import {readFileSync} from 'node:fs';
 import {pool} from '../src/db.js';
 import {createPresenterAdminRouter} from '../src/routes/presenter-admin.js';
 
@@ -88,4 +90,17 @@ test('admin can inspect monthly totals without modifying a colleague session',as
   assert.equal(data.entries.length,1);
  });}
  finally{pool.execute=original;}
+});
+
+test('admin template exposes team controls while ordinary presenters cannot see them',()=>{
+ const template=readFileSync(new URL('../views/presenter.ejs',import.meta.url),'utf8');
+ const locals=role=>({user:{id:1,username:'Prueba',role},csrfToken:'unit-test-token',embedded:true,assetUrl:path=>'/assets/'+path});
+ const admin=ejs.render(template,locals('presenter_admin'));
+ const presenter=ejs.render(template,locals('presenter'));
+ for(const key of ['admin-person-select','admin-month','admin-new-sale','admin-password-dialog','admin-lead-dialog','admin-person-sales']){
+  assert.match(admin,new RegExp(key));
+  assert.doesNotMatch(presenter,new RegExp(key));
+ }
+ assert.match(admin,/js\/presenter-admin\.js/);
+ assert.doesNotMatch(presenter,/js\/presenter-admin\.js/);
 });

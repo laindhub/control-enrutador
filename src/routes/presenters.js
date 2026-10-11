@@ -33,15 +33,15 @@ async function findLeads(phone, name = '', date = '', advisor = '') {
  const firstName=text(name).split(/\s+/)[0].replace(/[%_\\]/g,'');
  if(firstName.length>=2 && date){
   validDate(date);
-  clauses.push('(name LIKE ? AND source_date <= ?)');params.push(firstName+'%',date);
+  clauses.push('((name LIKE ? OR (detail_synced_at IS NULL AND list_text LIKE ?)) AND source_date <= ?)');params.push(firstName+'%','%'+firstName+'%',date);
  }
  if(!clauses.length)return [];
  const advisorName=text(advisor).split(/\s+/)[0].replace(/[%_\\]/g,'');
- const advisorClause=advisorName?' AND advisor LIKE ?':'';
+ const advisorClause=advisorName?' AND (advisor LIKE ? OR (detail_synced_at IS NULL AND advisor IS NULL))':'';
  if(advisorName)params.push(advisorName+'%');
  try {
-  const [rows]=await pool.execute('SELECT source_visit_id, source_date, name, phone, advisor, promoter, detail_json FROM external_lead_visits WHERE ('+clauses.join(' OR ')+')'+advisorClause+' ORDER BY source_date DESC LIMIT 20',params);
-  return rows.map(row=>({...row,matchType:phone&&row.phone===phone?'phone':'name'}));
+  const [rows]=await pool.execute('SELECT source_visit_id, source_date, name, phone, advisor, promoter, detail_json, detail_synced_at, list_text FROM external_lead_visits WHERE ('+clauses.join(' OR ')+')'+advisorClause+' ORDER BY source_date DESC LIMIT 20',params);
+  return rows.map(row=>({...row,matchType:row.detail_synced_at==null?'pending':phone&&row.phone===phone?'phone':'name'}));
  } catch(error){if(error.code==='ER_NO_SUCH_TABLE')return [];throw error;}
 }
 async function leadSelection(visitId, data) {

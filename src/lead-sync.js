@@ -124,7 +124,7 @@ export async function syncLeadsOnce() {
     } catch (error) { await connection.rollback(); throw error; }
     const [pending] = await connection.execute(`SELECT source_visit_id FROM external_lead_visits
       WHERE source_date = ? AND (detail_synced_at IS NULL OR detail_synced_at < UTC_TIMESTAMP() - INTERVAL ? MINUTE)
-      ORDER BY detail_synced_at, first_seen_at LIMIT ?`, [date, options.refresh, options.batch]);
+      ORDER BY EXISTS (SELECT 1 FROM presenter_sales ps WHERE ps.source_visit_id=external_lead_visits.source_visit_id AND ps.deleted_at IS NULL) DESC, detail_synced_at, first_seen_at LIMIT ?`, [date, options.refresh, options.batch]);
     let updated = 0;
     for (const row of pending) {
       stage = 'detail';

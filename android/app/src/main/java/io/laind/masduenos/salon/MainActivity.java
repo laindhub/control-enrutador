@@ -254,8 +254,13 @@ public final class MainActivity extends Activity {
     }
     @Override public void onBackPressed() {
         if (selected == 1) select(0);
-        else if (pages[selected].canGoBack()) pages[selected].goBack();
-        else super.onBackPressed();
+        else pages[0].evaluateJavascript("Boolean(window.__mdSalesModalOpen)", value -> {
+            if ("true".equals(value)) pages[0].evaluateJavascript("window.__mdCloseSalesModal()", null);
+            else backFromSalon();
+        });
+    }
+    private void backFromSalon() {
+        if (pages[0].canGoBack()) pages[0].goBack(); else super.onBackPressed();
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);

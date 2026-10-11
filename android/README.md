@@ -1,10 +1,10 @@
-# Más Dueños · Salón Android 1.1.1
+# Más Dueños · Salón Android 1.1.2
 
 Android 8.0 o posterior. Esta versión conserva el salón completo y su barra **Puestos / Hoy / Yo**. No hay una barra nativa superior ni se reemplaza **Yo** por otra pantalla.
 
 ## Uso
 
-1. Instalá `masduenos-salon-1.1.1.apk` sobre la versión anterior. Se mantiene el mismo paquete y firma, con `versionCode=3`.
+1. Instalá `masduenos-salon-1.1.2.apk` sobre la versión anterior. Se mantiene el mismo paquete y firma, con `versionCode=4`.
 2. Entrá al salón con tu cuenta habitual.
 3. **Yo** abre la página original `/floor/activity`, con sus pasos, derivaciones, conversiones y actividad.
 4. Debajo aparece **Mis ventas y comisiones**, con Ventas, Carpetas, Pagos y Gestión según el rol. Registrar y editar ventas, vincular visitas y registrar pagos utiliza las mismas APIs y permisos del panel web.
@@ -31,8 +31,10 @@ sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
 ANDROID_SDK_ROOT=/ruta/al/sdk MASDUENOS_DEBUG_KEYSTORE=/ruta/privada/clave.keystore bash android/build-apk.sh
 ```
 
-Resultado: `android/dist/masduenos-salon-1.1.1.apk`. La clave de firma de prueba se conserva fuera del repositorio; debe reutilizarse para actualizar instalaciones anteriores. No subirla a GitHub. También se puede abrir `android/` en Android Studio (Gradle 8.11.1 / plugin 8.9.2).
+Resultado: `android/dist/masduenos-salon-1.1.2.apk`. La clave de firma de prueba se conserva fuera del repositorio; debe reutilizarse para actualizar instalaciones anteriores. No subirla a GitHub. También se puede abrir `android/` en Android Studio (Gradle 8.11.1 / plugin 8.9.2).
 
-Instalador publicado en `public/assets/android/masduenos-salon-1.1.1.apk`. Los cambios web de esta versión deben desplegarse junto con el APK.
+Instalador publicado en `public/assets/android/masduenos-salon-1.1.2.apk`. Los cambios web de esta versión deben desplegarse junto con el APK.
 
 La sesión se prepara antes de cargar el iframe y mantiene `SameSite=None` también después del login y las peticiones de datos. Las ventas no esperan a la importación de fichas.
+
+Los diálogos ocupan el viewport del salón, por encima de su encabezado y navegación. Al cerrar se restaura la sección sin recargarla. Atrás cierra primero el diálogo.

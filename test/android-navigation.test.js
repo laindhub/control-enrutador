@@ -9,6 +9,8 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
   constructor(tag){this.tag=tag;this.children=[];this.style={};this.dataset={};this.contentWindow={};}
   append(...nodes){for(const n of nodes){if(n.parent)n.remove();n.parent=this;this.children.push(n);}}
   get lastElementChild(){return this.children.at(-1);}
+  get parentElement(){return this.parent;}
+  getBoundingClientRect(){return {height:1000};}
   getAttribute(name){return this[name];}
   setAttribute(){}
   remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
@@ -17,7 +19,7 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
  function find(id,n=main){if(n.id===id)return n;for(const child of n.children){const found=find(id,child);if(found)return found;}return null;}
  const location={origin,pathname:path,href:origin+path};
  const window={__mdSalesPrepared:prepared,addEventListener:(name,fn)=>events.set(name,fn)};
- const context={location,window,document:{documentElement:{},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
+ const context={location,window,document:{documentElement:{style:{}},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
   MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
   setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),history:{pushState(){},replaceState(){}},Date};
  vm.runInNewContext(source,context);
@@ -59,4 +61,15 @@ test('an unavailable initial frame retries progressively and stops after the tru
  assert.match(frame.src,/retry=/);assert.equal([...p.timers.values()][0].delay,10000);
  p.events.get('message')({origin:'https://masduenos.laind.io',source:frame.contentWindow,data:{type:'md-sales-height',height:300}});
  assert.equal(p.timers.size,0);assert.equal(frame.dataset.ready,'1');
+});
+
+test('trusted dialogs fill the screen, keep their place in the page and restore it on close',()=>{
+ const p=setup('/floor/activity'),frame=p.find('md-sales-frame'),original=frame.style.cssText;
+ const event={origin:'https://masduenos.laind.io',source:frame.contentWindow,data:{type:'md-sales-dialog',open:true}};
+ p.events.get('message')({...event,source:{}});assert.equal(frame.style.cssText,original);
+ p.events.get('message')(event);assert.match(frame.style.cssText,/position:fixed/);assert.match(frame.style.cssText,/height:100dvh/);
+ assert.equal(frame.parentElement.style.minHeight,'1000px');
+ p.events.get('message')({...event,data:{type:'md-sales-height',height:5000}});assert.equal(frame.style.height,undefined);
+ p.events.get('message')({...event,data:{type:'md-sales-dialog',open:false}});assert.equal(frame.style.cssText,original);
+ assert.equal(frame.parentElement.style.minHeight,undefined);assert.equal(p.context.window.__mdSalesModalOpen,false);
 });

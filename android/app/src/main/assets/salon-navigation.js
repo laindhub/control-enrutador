@@ -4,6 +4,31 @@
   window.__mdActivityIntegration = true;
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
+  let modalStyle, rootOverflow, sectionMinHeight;
+  function modal(frame, open) {
+    if (open === Boolean(window.__mdSalesModalOpen)) return;
+    window.__mdSalesModalOpen = open;
+    if (!frame) {
+      document.documentElement.style.overflow = rootOverflow || '';
+      return;
+    }
+    if (open) {
+      modalStyle = frame.style.cssText;
+      sectionMinHeight = frame.parentElement.style.minHeight;
+      frame.parentElement.style.minHeight = frame.parentElement.getBoundingClientRect().height + 'px';
+      rootOverflow = document.documentElement.style.overflow;
+      document.documentElement.style.overflow = 'hidden';
+      frame.style.cssText = 'position:fixed;inset:0;display:block;width:100vw;height:100dvh;border:0;background:white;z-index:2147483647';
+    } else {
+      frame.style.cssText = modalStyle;
+      frame.parentElement.style.minHeight = sectionMinHeight;
+      document.documentElement.style.overflow = rootOverflow;
+    }
+  }
+  window.__mdCloseSalesModal = () => {
+    const frame = document.getElementById('md-sales-frame');
+    if (frame) frame.contentWindow.postMessage({type:'md-sales-close-dialog'}, ownOrigin);
+  };
   function monitor(frame, attempt = 0) {
     clearTimeout(frame.mdRetryTimer);
     frame.mdRetryTimer = setTimeout(() => {
@@ -16,6 +41,7 @@
     scheduled = false;
     const existing = document.getElementById('md-sales-integration');
     if (location.pathname.replace(/\/$/, '') !== '/floor/activity') {
+      if (window.__mdSalesModalOpen) modal(document.getElementById('md-sales-frame'), false);
       if (existing) existing.remove();
       return;
     }
@@ -65,12 +91,13 @@
   window.addEventListener('message', event => {
     const frame = document.getElementById('md-sales-frame');
     if (!frame || event.origin !== ownOrigin || event.source !== frame.contentWindow) return;
+    if (event.data?.type === 'md-sales-dialog' && typeof event.data.open === 'boolean') modal(frame, event.data.open);
     if (event.data?.type === 'md-sales-height' && Number.isFinite(event.data.height)) {
       frame.dataset.ready = '1';
       clearTimeout(frame.mdRetryTimer);
       const status = document.getElementById('md-sales-loading');
       if (status) status.hidden = true;
-      frame.style.height = Math.max(260, Math.min(16000, event.data.height)) + 'px';
+      if (!window.__mdSalesModalOpen) frame.style.height = Math.max(260, Math.min(16000, event.data.height)) + 'px';
     }
   });
   window.addEventListener('md-sales-connected', () => {

@@ -105,13 +105,18 @@
    requestAnimationFrame(()=>{
     pending=false;
     const dialog=[...document.querySelectorAll('dialog')].some(d=>d.open);
-    const height=Math.max(document.body.scrollHeight,dialog?850:260);
+    window.parent.postMessage({type:'md-sales-dialog',open:dialog},'https://liniers.xn--somosmasdueos-skb.com');
+    const height=Math.max(document.body.scrollHeight,260);
     window.parent.postMessage({type:'md-sales-height',height},'https://liniers.xn--somosmasdueos-skb.com');
    });
   };
   new ResizeObserver(resize).observe(document.body);
   new MutationObserver(resize).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','open']});
   resize();
+  window.addEventListener('message',event=>{
+   if(event.origin!=='https://liniers.xn--somosmasdueos-skb.com'||event.source!==window.parent||event.data?.type!=='md-sales-close-dialog')return;
+   document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
+  });
  }
  load();if(!document.body.classList.contains('embedded')&&'serviceWorker'in navigator)navigator.serviceWorker.register('/presentador-sw.js',{scope:'/presentador'}).catch(()=>{});
 })();

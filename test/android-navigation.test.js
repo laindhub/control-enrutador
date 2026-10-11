@@ -12,22 +12,25 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
   get parentElement(){return this.parent;}
   getBoundingClientRect(){return {height:1000};}
   getAttribute(name){return this[name];}
-  setAttribute(){}
+  setAttribute(name,value){this[name]=value;}
+  addEventListener(name,fn){this[name]=fn;}
+  prepend(n){if(n.parent)n.remove();n.parent=this;this.children.unshift(n);}
+  get firstElementChild(){return this.children[0];}
   remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
  }
  const main=new Element('main'),original=new Element('p');original.textContent='136 derivaciones';main.append(original);
  function find(id,n=main){if(n.id===id)return n;for(const child of n.children){const found=find(id,child);if(found)return found;}return null;}
  const location={origin,pathname:path,href:origin+path};
- const window={__mdSalesPrepared:prepared,addEventListener:(name,fn)=>events.set(name,fn)};
+ const window={dispatchEvent(){},__mdSalesPrepared:prepared,addEventListener:(name,fn)=>events.set(name,fn)};
  const context={location,window,document:{documentElement:{style:{},append(){}},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
   MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
-  setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),history:{pushState(){},replaceState(){}},Date};
+  setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),Event:class{constructor(type){this.type=type;}},history:{pushState(){},replaceState(){}},Date};
  vm.runInNewContext(source,context);
  return {events,observers,timers,location,context,main,original,find,sync:()=>observers.forEach(fn=>fn())};
 }
 test('activity gains sales without replacing its content or intercepting original navigation',()=>{
  const p=setup('/floor/activity');
- assert.equal(p.main.children[0],p.original);assert.equal(p.original.textContent,'136 derivaciones');
+ assert.equal(p.main.children[1],p.original);assert.equal(p.original.textContent,'136 derivaciones');
  assert.ok(p.find('md-sales-integration'));assert.equal(p.find('md-sales-frame').src,'https://masduenos.laind.io/presentador/integrado');
  assert.equal(p.events.has('click'),false);assert.equal(p.location.href,'https://liniers.xn--somosmasdueos-skb.com/floor/activity');
 });
@@ -39,13 +42,13 @@ test('waits for first-party session preparation before making any iframe request
 test('activity arriving late stays above the embedded sales',()=>{
  const p=setup('/floor/activity'),section=p.find('md-sales-integration');
  p.main.append(p.original);p.sync();
- assert.equal(p.main.lastElementChild,section);assert.equal(p.main.children[0],p.original);
+ assert.equal(p.main.lastElementChild,section);assert.equal(p.main.children[1],p.original);
 });
 test('SPA navigation inserts once, removes the section elsewhere, and recreates it on return',()=>{
  const p=setup();assert.equal(p.find('md-sales-integration'),null);
- p.location.pathname='/floor/activity';p.sync();p.sync();assert.equal(p.main.children.length,2);
+ p.location.pathname='/floor/activity';p.sync();p.sync();assert.equal(p.main.children.length,3);
  p.location.pathname='/floor';p.sync();assert.equal(p.main.children.length,1);
- p.location.pathname='/floor/activity';p.sync();assert.equal(p.main.children.length,2);
+ p.location.pathname='/floor/activity';p.sync();assert.equal(p.main.children.length,3);
  vm.runInNewContext(source,p.context);assert.equal(p.observers.length,1);
 });
 test('resize accepts only the actual sales frame and bounds its height',()=>{
@@ -72,4 +75,12 @@ test('trusted dialogs fill the screen, keep their place in the page and restore 
  p.events.get('message')({...event,data:{type:'md-sales-height',height:5000}});assert.equal(frame.style.height,undefined);
  p.events.get('message')({...event,data:{type:'md-sales-dialog',open:false}});assert.equal(frame.style.cssText,original);
  assert.equal(frame.parentElement.style.minHeight,undefined);assert.equal(p.context.window.__mdSalesModalOpen,false);
+});
+
+test('activity tabs select leads and sales while keeping original content intact',()=>{
+ const p=setup('/floor/activity');const tabs=p.find('md-activity-tabs');
+ assert.equal(p.main.dataset.mdActivityTab,'leads');
+ tabs.children[1].click();assert.equal(p.main.dataset.mdActivityTab,'sales');
+ assert.equal(tabs.children[1]['aria-selected'],'true');assert.equal(p.original.textContent,'136 derivaciones');
+ tabs.children[0].click();assert.equal(p.main.dataset.mdActivityTab,'leads');
 });

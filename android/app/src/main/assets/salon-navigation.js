@@ -5,6 +5,8 @@
   const touchStyle = document.createElement('style');
   touchStyle.textContent = '*{-webkit-tap-highlight-color:transparent}button,a,summary,[role="button"]{-webkit-user-select:none;user-select:none}:focus:not(:focus-visible){outline:none}';
   document.documentElement.append(touchStyle);
+  touchStyle.textContent += '[data-md-activity-tab="leads"]>#md-sales-integration{display:none}[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-sales-integration){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
+  let activityMain;
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
   let modalStyle, rootOverflow, sectionMinHeight;
@@ -46,6 +48,9 @@
     if (location.pathname.replace(/\/$/, '') !== '/floor/activity') {
       if (window.__mdSalesModalOpen) modal(document.getElementById('md-sales-frame'), false);
       if (existing) existing.remove();
+      document.getElementById('md-activity-tabs')?.remove();
+      if (activityMain) delete activityMain.dataset.mdActivityTab;
+      activityMain = undefined;
       return;
     }
     let main = document.querySelector('main');
@@ -54,6 +59,29 @@
       main = title?.parentElement?.parentElement;
     }
     if (!main) return;
+    activityMain = main;
+    let tabs = document.getElementById('md-activity-tabs');
+    if (!tabs) {
+      tabs = document.createElement('div');
+      tabs.id = 'md-activity-tabs';
+      tabs.setAttribute('role', 'tablist');
+      tabs.setAttribute('aria-label', 'Mi actividad');
+      main.dataset.mdActivityTab = 'leads';
+      for (const [key, label] of [['leads','Leads'],['sales','Ventas']]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', String(key === 'leads'));
+        button.addEventListener('click', () => {
+          main.dataset.mdActivityTab = key;
+          for (const child of tabs.children) child.setAttribute('aria-selected', String(child === button));
+          window.dispatchEvent(new Event('resize'));
+        });
+        tabs.append(button);
+      }
+      main.prepend(tabs);
+    } else if (main.firstElementChild !== tabs) main.prepend(tabs);
     if (existing) {
       // React can append its activity after our section while the route finishes loading.
       if (main.lastElementChild !== existing) main.append(existing);
@@ -62,7 +90,7 @@
     const section = document.createElement('section');
     section.id = 'md-sales-integration';
     section.setAttribute('aria-label', 'Mis ventas y comisiones');
-    section.style.cssText = 'margin:32px 0 0;padding:28px 0 12px;border-top:1px solid #e5e5e5;width:100%;min-width:0';
+    section.style.cssText = 'margin:0;padding:0 0 12px;width:100%;min-width:0';
     const heading = document.createElement('h2');
     heading.textContent = 'Mis ventas y comisiones';
     heading.style.cssText = 'font:inherit;font-size:24px;font-weight:600;margin:0 0 8px;color:#111';

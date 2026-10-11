@@ -4,6 +4,14 @@
   window.__mdActivityIntegration = true;
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
+  function monitor(frame, attempt = 0) {
+    clearTimeout(frame.mdRetryTimer);
+    frame.mdRetryTimer = setTimeout(() => {
+      if (document.getElementById('md-sales-frame') !== frame || frame.dataset.ready === '1') return;
+      frame.src = ownOrigin + '/presentador/integrado?retry=' + Date.now();
+      monitor(frame, attempt + 1);
+    }, Math.min(30000, 5000 * 2 ** Math.min(attempt, 3)));
+  }
   function sync() {
     scheduled = false;
     const existing = document.getElementById('md-sales-integration');
@@ -32,6 +40,7 @@
     frame.style.cssText = 'display:block;width:100%;height:360px;border:0;background:white';
     section.append(heading, frame);
     main.append(section);
+    monitor(frame);
   }
   function schedule() {
     if (scheduled) return;
@@ -47,12 +56,19 @@
   window.addEventListener('message', event => {
     const frame = document.getElementById('md-sales-frame');
     if (!frame || event.origin !== ownOrigin || event.source !== frame.contentWindow) return;
-    if (event.data?.type === 'md-sales-height' && Number.isFinite(event.data.height))
+    if (event.data?.type === 'md-sales-height' && Number.isFinite(event.data.height)) {
+      frame.dataset.ready = '1';
+      clearTimeout(frame.mdRetryTimer);
       frame.style.height = Math.max(260, Math.min(16000, event.data.height)) + 'px';
+    }
   });
   window.addEventListener('md-sales-connected', () => {
     const frame = document.getElementById('md-sales-frame');
-    if (frame) frame.src = ownOrigin + '/presentador/integrado?t=' + Date.now();
+    if (frame) {
+      frame.dataset.ready = '0';
+      frame.src = ownOrigin + '/presentador/integrado?t=' + Date.now();
+      monitor(frame);
+    }
   });
   schedule();
 })();

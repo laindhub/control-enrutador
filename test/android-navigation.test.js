@@ -4,9 +4,9 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../android/app/src/main/assets/salon-navigation.js',import.meta.url),'utf8');
 function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com') {
- const events=new Map(),observers=[];
+ const events=new Map(),observers=[],timers=new Map();let timerId=0;
  class Element {
-  constructor(tag){this.tag=tag;this.children=[];this.style={};this.contentWindow={};}
+  constructor(tag){this.tag=tag;this.children=[];this.style={};this.dataset={};this.contentWindow={};}
   append(...nodes){for(const n of nodes){n.parent=this;this.children.push(n);}}
   setAttribute(){}
   remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
@@ -17,9 +17,9 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com')
  const window={addEventListener:(name,fn)=>events.set(name,fn)};
  const context={location,window,document:{documentElement:{},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
   MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
-  requestAnimationFrame:fn=>fn(),history:{pushState(){},replaceState(){}},Date};
+  setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),history:{pushState(){},replaceState(){}},Date};
  vm.runInNewContext(source,context);
- return {events,observers,location,context,main,original,find,sync:()=>observers.forEach(fn=>fn())};
+ return {events,observers,timers,location,context,main,original,find,sync:()=>observers.forEach(fn=>fn())};
 }
 test('activity gains sales without replacing its content or intercepting original navigation',()=>{
  const p=setup('/floor/activity');
@@ -41,3 +41,10 @@ test('resize accepts only the actual sales frame and bounds its height',()=>{
  onMessage({origin:'https://masduenos.laind.io',source:frame.contentWindow,data:{type:'md-sales-height',height:999}});assert.equal(frame.style.height,'999px');
 });
 test('other origins are untouched',()=>{const p=setup('/floor/activity','https://example.com');assert.equal(p.observers.length,0);assert.equal(p.main.children.length,1);});
+test('an unavailable initial frame retries progressively and stops after the trusted ready message',()=>{
+ const p=setup('/floor/activity'),frame=p.find('md-sales-frame');
+ const first=[...p.timers.values()][0];assert.equal(first.delay,5000);first.fn();
+ assert.match(frame.src,/retry=/);assert.equal([...p.timers.values()][0].delay,10000);
+ p.events.get('message')({origin:'https://masduenos.laind.io',source:frame.contentWindow,data:{type:'md-sales-height',height:300}});
+ assert.equal(p.timers.size,0);assert.equal(frame.dataset.ready,'1');
+});

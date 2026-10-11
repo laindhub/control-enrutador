@@ -243,7 +243,7 @@ dialog[open].is-closing { animation:dialog-out 160ms ease both; }
 dialog[open].is-closing::backdrop { animation:backdrop-out 160ms ease both; }
 @media (prefers-reduced-motion:reduce) { dialog[open], dialog[open]::backdrop { animation:none; } }
 .embedded .top { display:none; }
-.embedded .shell { width:100%; max-width:none; margin:0; padding:0 0 16px; }
+.embedded .shell { width:100%; max-width:none; min-width:0; margin:0; padding:0 18px 20px; }
 .embedded .tabs { position:static; inset:auto; display:flex; flex-wrap:wrap; gap:4px; width:100%; padding:8px 0; margin:0 0 20px; background:white; box-shadow:none; border:0; min-height:0; }
 .embedded .tabs button { flex:1; min-width:70px; min-height:44px; border-radius:10px; padding:10px 8px; font-size:14px; }
 .embedded .tabs button svg { display:none; }
@@ -252,6 +252,14 @@ dialog[open].is-closing::backdrop { animation:backdrop-out 160ms ease both; }
 .embedded .intro p { margin:0 0 16px; font-size:16px; }
 .embedded .card { padding:20px; }
 .embedded .section-head { gap:12px; flex-wrap:wrap; }
+@media (max-width: 700px) {
+  .embedded #panel-leads > .section-head:first-child { flex-direction:column; align-items:stretch; gap:10px; }
+  .embedded #panel-leads > .section-head:first-child > label { display:block; width:100%; min-width:0; }
+  .embedded #panel-leads > .section-head:first-child input { display:block; width:100%; max-width:100%; }
+}
+@media (max-width: 360px) {
+  .embedded .shell { padding-inline:14px; }
+}
 
 .embedded.leads-active .tabs{display:none}.offdays{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px}.offdays label,.check-row{display:flex;align-items:center;gap:8px}.offdays input,.check-row input{width:20px;min-height:20px;margin:0}.offdays label{padding:10px;border:1px solid #e5e5e5;border-radius:12px}#lead-progress progress{width:100%;height:12px;accent-color:#111}#lead-metrics strong{font-size:clamp(22px,6vw,36px)}#lead-plan-form,#lead-policy-form,#branch-sales-form{margin-top:20px}#lead-notice{margin:12px 0}#panel-leads>.card{margin:20px 0}
 

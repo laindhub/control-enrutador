@@ -64,14 +64,14 @@
   function activityHistoryAnchor(main) {
     const nodes = main.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div');
     const heading = [...nodes].find(node => node.children.length === 0 &&
-      (node.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase() === 'lo que hice');
+      (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() === 'lo que hice');
     if (!heading) return null;
     let anchor = heading;
     while (anchor.parentElement && anchor.parentElement !== main) {
       const parent = anchor.parentElement;
       const text = (parent.textContent || '').toLowerCase();
       // Do not move the integration ahead of the salon's existing monthly totals.
-      if (/\\bmi mes\\b|\\bpasos hoy\\b|\\bderivaciones\\b|de lo que hice/.test(text)) break;
+      if (/\bmi mes\b|\bpasos hoy\b|\bderivaciones\b|de lo que hice/.test(text)) break;
       anchor = parent;
     }
     return anchor;

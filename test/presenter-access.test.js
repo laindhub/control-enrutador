@@ -85,6 +85,12 @@ test('presenter template renders both roles and escapes usernames',async()=>{
     const html=await ejs.renderFile(new URL('../views/presenter.ejs',import.meta.url).pathname,{title:'Ventas',user:{role,username:'<script>bad</script>'},csrfToken:'test-token',assetUrl:path=>path});
     assert.ok(html.includes('&lt;script&gt;bad&lt;/script&gt;'));
     assert.ok(html.includes('presentador.webmanifest'));
+    assert.ok(!html.includes('id="panel-leads"'));
+    assert.ok(!html.includes('js/presenter-leads.js'));
+    const embeddedHtml=await ejs.renderFile(new URL('../views/presenter.ejs',import.meta.url).pathname,{user:{role,username:'nahuel'},embedded:true,csrfToken:'test-token',assetUrl:path=>path});
+    assert.ok(embeddedHtml.includes('id="panel-leads"'));
+    assert.ok(!embeddedHtml.includes('data-tab="leads"'));
+    assert.ok(embeddedHtml.includes('<span>Resumen</span>'));
     assert.equal(html.includes('id="panel-admin"'),role==='presenter_admin');
   }
 });

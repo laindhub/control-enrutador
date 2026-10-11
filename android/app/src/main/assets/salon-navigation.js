@@ -5,7 +5,7 @@
   const touchStyle = document.createElement('style');
   touchStyle.textContent = '*{-webkit-tap-highlight-color:transparent}button,a,summary,[role="button"]{-webkit-user-select:none;user-select:none}:focus:not(:focus-visible){outline:none}';
   document.documentElement.append(touchStyle);
-  touchStyle.textContent += '[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-sales-integration){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
+  touchStyle.textContent += '[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-sales-integration):not(:has(#md-sales-integration)){display:none!important}[data-md-activity-tab="sales"] :has(#md-sales-integration)>:not(#md-sales-integration):not(:has(#md-sales-integration)){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
   let activityMain;
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
@@ -59,6 +59,33 @@
     frame.dataset.sourceSent=key;
     frame.contentWindow.postMessage(data,ownOrigin);
   }
+  // The salon can render a long React activity timeline. Keep our metrics above
+  // "lo que hice" while leaving the original statistics and history untouched.
+  function activityHistoryAnchor(main) {
+    const nodes = main.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div');
+    const heading = [...nodes].find(node => node.children.length === 0 &&
+      (node.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase() === 'lo que hice');
+    if (!heading) return null;
+    let anchor = heading;
+    while (anchor.parentElement && anchor.parentElement !== main) {
+      const parent = anchor.parentElement;
+      const text = (parent.textContent || '').toLowerCase();
+      // Do not move the integration ahead of the salon's existing monthly totals.
+      if (/\\bmi mes\\b|\\bpasos hoy\\b|\\bderivaciones\\b|de lo que hice/.test(text)) break;
+      anchor = parent;
+    }
+    return anchor;
+  }
+  function placeIntegration(main, section) {
+    const history = activityHistoryAnchor(main);
+    if (history && history.parentElement) {
+      const parent = history.parentElement;
+      if (section.parentElement !== parent || section.nextElementSibling !== history)
+        parent.insertBefore(section, history);
+    } else if (section.parentElement !== main || main.lastElementChild !== section) {
+      main.append(section);
+    }
+  }
   function sync() {
     scheduled = false;
     const existing = document.getElementById('md-sales-integration');
@@ -103,8 +130,8 @@
       main.prepend(tabs);
     } else if (main.firstElementChild !== tabs) main.prepend(tabs);
     if (existing) {
-      // React can append its activity after our section while the route finishes loading.
-      if (main.lastElementChild !== existing) main.append(existing);
+      // React can add history entries at any time; keep the panel before the timeline.
+      placeIntegration(main, existing);
       sendSource(document.getElementById('md-sales-frame'));
       return;
     }
@@ -127,7 +154,7 @@
     if (window.__mdSalesPrepared !== false) frame.src = ownOrigin + '/presentador/integrado?area=leads';
     frame.style.cssText = 'display:block;width:100%;height:360px;border:0;background:white';
     section.append(heading, status, frame);
-    main.append(section);
+    placeIntegration(main, section);
     if (frame.src) monitor(frame);
   }
   function schedule() {

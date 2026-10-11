@@ -1,0 +1,38 @@
+name: Build Android unsigned APK
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install SDK packages
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile release without signing key
+        working-directory: android
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Upload unsigned package
+        uses: actions/upload-artifact@v4
+        with:
+          name: masduenos-salon-1.2.5-unsigned
+          path: android/app/build/outputs/apk/release/*unsigned.apk
+          if-no-files-found: error

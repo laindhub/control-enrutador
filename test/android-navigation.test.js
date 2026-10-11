@@ -6,10 +6,14 @@ const source=readFileSync(new URL('../android/app/src/main/assets/salon-navigati
 function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',prepared=true) {
  const events=new Map(),observers=[],timers=new Map();let timerId=0;
  class Element {
-  constructor(tag){this.tag=tag;this.children=[];this.style={};this.dataset={};this.messages=[];this.contentWindow={postMessage:(data,origin)=>this.messages.push({data,origin})};}
+  constructor(tag){this.tag=tag;this.children=[];this.style={};this.dataset={};this.messages=[];this.contentWindow={postMessage:(data,origin)=>this.messages.push({data,origin})};this.ownText='';}
+  set textContent(value){this.ownText=value;}
+  get textContent(){return this.ownText+this.children.map(node=>node.textContent).join('');}
   append(...nodes){for(const n of nodes){if(n.parent)n.remove();n.parent=this;this.children.push(n);}}
-  querySelectorAll(){return this.children;}
+  insertBefore(node,other){if(!this.children.includes(other))throw Error('Invalid reference');if(node.parent)node.remove();node.parent=this;this.children.splice(this.children.indexOf(other),0,node);}
+  querySelectorAll(selector){const tags=selector.split(',').map(tag=>tag.trim());const found=[];const walk=el=>{for(const child of el.children){if(tags.includes(child.tag))found.push(child);walk(child);}};walk(this);return found;}
   get lastElementChild(){return this.children.at(-1);}
+  get nextElementSibling(){return this.parent?.children[this.parent.children.indexOf(this)+1]||null;}
   get parentElement(){return this.parent;}
   getBoundingClientRect(){return {height:1000};}
   getAttribute(name){return this[name];}
@@ -17,7 +21,7 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
   addEventListener(name,fn){this[name]=fn;}
   prepend(n){if(n.parent)n.remove();n.parent=this;this.children.unshift(n);}
   get firstElementChild(){return this.children[0];}
-  remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
+  remove(){if(!this.parent)return;this.parent.children=this.parent.children.filter(n=>n!==this);this.parent=undefined;}
  }
  const header=new Element('header'),label=new Element('span');label.textContent='Nahuel · Liniers';header.append(label);
  const main=new Element('main'),original=new Element('p');original.textContent='136 derivaciones';main.append(original);
@@ -95,4 +99,32 @@ test('reads monthly derivations and source identity without adding manual data t
  assert.equal(payload.origin,'https://masduenos.laind.io');
  const count=frame.messages.length;p.sync();assert.equal(frame.messages.length,count);
  p.original.textContent='mi mes · noviembre de 2026 Derivaciones 10';p.sync();assert.equal(frame.messages.at(-1).data.month,'2026-11');
+});
+
+test('long salon history stays below the embedded metrics and never grows above them',()=>{
+ const p=setup('/floor/activity'),create=tag=>p.context.document.createElement(tag),section=p.find('md-sales-integration');
+ const totals=create('section');totals.textContent='mi mes · octubre de 2026 Derivaciones 140';
+ const history=create('section'),label=create('h3'),list=create('div');label.textContent='lo que hice';history.append(label,list);
+ p.main.insertBefore(totals,section);p.main.insertBefore(history,section);
+ for(let i=0;i<50;i++){const entry=create('p');entry.textContent='Derivación '+(i+1);list.append(entry);}
+ p.sync();
+ assert.deepEqual(p.main.children.map(child=>child===section?'embedded':child===totals?'totals':child===history?'history':child.tag),['div','p','totals','embedded','history']);
+ const extra=create('p');extra.textContent='Derivación 51';list.prepend(extra);p.sync();p.sync();
+ assert.equal(section.nextElementSibling,history);
+ assert.equal(history.children[1].children.length,51);
+ assert.equal(totals.textContent,'mi mes · octubre de 2026 Derivaciones 140');
+});
+test('nested React content keeps totals first, integrated metrics second and timeline last',()=>{
+ const p=setup('/floor/activity'),create=tag=>p.context.document.createElement(tag),section=p.find('md-sales-integration');
+ const wrapper=create('div'),totals=create('section'),history=create('section'),heading=create('div'),entries=create('div');
+ totals.textContent='4 pasos hoy mi mes · octubre de 2026 Derivaciones 140 de lo que hice, cuánto siguió';
+ heading.textContent='lo que hice';history.append(heading,entries);wrapper.append(totals,history);
+ p.main.insertBefore(wrapper,section);p.sync();
+ assert.deepEqual(wrapper.children.map(node=>node===section?'embedded':node===totals?'totals':'history'),['totals','embedded','history']);
+ p.find('md-activity-tabs').children[1].click();
+ assert.equal(p.main.dataset.mdActivityTab,'sales');
+ assert.equal(p.find('md-sales-integration').parentElement,wrapper);
+ p.location.pathname='/floor';p.sync();
+ assert.equal(p.find('md-sales-integration'),null);
+ assert.equal(wrapper.children.includes(history),true);
 });

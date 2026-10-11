@@ -63,8 +63,9 @@
   // "lo que hice" while leaving the original statistics and history untouched.
   function activityHistoryAnchor(main) {
     const nodes = main.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div');
-    const heading = [...nodes].find(node => node.children.length === 0 &&
-      (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() === 'lo que hice');
+    const title = node => (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const heading = [...nodes].find(node => title(node) === 'lo que hice' &&
+      ![...node.children].some(child => title(child) === 'lo que hice'));
     if (!heading) return null;
     let anchor = heading;
     while (anchor.parentElement && anchor.parentElement !== main) {

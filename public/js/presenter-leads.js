@@ -11,7 +11,10 @@
  function render(){
   const s=state.summary,p=state.policy,snapshot=state.snapshot,manual=state.entries.reduce((n,e)=>n+Number(e.quantity),0);
   $('#lead-account').textContent=`Cuenta de comisiones: ${state.user.username}. `+(snapshot?`Salón: ${snapshot.source_label} · actualizado ${snapshot.captured_at} UTC.`:'Abrí Yo en la app para leer las derivaciones del salón. Las cargas externas quedan guardadas aunque no haya lectura del salón.');
-  $('#lead-metrics').innerHTML=[['Entrevistas del mes',s.total],['Salón · observadas',snapshot?Number(snapshot.quantity):'Sin lectura'],['Otros registros',manual],['Comisión desbloqueada',ars(s.earned)],['Acumulado potencial',ars(s.potential)],['Necesitás por día',s.perDay===null?'Mes finalizado':s.perDay]].map(([label,value])=>`<article class="metric"><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`).join('');
+  const eliteRemaining=Math.max(0,p.elite-s.total);
+  const eliteDaily=eliteRemaining===0?0:s.workingDays>0?Math.ceil(eliteRemaining/s.workingDays):null;
+  const eliteDailyNote=eliteRemaining===0?'Meta élite alcanzada':eliteDaily===null?`Sin días restantes para llegar a ${p.elite}`:`Para llegar a ${p.elite}: ${eliteDaily} por día`;
+  $('#lead-metrics').innerHTML=[['Entrevistas del mes',s.total],['Salón · observadas',snapshot?Number(snapshot.quantity):'Sin lectura'],['Otros registros',manual],['Comisión desbloqueada',ars(s.earned)],['Acumulado potencial',ars(s.potential),`Al llegar a ${p.elite}: ${ars(p.elite*p.eliteRate)}`],['Necesitás por día',s.perDay===null?'Mes finalizado':s.perDay,eliteDailyNote]].map(([label,value,note])=>`<article class="metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${note?`<small class="metric-note">${esc(note)}</small>`:''}</article>`).join('');
   const scale=Math.max(p.elite,s.target),leadPercent=Math.min(100,s.total/scale*100);
   const marks=[{value:p.unlock,label:'Desbloqueo'},{value:p.elite,label:'Élite'}];
   if(!marks.some(m=>m.value===s.target))marks.push({value:s.target,label:'Tu meta'});

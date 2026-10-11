@@ -5,7 +5,7 @@
   const touchStyle = document.createElement('style');
   touchStyle.textContent = '*{-webkit-tap-highlight-color:transparent}button,a,summary,[role="button"]{-webkit-user-select:none;user-select:none}:focus:not(:focus-visible){outline:none}';
   document.documentElement.append(touchStyle);
-  touchStyle.textContent += '[data-md-activity-tab="leads"]>#md-sales-integration{display:none}[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-sales-integration){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
+  touchStyle.textContent += '[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-sales-integration){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
   let activityMain;
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
@@ -38,9 +38,26 @@
     clearTimeout(frame.mdRetryTimer);
     frame.mdRetryTimer = setTimeout(() => {
       if (document.getElementById('md-sales-frame') !== frame || frame.dataset.ready === '1') return;
-      frame.src = ownOrigin + '/presentador/integrado?retry=' + Date.now();
+      frame.src = ownOrigin + '/presentador/integrado?area='+ (activityMain?.dataset.mdActivityTab || 'leads') +'&retry=' + Date.now();
       monitor(frame, attempt + 1);
     }, Math.min(30000, 5000 * 2 ** Math.min(attempt, 3)));
+  }
+  function sendSource(frame) {
+    if (!frame || !activityMain) return;
+    const originalText = [...activityMain.children].filter(el => !['md-activity-tabs','md-sales-integration'].includes(el.id)).map(el => el.innerText || el.textContent || '').join(' ');
+    const count = originalText.match(/Derivaciones\s+([\d.]+)/i);
+    const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const month = originalText.match(/mi mes\s*[·•-]?\s*([a-z]+)\s*(?:de\s*)?(\d{4})/i);
+    const monthIndex = months.indexOf(month?.[1]?.toLowerCase());
+    const header = document.querySelector('header');
+    const labels = header ? [...header.querySelectorAll('span,p,div,button')].map(el=>el.textContent.trim()).filter(text=>/·\s*Liniers/.test(text)).sort((a,b)=>a.length-b.length) : [];
+    const sourceLabel = labels[0]?.split('·')[0].trim().replace(/^[A-Z]{2}\s+(?=[A-ZÁÉÍÓÚÑ][a-záéíóúñ])/, '');
+    if (!count || !month || monthIndex < 0 || !sourceLabel) return;
+    const data = {type:'md-lead-source', month:month[2]+'-'+String(monthIndex+1).padStart(2,'0'),quantity:Number(count[1].replace(/\./g,'')),sourceLabel};
+    const key=JSON.stringify(data);
+    if(frame.dataset.sourceSent===key)return;
+    frame.dataset.sourceSent=key;
+    frame.contentWindow.postMessage(data,ownOrigin);
   }
   function sync() {
     scheduled = false;
@@ -76,6 +93,9 @@
         button.addEventListener('click', () => {
           main.dataset.mdActivityTab = key;
           for (const child of tabs.children) child.setAttribute('aria-selected', String(child === button));
+          const frame=document.getElementById('md-sales-frame');
+          if(frame)frame.contentWindow.postMessage({type:'md-activity-area',area:key},ownOrigin);
+          sendSource(frame);
           window.dispatchEvent(new Event('resize'));
         });
         tabs.append(button);
@@ -85,6 +105,7 @@
     if (existing) {
       // React can append its activity after our section while the route finishes loading.
       if (main.lastElementChild !== existing) main.append(existing);
+      sendSource(document.getElementById('md-sales-frame'));
       return;
     }
     const section = document.createElement('section');
@@ -93,6 +114,7 @@
     section.style.cssText = 'margin:0;padding:0 0 12px;width:100%;min-width:0';
     const heading = document.createElement('h2');
     heading.textContent = 'Mis ventas y comisiones';
+    heading.hidden = true;
     heading.style.cssText = 'font:inherit;font-size:24px;font-weight:600;margin:0 0 8px;color:#111';
     const frame = document.createElement('iframe');
     const status = document.createElement('p');
@@ -102,7 +124,7 @@
     status.style.cssText = 'margin:12px 0;color:#666;font:inherit';
     frame.id = 'md-sales-frame';
     frame.title = 'Ventas, carpetas y pagos';
-    if (window.__mdSalesPrepared !== false) frame.src = ownOrigin + '/presentador/integrado';
+    if (window.__mdSalesPrepared !== false) frame.src = ownOrigin + '/presentador/integrado?area=leads';
     frame.style.cssText = 'display:block;width:100%;height:360px;border:0;background:white';
     section.append(heading, status, frame);
     main.append(section);
@@ -113,7 +135,7 @@
     scheduled = true;
     requestAnimationFrame(sync);
   }
-  new MutationObserver(schedule).observe(document.documentElement, {childList:true,subtree:true});
+  new MutationObserver(schedule).observe(document.documentElement, {childList:true,subtree:true,characterData:true});
   window.addEventListener('popstate', schedule);
   for (const method of ['pushState', 'replaceState']) {
     const original = history[method];
@@ -122,6 +144,11 @@
   window.addEventListener('message', event => {
     const frame = document.getElementById('md-sales-frame');
     if (!frame || event.origin !== ownOrigin || event.source !== frame.contentWindow) return;
+    if(event.data?.type==='md-leads-ready'){
+      delete frame.dataset.sourceSent;
+      frame.contentWindow.postMessage({type:'md-activity-area',area:activityMain?.dataset.mdActivityTab||'leads'},ownOrigin);
+      sendSource(frame);
+    }
     if (event.data?.type === 'md-sales-dialog' && typeof event.data.open === 'boolean') modal(frame, event.data.open);
     if (event.data?.type === 'md-sales-height' && Number.isFinite(event.data.height)) {
       frame.dataset.ready = '1';
@@ -135,14 +162,14 @@
     const frame = document.getElementById('md-sales-frame');
     if (frame) {
       frame.dataset.ready = '0';
-      frame.src = ownOrigin + '/presentador/integrado?t=' + Date.now();
+      frame.src = ownOrigin + '/presentador/integrado?area='+ (activityMain?.dataset.mdActivityTab || 'leads') +'&t=' + Date.now();
       monitor(frame);
     }
   });
   window.addEventListener('md-sales-prepared', () => {
     const frame = document.getElementById('md-sales-frame');
     if (frame && !frame.getAttribute('src')) {
-      frame.src = ownOrigin + '/presentador/integrado';
+      frame.src = ownOrigin + '/presentador/integrado?area=leads';
       monitor(frame);
     }
   });

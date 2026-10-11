@@ -6,8 +6,9 @@ const source=readFileSync(new URL('../android/app/src/main/assets/salon-navigati
 function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',prepared=true) {
  const events=new Map(),observers=[],timers=new Map();let timerId=0;
  class Element {
-  constructor(tag){this.tag=tag;this.children=[];this.style={};this.dataset={};this.contentWindow={};}
+  constructor(tag){this.tag=tag;this.children=[];this.style={};this.dataset={};this.messages=[];this.contentWindow={postMessage:(data,origin)=>this.messages.push({data,origin})};}
   append(...nodes){for(const n of nodes){if(n.parent)n.remove();n.parent=this;this.children.push(n);}}
+  querySelectorAll(){return this.children;}
   get lastElementChild(){return this.children.at(-1);}
   get parentElement(){return this.parent;}
   getBoundingClientRect(){return {height:1000};}
@@ -18,11 +19,12 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
   get firstElementChild(){return this.children[0];}
   remove(){this.parent.children=this.parent.children.filter(n=>n!==this);}
  }
+ const header=new Element('header'),label=new Element('span');label.textContent='Nahuel · Liniers';header.append(label);
  const main=new Element('main'),original=new Element('p');original.textContent='136 derivaciones';main.append(original);
  function find(id,n=main){if(n.id===id)return n;for(const child of n.children){const found=find(id,child);if(found)return found;}return null;}
  const location={origin,pathname:path,href:origin+path};
  const window={dispatchEvent(){},__mdSalesPrepared:prepared,addEventListener:(name,fn)=>events.set(name,fn)};
- const context={location,window,document:{documentElement:{style:{},append(){}},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
+ const context={location,window,document:{documentElement:{style:{},append(){}},getElementById:find,querySelector:selector=>selector==='header'?header:main,createElement:tag=>new Element(tag)},
   MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
   setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),Event:class{constructor(type){this.type=type;}},history:{pushState(){},replaceState(){}},Date};
  vm.runInNewContext(source,context);
@@ -31,13 +33,13 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
 test('activity gains sales without replacing its content or intercepting original navigation',()=>{
  const p=setup('/floor/activity');
  assert.equal(p.main.children[1],p.original);assert.equal(p.original.textContent,'136 derivaciones');
- assert.ok(p.find('md-sales-integration'));assert.equal(p.find('md-sales-frame').src,'https://masduenos.laind.io/presentador/integrado');
+ assert.ok(p.find('md-sales-integration'));assert.equal(p.find('md-sales-frame').src,'https://masduenos.laind.io/presentador/integrado?area=leads');
  assert.equal(p.events.has('click'),false);assert.equal(p.location.href,'https://liniers.xn--somosmasdueos-skb.com/floor/activity');
 });
 test('waits for first-party session preparation before making any iframe request',()=>{
  const p=setup('/floor/activity',undefined,false),frame=p.find('md-sales-frame');
  assert.equal(frame.src,undefined);assert.equal(p.timers.size,0);
- p.events.get('md-sales-prepared')();assert.match(frame.src,/presentador\/integrado$/);
+ p.events.get('md-sales-prepared')();assert.match(frame.src,/presentador\/integrado\?area=leads$/);
 });
 test('activity arriving late stays above the embedded sales',()=>{
  const p=setup('/floor/activity'),section=p.find('md-sales-integration');
@@ -83,4 +85,14 @@ test('activity tabs select leads and sales while keeping original content intact
  tabs.children[1].click();assert.equal(p.main.dataset.mdActivityTab,'sales');
  assert.equal(tabs.children[1]['aria-selected'],'true');assert.equal(p.original.textContent,'136 derivaciones');
  tabs.children[0].click();assert.equal(p.main.dataset.mdActivityTab,'leads');
+});
+
+test('reads monthly derivations and source identity without adding manual data to the source count',()=>{
+ const p=setup('/floor/activity'),frame=p.find('md-sales-frame');
+ p.original.textContent='mi mes · octubre de 2026 Derivaciones 136';p.sync();
+ const payload=frame.messages.find(m=>m.data.type==='md-lead-source');
+ assert.deepEqual(JSON.parse(JSON.stringify(payload.data)),{type:'md-lead-source',month:'2026-10',quantity:136,sourceLabel:'Nahuel'});
+ assert.equal(payload.origin,'https://masduenos.laind.io');
+ const count=frame.messages.length;p.sync();assert.equal(frame.messages.length,count);
+ p.original.textContent='mi mes · noviembre de 2026 Derivaciones 10';p.sync();assert.equal(frame.messages.at(-1).data.month,'2026-11');
 });

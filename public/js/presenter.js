@@ -4,7 +4,7 @@
  const date=v=>v?new Intl.DateTimeFormat('es-AR',{day:'numeric',month:'short'}).format(new Date(v+'T12:00:00')):'—';
  let state,removeAction,loading=false,retryTimer,retryAttempt=0;
  function showPanel(tab,updateUrl=true){
-  const allowed=['sales','folders','payments','admin'];
+  const allowed=['leads','sales','folders','payments','admin'];
   if(!allowed.includes(tab)||!$('#panel-'+tab))tab='sales';
   document.querySelectorAll('[id^="panel-"]').forEach(p=>p.hidden=p.id!=='panel-'+tab);
   document.querySelectorAll('[data-tab]').forEach(b=>{
@@ -12,6 +12,7 @@
    b.classList.toggle('selected',selected);
    if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
+  document.body.classList.toggle('leads-active',tab==='leads');
   if(updateUrl)history.replaceState(null,'','#'+tab);
   if(!document.body.classList.contains('embedded'))window.scrollTo({top:0,behavior:'instant'});
  }
@@ -96,8 +97,8 @@
  window.addEventListener('offline',()=>{clearTimeout(retryTimer);connectionNotice('Sin conexión. Tus datos visibles se conservan; reconectaremos automáticamente.');});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(retryTimer);else{retryAttempt=0;load();}});
  window.addEventListener('pagehide',()=>clearTimeout(retryTimer));
- showPanel(location.hash.slice(1),false);
- window.addEventListener('hashchange',()=>showPanel(location.hash.slice(1),false));
+ showPanel(location.hash.slice(1)||new URLSearchParams(location.search).get('area'),false);
+ window.addEventListener('hashchange',()=>showPanel(location.hash.slice(1)||new URLSearchParams(location.search).get('area'),false));
  if(document.body.classList.contains('embedded')){
   let pending=false;
   const resize=()=>{
@@ -114,6 +115,7 @@
   new MutationObserver(resize).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','open']});
   resize();
   window.addEventListener('message',event=>{
+   if(event.origin==='https://liniers.xn--somosmasdueos-skb.com'&&event.source===window.parent&&event.data?.type==='md-activity-area'){showPanel(event.data.area,false);return;}
    if(event.origin!=='https://liniers.xn--somosmasdueos-skb.com'||event.source!==window.parent||event.data?.type!=='md-sales-close-dialog')return;
    document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
   });

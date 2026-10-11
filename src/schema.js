@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { pool } from './db.js';
 import { config } from './config.js';
 
-const SCHEMA_VERSION = '5';
+const SCHEMA_VERSION = '6';
 const META_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS system_meta (
   meta_key VARCHAR(100) PRIMARY KEY,
   meta_value TEXT NOT NULL,
@@ -237,6 +237,26 @@ const schemaStatements = [
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, deleted_at DATETIME NULL,
     UNIQUE KEY uq_presenter_sale (user_id,fingerprint), KEY idx_presenter_date (user_id,announced_date),
     FOREIGN KEY (user_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS presenter_lead_policies (
+    month CHAR(7) PRIMARY KEY, policy_json JSON NOT NULL, updated_by INT UNSIGNED NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `INSERT IGNORE INTO presenter_lead_policies (month,policy_json) VALUES ('2026-10','{"unlock":650,"elite":780,"baseRate":1350,"eliteRate":1500}')`,
+  `CREATE TABLE IF NOT EXISTS presenter_lead_snapshots (
+    user_id INT UNSIGNED NOT NULL, month CHAR(7) NOT NULL, quantity INT UNSIGNED NOT NULL,
+    source_label VARCHAR(255) NOT NULL DEFAULT '', captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id,month), FOREIGN KEY (user_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS presenter_lead_entries (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id INT UNSIGNED NOT NULL,
+    entry_date DATE NOT NULL, quantity INT UNSIGNED NOT NULL, notes VARCHAR(1000) NOT NULL,
+    request_id CHAR(36) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,deleted_at DATETIME NULL,
+    UNIQUE KEY uq_lead_entry (user_id,request_id),KEY idx_lead_entry (user_id,entry_date),FOREIGN KEY (user_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS presenter_lead_plans (
+    user_id INT UNSIGNED NOT NULL,month CHAR(7) NOT NULL,plan_json JSON NOT NULL,
+    PRIMARY KEY (user_id,month),FOREIGN KEY (user_id) REFERENCES users(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS presenter_payments (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL,

@@ -49,6 +49,14 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
     calls.length=0;
     await request('/leads?name=Sandra&date=2026-10-10&advisor=Diana');
     assert.deepEqual(calls[0].params,['Sandra%','%Sandra%','2026-10-10','Diana%']);
+    calls.length=0;
+    assert.equal((await request('/lead-policy','POST','presenter',{month:'2026-10'})).status,403);
+    assert.equal((await request('/lead-state?month=2026-10')).status,200);
+    assert.ok(calls.filter(c=>/presenter_lead_(snapshots|entries|plans)/.test(c.sql)).every(c=>c.params[0]===7));
+    calls.length=0;
+    assert.equal((await request('/lead-entries/99','DELETE')).status,404);
+    assert.deepEqual(calls[0].params,[99,7]);
+    assert.equal((await request('/lead-plan','POST','presenter',{month:'2026-10',goal:650,offDays:[1]})).status,400);
     for (const password of ['', '123', '1234567']) {
       calls.length=0;
       const response=await request('/users','POST','presenter_admin',{username:'nicole',password});

@@ -14,7 +14,7 @@ function panel(responses) {
       textContent:'',innerHTML:'',scrollIntoView(){},elements:{namedItem(){return {value:'',onchange:null};}}});
     return nodes.get(selector);
   };
-  const document = {body:{classList:{contains:()=>false}},hidden:false,querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events.set('document:'+name,fn)};
+  const document = {body:{classList:{contains:()=>false,toggle(){}}},hidden:false,querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events.set('document:'+name,fn)};
   const navigator={onLine:true};
   vm.runInNewContext(source, {document,navigator,window:{scrollTo(){},addEventListener:(name,fn)=>events.set(name,fn)},
     location:{hash:''},history:{replaceState(){}},Intl,Date,AbortController,URLSearchParams,

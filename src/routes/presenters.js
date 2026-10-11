@@ -119,11 +119,23 @@ export function createPresenterRouter() {
   const username=text(req.body.username,80),password=String(req.body.password||'');
   if(username.length<3||Buffer.byteLength(password,'utf8')>72)return res.status(400).json({error:'Usuario: mínimo 3 caracteres. La contraseña es opcional y admite hasta 72 bytes.'});
   const hash=await bcrypt.hash(password,12);
-  try{await pool.execute("INSERT INTO users (username,password_hash,role) VALUES (?,?,'presenter')",[username,hash]);res.status(201).json({ok:true});}catch(error){if(error.code==='ER_DUP_ENTRY')return res.status(409).json({error:'Ese usuario ya existe.'});throw error;}
+  try{
+   await withTransaction(async db=>{
+    const [result]=await db.execute("INSERT INTO users (username,password_hash,role) VALUES (?,?,'presenter')",[username,hash]);
+    await db.execute('INSERT INTO presenter_admin_audit (actor_id,target_id,action) VALUES (?,?,?)',[req.session.user.id,result.insertId,'account_created']);
+   });
+   res.status(201).json({ok:true});
+  }catch(error){if(error.code==='ER_DUP_ENTRY')return res.status(409).json({error:'Ese usuario ya existe.'});throw error;}
  });
  router.patch('/users/:id',adminAccess,async(req,res)=>{
   if(typeof req.body.active!=='boolean')return res.status(400).json({error:'Estado inválido.'});
-  const [result]=await pool.execute("UPDATE users SET active=? WHERE id=? AND role='presenter'",[req.body.active,id(req.params.id)]);res.status(result.affectedRows?200:404).json(result.affectedRows?{ok:true}:{error:'Presentador no encontrado.'});
+  const targetId=id(req.params.id);
+  const found=await withTransaction(async db=>{
+   const [result]=await db.execute("UPDATE users SET active=? WHERE id=? AND role='presenter'",[req.body.active,targetId]);
+   if(result.affectedRows)await db.execute('INSERT INTO presenter_admin_audit (actor_id,target_id,action) VALUES (?,?,?)',[req.session.user.id,targetId,req.body.active?'account_activated':'account_deactivated']);
+   return result.affectedRows;
+  });
+  res.status(found?200:404).json(found?{ok:true}:{error:'Presentador no encontrado.'});
  });
  return router;
 }

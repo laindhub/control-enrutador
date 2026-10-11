@@ -11,28 +11,32 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
   get textContent(){return this.ownText+this.children.map(node=>node.textContent).join('');}
   append(...nodes){for(const n of nodes){if(n.parent)n.remove();n.parent=this;this.children.push(n);}}
   insertBefore(node,other){if(!this.children.includes(other))throw Error('Invalid reference');if(node.parent)node.remove();node.parent=this;this.children.splice(this.children.indexOf(other),0,node);}
-  querySelectorAll(selector){const tags=selector.split(',').map(tag=>tag.trim());const found=[];const walk=el=>{for(const child of el.children){if(tags.includes(child.tag))found.push(child);walk(child);}};walk(this);return found;}
+  querySelectorAll(selector){const tags=selector.split(',').map(tag=>tag.trim());const found=[];const walk=el=>{for(const child of el.children){if(tags.includes(child.tag)||tags.includes('[role="link"]')&&child.role==='link'||tags.includes('[role="tab"]')&&child.role==='tab')found.push(child);walk(child);}};walk(this);return found;}
   get lastElementChild(){return this.children.at(-1);}
   get nextElementSibling(){return this.parent?.children[this.parent.children.indexOf(this)+1]||null;}
   get parentElement(){return this.parent;}
-  getBoundingClientRect(){return this.tag==='header'?{height:76,bottom:76}:{height:1000};}
-  getAttribute(name){return this[name];}
+  getBoundingClientRect(){return this.tag==='header'?{height:76,bottom:76}:this.tag==='nav'?{height:76,bottom:780}:{height:1000};}
+  getAttribute(name){return Object.hasOwn(this,name)?this[name]:null;}
   setAttribute(name,value){this[name]=value;}
+  removeAttribute(name){delete this[name];}
   addEventListener(name,fn){this[name]=fn;}
   prepend(n){if(n.parent)n.remove();n.parent=this;this.children.unshift(n);}
   get firstElementChild(){return this.children[0];}
   remove(){if(!this.parent)return;this.parent.children=this.parent.children.filter(n=>n!==this);this.parent=undefined;}
  }
  const header=new Element('header'),label=new Element('span');label.textContent='Nahuel · Liniers';header.append(label);
- const main=new Element('main'),original=new Element('p');original.textContent='136 derivaciones';main.append(original);
+ const main=new Element('main'),original=new Element('p'),body=new Element('body');original.textContent='136 derivaciones';main.append(original);body.append(header,main);
+ let visitsNav;
+ if(path==='/floor/visits') {visitsNav=new Element('nav');for(const name of ['Puestos','Hoy','Yo']){const link=new Element('a');link.textContent=name;visitsNav.append(link);}body.append(visitsNav);}
  function find(id,n=main){if(n.id===id)return n;for(const child of n.children){const found=find(id,child);if(found)return found;}return null;}
  const location={origin,pathname:path,href:origin+path};
  const window={dispatchEvent(){},__mdSalesPrepared:prepared,addEventListener:(name,fn)=>events.set(name,fn)};
- const context={location,window,document:{documentElement:{style:{},append:node=>styles.push(node)},getElementById:find,querySelector:selector=>selector==='header'?header:main,createElement:tag=>new Element(tag)},
+ const rootStyle={values:new Map(),getPropertyValue(name){return this.values.get(name)||'';},setProperty(name,value){this.values.set(name,value);},removeProperty(name){this.values.delete(name);}};
+ const context={location,window,document:{body,documentElement:{style:rootStyle,append:node=>styles.push(node)},getElementById:find,querySelector:selector=>selector==='header'?header:selector==='main'?main:null,querySelectorAll:selector=>body.querySelectorAll(selector),createElement:tag=>new Element(tag)},
   MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
   setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),Event:class{constructor(type){this.type=type;}},history:{pushState(){},replaceState(){}},Date};
  vm.runInNewContext(source,context);
- return {events,observers,timers,styles,location,context,main,original,find,sync:()=>observers.forEach(fn=>fn())};
+ return {events,observers,timers,styles,location,context,body,main,original,visitsNav,find,sync:()=>observers.forEach(fn=>fn())};
 }
 test('activity gains sales without replacing its content or intercepting original navigation',()=>{
  const p=setup('/floor/activity');
@@ -162,4 +166,32 @@ test('Android launcher uses the exact favicon bitmap from the demo page',()=>{
  const icon=readFileSync(new URL('../android/app/src/main/res/drawable/app_icon.png',import.meta.url));
  const favicon=readFileSync(new URL('../public/assets/favicon.png',import.meta.url));
  assert.deepEqual(icon,favicon);
+});
+
+test('visits fixes first-party bottom navigation above the visits list only',()=>{
+ const p=setup('/floor/visits'),nav=p.visitsNav;
+ assert.equal(nav.getAttribute('data-md-visits-bottom-nav'),'');
+ assert.equal(p.main.getAttribute('data-md-visits-scroll-content'),'');
+ assert.equal(p.context.document.documentElement.style.getPropertyValue('--md-visits-nav-height'),'76px');
+ assert.match(p.styles[1].textContent,/position:fixed!important/);
+ assert.match(p.styles[1].textContent,/z-index:2147483600!important/);
+ assert.match(p.styles[1].textContent,/pointer-events:auto!important/);
+ assert.equal(p.find('md-sales-integration'),null);
+ p.sync();p.sync();assert.equal(nav.getAttribute('data-md-visits-bottom-nav'),'');
+ p.location.pathname='/floor';
+ p.sync();
+ assert.equal(nav.getAttribute('data-md-visits-bottom-nav'),null);
+ assert.equal(p.main.getAttribute('data-md-visits-scroll-content'),null);
+ assert.equal(p.context.document.documentElement.style.getPropertyValue('--md-visits-nav-height'),'');
+});
+test('visits recalculates bottom navigation when React replaces its footer',()=>{
+ const p=setup('/floor/visits'),first=p.visitsNav;
+ const second=p.context.document.createElement('nav');
+ for(const name of ['Puestos','Hoy','Yo']){const a=p.context.document.createElement('a');a.textContent=name;second.append(a);}
+ first.remove();p.body.append(second);p.sync();
+ assert.equal(first.getAttribute('data-md-visits-bottom-nav'),null);
+ assert.equal(second.getAttribute('data-md-visits-bottom-nav'),'');
+ p.location.pathname='/floor/activity';p.sync();
+ assert.equal(second.getAttribute('data-md-visits-bottom-nav'),null);
+ assert.ok(p.find('md-sales-integration'));
 });

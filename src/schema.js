@@ -221,6 +221,17 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS app_locks (
     lock_name VARCHAR(80) PRIMARY KEY
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS presenter_admin_audit (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    actor_id INT UNSIGNED NOT NULL,
+    target_id INT UNSIGNED NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    record_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_presenter_admin_audit (created_at),
+    FOREIGN KEY (actor_id) REFERENCES users(id),
+    FOREIGN KEY (target_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS presenter_commissions (
     effective_date DATE PRIMARY KEY, amount INT UNSIGNED NOT NULL,
     updated_by INT UNSIGNED NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

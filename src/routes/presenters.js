@@ -1,5 +1,6 @@
 import express from 'express';
 import {createPresenterLeadsRouter} from './presenter-leads.js';
+import {createPresenterAdminRouter} from './presenter-admin.js';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
@@ -55,6 +56,7 @@ async function leadSelection(visitId, data) {
 export function createPresenterRouter() {
  const router=express.Router();router.use(requireAuth,presenterAccess);
  router.use(createPresenterLeadsRouter());
+ router.use('/admin',createPresenterAdminRouter({id,text,saleValues,saleFingerprint,leadSelection}));
  router.get('/state',async(req,res)=>{
   const userId=req.session.user.id;
   const [[sales],[payments],[rates],[people]]=await Promise.all([

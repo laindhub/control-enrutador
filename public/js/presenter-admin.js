@@ -57,7 +57,7 @@
  async function loadAudit(){
   try {
    const {activity}=await api('/audit');
-   const labels={sale_created:'Venta registrada',sale_updated:'Venta corregida',sale_deleted:'Venta eliminada',leads_added:'Entrevistas agregadas',leads_deleted:'Entrevistas eliminadas',password_reset:'Contraseña cambiada'};
+   const labels={sale_created:'Venta registrada',sale_updated:'Venta corregida',sale_deleted:'Venta eliminada',leads_added:'Entrevistas agregadas',leads_deleted:'Entrevistas eliminadas',password_reset:'Contraseña cambiada',account_created:'Cuenta creada',account_activated:'Cuenta activada',account_deactivated:'Cuenta desactivada'};
    $('#admin-audit-list').innerHTML=activity.length?activity.map(a=>`<div class="mini-row"><span>${esc(a.presenter)} · ${esc(labels[a.action]||a.action)}</span><span class="muted">${esc(date(a.created_at))} · ${esc(a.actor)}</span></div>`).join(''):'<p class="muted">Todavía no hay intervenciones registradas.</p>';
   }catch(error){$('#admin-audit-list').textContent='No se pudo consultar la actividad: '+error.message;}
  }
@@ -83,7 +83,7 @@
   catch(error){showError(error.message);}
  });
  $('#admin-new-leads').addEventListener('click',()=>{
-  try{const p=selectedPerson();$('#admin-lead-person').textContent='Cuenta: '+p.username;$('#admin-lead-form').reset();$('#admin-lead-form').elements.date.value=new Date().toLocaleDateString('en-CA');$('#admin-lead-error').textContent='';$('#admin-lead-dialog').showModal();}
+  try{const p=selectedPerson();$('#admin-lead-person').textContent='Cuenta: '+p.username;$('#admin-lead-form').reset();$('#admin-lead-form').elements.date.value=($('#admin-month').value||'').slice(0,7)===new Date().toISOString().slice(0,7)?new Date().toISOString().slice(0,10):$('#admin-month').value+'-01';$('#admin-lead-error').textContent='';$('#admin-lead-dialog').showModal();}
   catch(error){showError(error.message);}
  });
  $('#admin-password-form').addEventListener('submit',async event=>{

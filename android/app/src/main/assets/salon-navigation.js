@@ -103,7 +103,7 @@
   visitsStyle.textContent = '[data-md-visits-bottom-nav]{position:fixed!important;inset:auto 0 0 0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:100%!important;z-index:2147483600!important;transform:none!important;pointer-events:auto!important;background:#fff!important;box-sizing:border-box!important}[data-md-visits-bottom-nav] a,[data-md-visits-bottom-nav] button,[data-md-visits-bottom-nav] [role="link"],[data-md-visits-bottom-nav] [role="tab"]{pointer-events:auto!important;position:relative;z-index:1}[data-md-visits-scroll-content]{padding-bottom:calc(var(--md-visits-nav-height,80px) + 16px)!important;scroll-padding-bottom:calc(var(--md-visits-nav-height,80px) + 16px)!important}';
   document.documentElement.append(visitsStyle);
   let visitsNav, visitsContent;
-  const normalizeNavLabel = node => (node.textContent || '').replace(/\\s+/g,' ').trim().toLocaleLowerCase('es');
+  const normalizeNavLabel = node => (node.textContent || '').replace(/\s+/g,' ').trim().toLocaleLowerCase('es');
   function hasAncestor(child, ancestor) {
     for (let node=child;node;node=node.parentElement) if (node===ancestor) return true;
     return false;
@@ -126,7 +126,7 @@
     document.documentElement.style.removeProperty('--md-visits-nav-height');
   }
   function syncVisitsNav() {
-    if(location.pathname.replace(/\\/$/,'')!=='/floor/visits') {
+    if(location.pathname.replace(/\/$/,'')!=='/floor/visits') {
       if(visitsNav||visitsContent) clearVisitsNav();
       return;
     }

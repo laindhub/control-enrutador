@@ -24,3 +24,11 @@ test('presenter theme uses local Liniers design tokens and complete font assets'
   assert.equal(manifest.background_color, '#ffffff');
   assert.equal(manifest.scope, '/presentador');
 });
+
+test('embedded salon presenter preserves horizontal gutters and full-width month input on mobile', () => {
+  const css = read('public/css/presenter.css').toString();
+  assert.match(css, /\.embedded \.shell\s*\{[^}]*padding:0 18px 20px;/);
+  assert.match(css, /@media \(max-width: 360px\)\s*\{\s*\.embedded \.shell\s*\{\s*padding-inline:14px;/);
+  assert.match(css, /\.embedded #panel-leads > \.section-head:first-child\s*\{[^}]*flex-direction:column;/);
+  assert.match(css, /\.embedded #panel-leads > \.section-head:first-child input\s*\{[^}]*width:100%;[^}]*max-width:100%;/);
+});

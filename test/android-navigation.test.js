@@ -158,10 +158,8 @@ test('CRM live activity updates preserve only one fixed tab bar and one spacer',
  assert.equal(p.find('md-activity-tabs-spacer'),null);
 });
 
-test('Android launcher matches the advisor follow-up favicon instead of the former red icon',()=>{
- const icon=readFileSync(new URL('../android/app/src/main/res/drawable/app_icon.xml',import.meta.url),'utf8');
- assert.match(icon,/android:fillColor="#000000"/);
- assert.doesNotMatch(icon,/android:fillColor="#D8251B"/);
- assert.match(icon,/android:scaleX="0.34" android:scaleY="0.34" android:translateX="10.5" android:translateY="10.5"/);
- assert.match(icon,/android:strokeColor="#FFFFFF"/);
+test('Android launcher uses the exact favicon bitmap from the demo page',()=>{
+ const icon=readFileSync(new URL('../android/app/src/main/res/drawable/app_icon.png',import.meta.url));
+ const favicon=readFileSync(new URL('../public/assets/favicon.png',import.meta.url));
+ assert.deepEqual(icon,favicon);
 });

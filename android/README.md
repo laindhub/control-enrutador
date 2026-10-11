@@ -1,10 +1,10 @@
-# Más Dueños · Salón Android 1.2.3
+# Más Dueños · Salón Android 1.2.4 (fuente preparada)
 
 Android 8.0 o posterior. Esta versión conserva el salón completo y su barra **Puestos / Hoy / Yo**. No hay una barra nativa superior ni se reemplaza **Yo** por otra pantalla.
 
 ## Uso
 
-1. Cuando esté disponible el instalador `masduenos-salon-1.2.3.apk` **firmado con la misma clave del 1.2.0**, instalalo sobre la versión anterior. Mantiene el mismo paquete y usa `versionCode=10`.
+1. Cuando esté disponible el instalador `masduenos-salon-1.2.4.apk` **firmado con la misma clave del 1.2.0**, instalalo sobre la versión anterior. Mantiene el mismo paquete y usa `versionCode=11`.
 2. Entrá al salón con tu cuenta habitual.
 3. **Yo** abre la página original `/floor/activity`, con sus pasos, derivaciones y conversiones. **Leads / Ventas** ahora permanece en una barra compacta de 44 px justo debajo del encabezado de Salón. El panel de métricas aparece antes del historial **«lo que hice»**, incluso cuando crecen las derivaciones.
 4. **Mis ventas y comisiones** aparece antes del historial original, con Ventas, Carpetas, Pagos y Gestión según el rol. Registrar y editar ventas, vincular visitas y registrar pagos utiliza las mismas APIs y permisos del panel web.
@@ -31,7 +31,7 @@ sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
 ANDROID_SDK_ROOT=/ruta/al/sdk MASDUENOS_DEBUG_KEYSTORE=/ruta/privada/clave.keystore bash android/build-apk.sh
 ```
 
-Resultado: `android/dist/masduenos-salon-1.2.3.apk`. La clave de firma de prueba se conserva fuera del repositorio; debe reutilizarse para actualizar instalaciones anteriores. No subirla a GitHub. También se puede abrir `android/` en Android Studio (Gradle 8.11.1 / plugin 8.9.2).
+Resultado: `android/dist/masduenos-salon-1.2.4.apk`. La clave de firma de prueba se conserva fuera del repositorio; debe reutilizarse para actualizar instalaciones anteriores. No subirla a GitHub. También se puede abrir `android/` en Android Studio (Gradle 8.11.1 / plugin 8.9.2).
 
 El instalador público de `public/assets/android/masduenos-salon-1.2.0.apk` continúa siendo la versión original. La APK 1.2.2 fue reconstruida y firmada con el keystore original fuera del repositorio; se entrega como archivo adjunto y no se publica la clave. El nuevo navegador de pestañas se posiciona con la altura medida del encabezado y conserva un espaciador en el flujo para no cubrir los datos del CRM.
 
@@ -44,3 +44,7 @@ Transiciones de apertura y cierre de diálogos; se elimina el destello táctil a
 ## Ícono de inicio (1.2.3)
 
 El ícono de Android reproduce el favicon del Seguimiento de Asesores: isotipo blanco sobre fondo negro, con el mismo trazado original de `public/assets/mas-duenos-isotipo.svg` y `public/assets/favicon.png`. Se centra a mayor escala para el lanzador. La clave de firma permanece fuera del repositorio; instalar la 1.2.3 sobre la 1.2.2 conserva la aplicación y las sesiones.
+
+## Favicon exacto (1.2.4)
+
+El ícono Android usa el archivo PNG **idéntico** a `public/assets/favicon.png` del sitio `/demo`, ubicado como `android/app/src/main/res/drawable/app_icon.png` y referenciado desde el manifest como `@drawable/app_icon`. Se quitó el vector recreado y su fondo añadido. El instalador de 1.2.4 debe compilarse y firmarse con la clave original antes de distribuirse; cambiar el recurso GitHub no actualiza el ícono en dispositivos ya instalados.

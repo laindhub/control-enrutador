@@ -1,4 +1,7 @@
 import { pool } from './db.js';
+import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import path from 'node:path';
 import { leadSyncError } from './lead-sync-error.js';
 import { argentinaDate, normalizeDetail, visitId } from './lead-sync-data.js';
 
@@ -38,8 +41,18 @@ async function openPage() {
   if (page && !page.isClosed()) return;
   process.env.PLAYWRIGHT_BROWSERS_PATH ||= '0';
   const { chromium } = await import('playwright');
-  browser = await chromium.launch({ headless: true, ...(process.env.LEAD_SYNC_CHROMIUM_PATH ? { executablePath: process.env.LEAD_SYNC_CHROMIUM_PATH } : {}) });
+  const launchOptions = { headless: true, ...(process.env.LEAD_SYNC_CHROMIUM_PATH ? { executablePath: process.env.LEAD_SYNC_CHROMIUM_PATH } : {}) };
+  try { browser = await chromium.launch(launchOptions); }
+  catch (error) {
+    if (process.env.LEAD_SYNC_WORKER !== 'true' || process.env.LEAD_SYNC_CHROMIUM_PATH || !/executable doesn't exist/i.test(String(error.message))) throw error;
+    const require = createRequire(import.meta.url);
+    const cli = path.join(path.dirname(require.resolve('playwright/package.json')), 'cli.js');
+    const installed = spawnSync(process.execPath, [cli, 'install', 'chromium', '--only-shell'], {env:process.env,stdio:'ignore',timeout:90000});
+    if (installed.status !== 0) throw error;
+    browser = await chromium.launch(launchOptions);
+  }
   const context = await browser.newContext({ timezoneId: 'America/Argentina/Buenos_Aires' });
+  await context.route('**/*', route => ['image','media','font'].includes(route.request().resourceType()) ? route.abort() : route.continue());
   page = await context.newPage();
   page.setDefaultTimeout(20000);
 }
@@ -123,7 +136,7 @@ export async function syncLeadsOnce() {
       await connection.commit();
     } catch (error) { await connection.rollback(); throw error; }
     const [pending] = await connection.execute(`SELECT source_visit_id FROM external_lead_visits
-      WHERE source_date = ? AND (detail_synced_at IS NULL OR detail_synced_at < UTC_TIMESTAMP() - INTERVAL ? MINUTE)
+      WHERE (detail_synced_at IS NULL OR (source_date = ? AND detail_synced_at < UTC_TIMESTAMP() - INTERVAL ? MINUTE))
       ORDER BY EXISTS (SELECT 1 FROM presenter_sales ps WHERE ps.source_visit_id=external_lead_visits.source_visit_id AND ps.deleted_at IS NULL) DESC, detail_synced_at, first_seen_at LIMIT ?`, [date, options.refresh, options.batch]);
     let updated = 0;
     for (const row of pending) {
@@ -135,14 +148,15 @@ export async function syncLeadsOnce() {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     await connection.execute('UPDATE lead_sync_state SET last_success_at = UTC_TIMESTAMP(), last_error = NULL, visits_seen = ?, details_updated = ? WHERE id = 1', [visits.length, updated]);
-    return { visits: visits.length, details: updated };
+    const [counts] = await connection.query('SELECT COUNT(*) AS remaining FROM external_lead_visits WHERE detail_synced_at IS NULL');
+    return { visits: visits.length, details: updated, remaining: Number(counts[0].remaining) };
   } catch (error) {
     // No imprimir errores del navegador: podrían incluir valores introducidos o datos de clientes.
     const message = leadSyncError(error, stage);
     if (locked) await connection.execute('UPDATE lead_sync_state SET last_error = ? WHERE id = 1', [message]).catch(() => {});
     await browser?.close().catch(() => {});
     browser = undefined; page = undefined;
-    throw new Error(message);
+    throw Object.assign(new Error(message), { authenticationPaused: authPaused });
   } finally {
     if (locked) await connection.query("SELECT RELEASE_LOCK('external_leads_sync')").catch(() => {});
     connection?.release();

@@ -61,7 +61,7 @@ export function createPresenterRouter() {
    req.session.user.role==='presenter_admin'?pool.query("SELECT id, username, active FROM users WHERE role = 'presenter' ORDER BY username"):Promise.resolve([[]])
   ]);
   let sync=null;
-  if(req.session.user.role==='presenter_admin')try{const [rows]=await pool.query('SELECT * FROM lead_sync_state WHERE id = 1');sync=rows[0]||null;}catch(error){if(error.code!=='ER_NO_SUCH_TABLE')throw error;}
+  if(req.session.user.role==='presenter_admin')try{const [rows]=await pool.query('SELECT lead_sync_state.*, (SELECT COUNT(*) FROM external_lead_visits WHERE detail_synced_at IS NOT NULL) AS completed_total, (SELECT COUNT(*) FROM external_lead_visits WHERE detail_synced_at IS NULL) AS pending_total FROM lead_sync_state WHERE id = 1');sync=rows[0]||null;}catch(error){if(error.code!=='ER_NO_SUCH_TABLE')throw error;}
   const today=nowLocal().toISODate();res.set('Cache-Control','no-store').json({today,user:req.session.user,sales,payments,rates,people,sync,folders:aggregateSales(sales,payments,today)});
  });
  router.post('/extract',extractionLimit,async(req,res)=>{

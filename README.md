@@ -210,15 +210,19 @@ borra. Mantener el mismo `SESSION_SECRET`, base MySQL y dominio. Salir destruye
 la sesión; desactivar una cuenta revoca su acceso. Borrar cookies o datos del
 navegador, o superar el plazo sin abrir la app, requiere volver a ingresar.
 
-### Chromium y aislamiento del sincronizador
+### Sincronización aislada
 
-La instalación normal de la web no descarga ni ejecuta Chromium. `npm run
-sync:browser` queda como un comando explícito para preparar el servidor del
-sincronizador. `npm run sync:leads` permite ejecutarlo por separado, con las
-mismas variables MySQL, usuario y PIN del origen.
+`LEAD_SYNC_ENABLED=true` activa un proceso hijo para sincronizar. Arranca 15
+segundos después de la web, ejecuta un lote y cierra Chromium al terminar. Si
+quedan fichas pendientes, continúa en un minuto; cuando termina, usa el intervalo
+configurado (15 minutos por defecto). También recupera fichas pendientes de
+listas guardadas en días anteriores, si el sitio de origen permite accederlas.
 
-El proceso web solo inicia el sincronizador si `LEAD_SYNC_IN_WEB=true` además
-de `LEAD_SYNC_ENABLED=true`. Mantener `LEAD_SYNC_IN_WEB` omitida o en false en
-Hostinger hasta verificar que el alojamiento soporta Chromium y sus bibliotecas.
-Los fallos de sincronización no deben afectar el despliegue ni los recursos de
-la aplicación de ventas.
+Cada proceso tiene un límite de heap Node de 128 MB y un máximo de tres minutos.
+El supervisor termina su grupo de procesos si excede ese plazo. Esto no es un
+límite de memoria de Chromium: ambos siguen compartiendo recursos del alojamiento.
+Los intentos de PIN se pausan si no se confirma el acceso. No hay descarga de
+Chromium durante la instalación de la web. Si falta el navegador, el proceso aislado intenta instalar solo Chromium headless
+con un plazo de 90 segundos. También se puede preparar con `npm run sync:browser`.
+Las bibliotecas del sistema deben estar disponibles en el alojamiento. La antigua variable
+`LEAD_SYNC_IN_WEB` ya no es necesaria.

@@ -1,5 +1,7 @@
 import { createPresenterRouter, presenterAccess } from './routes/presenters.js';
-import { startLeadSync } from './lead-sync.js';
+import { startLeadSync, stopLeadSync } from './lead-sync-runner.js';
+process.once('SIGTERM', () => { stopLeadSync().finally(() => process.exit(0)); });
+process.once('SIGINT', () => { stopLeadSync().finally(() => process.exit(0)); });
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -357,7 +359,7 @@ async function initializeApplication() {
     validateConfig();
     await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
-    try { if (process.env.LEAD_SYNC_IN_WEB === 'true') startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
+    try { startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
     console.log('Control Enrutador inicializado correctamente.');
 
     cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));

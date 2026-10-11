@@ -12,15 +12,19 @@ test('external interviews add only the stated difference and missing source is e
  assert.equal(summary(null,{manualCount:37}).sourceKnown,false);
  assert.equal(summary(136,{manualCount:37}).earned,0);
 });
-test('working days include today if working and respect two off days, no divide by zero',()=>{
- const s=summary(173,{plan:{goal:650,offDays:[1,2]}});
- assert.equal(s.workingDays,15);assert.equal(s.perDay,32);
- assert.equal(summary(173).estimatedDays,true);
+test('rotating days off produce estimated work days without fixed weekdays',()=>{
+ const s=summary(173,{plan:{goal:650}});
+ assert.equal(s.workingDays,15);
+ assert.equal(s.perDay,32);
+ assert.equal(s.estimatedDays,true);
+ assert.deepEqual(leadPlan({goal:650,offDays:[1,2]}),{goal:650});
+ assert.equal(leadSummary({month:'2026-10',today:'2026-10-26',sourceCount:0}).workingDays,5);
+ assert.equal(leadSummary({month:'2026-11',today:'2026-11-01',sourceCount:0}).workingDays,22);
  assert.equal(leadSummary({month:'2026-09',today:'2026-10-11',sourceCount:173}).perDay,null);
  assert.equal(summary(900).perDay,0);
 });
-test('policies and schedule reject invalid tiers and off days',()=>{
- assert.throws(()=>leadPolicy({unlock:780,elite:650,baseRate:1350,eliteRate:1500,bonus:100000,walkInPercent:60}));
- assert.throws(()=>leadPlan({goal:650,offDays:[1,1]}));
- assert.deepEqual(leadPlan({goal:650,offDays:null}),{goal:650,offDays:null});
+test('policies and goals are validated without requiring fixed off days',()=>{
+ assert.throws(()=>leadPolicy({unlock:780,elite:650,baseRate:1350,eliteRate:1500}));
+ assert.throws(()=>leadPlan({goal:0}));
+ assert.deepEqual(leadPlan({goal:650}),{goal:650});
 });

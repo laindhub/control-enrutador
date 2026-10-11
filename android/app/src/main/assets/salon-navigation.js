@@ -5,7 +5,9 @@
   const touchStyle = document.createElement('style');
   touchStyle.textContent = '*{-webkit-tap-highlight-color:transparent}button,a,summary,[role="button"]{-webkit-user-select:none;user-select:none}:focus:not(:focus-visible){outline:none}';
   document.documentElement.append(touchStyle);
-  touchStyle.textContent += '[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-sales-integration):not(:has(#md-sales-integration)){display:none!important}[data-md-activity-tab="sales"] :has(#md-sales-integration)>:not(#md-sales-integration):not(:has(#md-sales-integration)){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
+  touchStyle.textContent += '[data-md-activity-tab="sales"]>:not(#md-activity-tabs):not(#md-activity-tabs-spacer):not(#md-sales-integration):not(:has(#md-sales-integration)){display:none!important}[data-md-activity-tab="sales"] :has(#md-sales-integration)>:not(#md-sales-integration):not(:has(#md-sales-integration)){display:none!important}#md-activity-tabs{display:flex;gap:0;border-bottom:1px solid #e5e5e5;margin:0 0 24px}#md-activity-tabs button{flex:1;padding:16px 12px;border:0;border-bottom:2px solid transparent;background:white;color:#666;font:inherit;font-weight:500;cursor:pointer}#md-activity-tabs button[aria-selected="true"]{color:#111;border-bottom-color:#111}';
+  // Compact always-visible activity switch immediately below the salon header.
+  touchStyle.textContent += '#md-activity-tabs{position:fixed!important;left:0;right:0;width:100%;height:44px;min-height:44px;z-index:90;box-sizing:border-box;margin:0!important;padding:0 16px!important;display:flex!important;align-items:stretch;border-bottom:1px solid #e6e6e6;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.04)}#md-activity-tabs button{height:44px;min-height:44px;padding:0 10px!important;font-size:14px!important;line-height:42px;font-weight:500;border-radius:0!important}#md-activity-tabs-spacer{display:block!important;height:48px;min-height:48px;width:100%;flex-shrink:0;pointer-events:none}';
   let activityMain;
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
@@ -87,6 +89,14 @@
       main.append(section);
     }
   }
+  function positionActivityTabs(tabs) {
+    // On phones, the first-party header can vary in height with font and safe areas.
+    // Its viewport bottom is the exact position where our fixed strip starts.
+    const bottom = document.querySelector('header')?.getBoundingClientRect()?.bottom;
+    const top = Number.isFinite(bottom) ? Math.max(0, Math.round(bottom)) : 72;
+    const value = top + 'px';
+    if (tabs.style.top !== value) tabs.style.top = value;
+  }
   function sync() {
     scheduled = false;
     const existing = document.getElementById('md-sales-integration');
@@ -94,6 +104,7 @@
       if (window.__mdSalesModalOpen) modal(document.getElementById('md-sales-frame'), false);
       if (existing) existing.remove();
       document.getElementById('md-activity-tabs')?.remove();
+      document.getElementById('md-activity-tabs-spacer')?.remove();
       if (activityMain) delete activityMain.dataset.mdActivityTab;
       activityMain = undefined;
       return;
@@ -130,6 +141,18 @@
       }
       main.prepend(tabs);
     } else if (main.firstElementChild !== tabs) main.prepend(tabs);
+    // Keep an in-flow spacer so the pinned tabs never cover the CRM's own metrics.
+    let spacer = document.getElementById('md-activity-tabs-spacer');
+    if (!spacer) {
+      spacer = document.createElement('div');
+      spacer.id = 'md-activity-tabs-spacer';
+      spacer.setAttribute('aria-hidden', 'true');
+    }
+    if (tabs.nextElementSibling !== spacer) {
+      if (tabs.nextElementSibling) main.insertBefore(spacer, tabs.nextElementSibling);
+      else main.append(spacer);
+    }
+    positionActivityTabs(tabs);
     if (existing) {
       // React can add history entries at any time; keep the panel before the timeline.
       placeIntegration(main, existing);
@@ -165,6 +188,11 @@
   }
   new MutationObserver(schedule).observe(document.documentElement, {childList:true,subtree:true,characterData:true});
   window.addEventListener('popstate', schedule);
+  window.addEventListener('resize', schedule);
+  window.addEventListener('scroll', () => {
+    const tabs = document.getElementById('md-activity-tabs');
+    if (tabs) positionActivityTabs(tabs);
+  }, {passive:true});
   for (const method of ['pushState', 'replaceState']) {
     const original = history[method];
     history[method] = function(...args) { const result=original.apply(this,args); schedule(); return result; };

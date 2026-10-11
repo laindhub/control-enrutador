@@ -1,7 +1,5 @@
 import { pool } from './db.js';
-import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import path from 'node:path';
+import { launchLeadBrowser } from './lead-browser.js';
 import { leadSyncError } from './lead-sync-error.js';
 import { argentinaDate, normalizeDetail, visitId } from './lead-sync-data.js';
 
@@ -41,16 +39,7 @@ async function openPage() {
   if (page && !page.isClosed()) return;
   process.env.PLAYWRIGHT_BROWSERS_PATH ||= '0';
   const { chromium } = await import('playwright');
-  const launchOptions = { headless: true, ...(process.env.LEAD_SYNC_CHROMIUM_PATH ? { executablePath: process.env.LEAD_SYNC_CHROMIUM_PATH } : {}) };
-  try { browser = await chromium.launch(launchOptions); }
-  catch (error) {
-    if (process.env.LEAD_SYNC_WORKER !== 'true' || process.env.LEAD_SYNC_CHROMIUM_PATH || !/executable doesn't exist/i.test(String(error.message))) throw error;
-    const require = createRequire(import.meta.url);
-    const cli = path.join(path.dirname(require.resolve('playwright/package.json')), 'cli.js');
-    const installed = spawnSync(process.execPath, [cli, 'install', 'chromium', '--only-shell'], {env:process.env,stdio:'ignore',timeout:90000});
-    if (installed.status !== 0) throw error;
-    browser = await chromium.launch(launchOptions);
-  }
+  browser = await launchLeadBrowser({ chromium });
   const context = await browser.newContext({ timezoneId: 'America/Argentina/Buenos_Aires' });
   await context.route('**/*', route => ['image','media','font'].includes(route.request().resourceType()) ? route.abort() : route.continue());
   page = await context.newPage();

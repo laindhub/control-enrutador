@@ -221,8 +221,10 @@ listas guardadas en días anteriores, si el sitio de origen permite accederlas.
 Cada proceso tiene un límite de heap Node de 128 MB y un máximo de tres minutos.
 El supervisor termina su grupo de procesos si excede ese plazo. Esto no es un
 límite de memoria de Chromium: ambos siguen compartiendo recursos del alojamiento.
-Los intentos de PIN se pausan si no se confirma el acceso. No hay descarga de
-Chromium durante la instalación de la web. Si falta el navegador, el proceso aislado intenta instalar solo Chromium headless
-con un plazo de 90 segundos. También se puede preparar con `npm run sync:browser`.
-Las bibliotecas del sistema deben estar disponibles en el alojamiento. La antigua variable
-`LEAD_SYNC_IN_WEB` ya no es necesaria.
+Los intentos de PIN se pausan si no se confirma el acceso. Si el Chromium local
+no arranca, se usa la versión empaquetada de `@sparticuz/chromium` (Linux x64),
+con bibliotecas y fuentes incluidas. Se extrae sin cambiar propietarios para
+alojamientos restringidos. No descarga ni instala navegadores durante la
+sincronización. `LEAD_SYNC_CHROMIUM_PATH` conserva prioridad si está configurada.
+La antigua variable `LEAD_SYNC_IN_WEB` ya no es necesaria.
+

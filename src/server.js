@@ -1,5 +1,5 @@
 import { createPresenterRouter, presenterAccess } from './routes/presenters.js';
-import { enableSalonSession, allowSalonFrame } from './presenter-embed.js';
+import { enableSalonSession, restoreSalonSession, allowSalonFrame } from './presenter-embed.js';
 import { startLeadSync, stopLeadSync } from './lead-sync-runner.js';
 process.once('SIGTERM', () => { stopLeadSync().finally(() => process.exit(0)); });
 process.once('SIGINT', () => { stopLeadSync().finally(() => process.exit(0)); });
@@ -131,7 +131,7 @@ app.get('/health', async (req, res, next) => {
 app.use((req, res, next) => {
   if (startupState === 'starting') {
     res.setHeader('Retry-After', '2');
-    if (req.originalUrl.startsWith('/api/')) {
+    if (req.originalUrl.startsWith('/api/') || req.path === '/presentador/preparar') {
       return res.status(503).json({ error: 'La aplicación se está conectando. Reintentá en unos segundos.' });
     }
     return res.status(200).render('warming', { title: 'Conectando' });
@@ -149,6 +149,7 @@ app.use((req, res, next) => {
 });
 
 app.use(sessionMiddleware);
+app.use(enableSalonSession);
 app.use(validateSessionUser);
 app.use(attachLocals);
 app.use('/assets', express.static(publicRoot, {
@@ -190,9 +191,11 @@ app.post('/login', loginLimiter, verifyCsrf, async (req, res, next) => {
   try {
     const user = await authenticate(String(req.body.username || ''), String(req.body.password || ''));
     if (!user) return res.status(401).render('login', { title: 'Ingresar', error: 'Usuario o contraseña incorrectos.' });
+    const salonIntegration = req.session.salonIntegration;
     req.session.regenerate((error) => {
       if (error) return next(error);
       req.session.user = user;
+      restoreSalonSession(req.session, salonIntegration);
       req.session.csrfToken = cryptoToken();
       req.session.save((saveError) => {
         if (saveError) return next(saveError);
@@ -237,6 +240,7 @@ app.get('/', requireAuth, requireRole('router'), requireOperator, (req, res) => 
 
 app.get('/presentador.webmanifest', (_req,res) => res.sendFile(path.join(publicRoot,'presentador.webmanifest')));
 app.get('/presentador-sw.js', (_req,res) => res.set('Service-Worker-Allowed','/presentador').sendFile(path.join(publicRoot,'presentador-sw.js')));
+app.get('/presentador/preparar', (_req,res) => res.set('Cache-Control','no-store').json({ready:true}));
 app.get('/presentador/integrado', allowSalonFrame, (req,res,next) => {
   if (!req.session.user) return res.render('presenter-connect');
   return presenterAccess(req,res,() => res.render('presenter', { title:'Mis ventas', embedded:true }));

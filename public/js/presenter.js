@@ -48,7 +48,7 @@
   if($('#rates-list')){
    $('#rates-list').innerHTML=state.rates.map(r=>`<div class="mini-row"><span>Desde ${esc(r.effective_date==='1970-01-01'?'el inicio':r.effective_date)}</span><strong>${ars(r.amount)}</strong></div>`).join('');
    $('#users-list').innerHTML=state.people.map(p=>`<div class="mini-row"><span>${esc(p.username)} · ${p.active?'Activo':'Desactivado'}</span><button class="quiet" data-person="${p.id}" data-active="${p.active?'false':'true'}">${p.active?'Desactivar':'Activar'}</button></div>`).join('');
-   $('#sync-status').innerHTML=`<h3>Sincronización de leads</h3><p class="muted">${state.sync?`Última ejecución correcta: ${esc(state.sync.last_success_at||'Todavía no hay una')} UTC · ${Number(state.sync.visits_seen)} visitas en la lista · ${Number(state.sync.details_updated)} fichas leídas en esa ejecución. Total: ${Number(state.sync.completed_total||0)} completas · ${Number(state.sync.pending_total||0)} pendientes.`:'El sincronizador todavía no tiene ejecuciones registradas.'}</p>${state.sync?.last_error?`<p class="form-error">${esc(state.sync.last_error)}</p>`:''}${state.user.role==='presenter_admin'?`<button id="sync-now" class="secondary" ${state.syncRunning?'disabled':''}>${state.syncRunning?'Sincronizando…':'Sincronizar ahora'}</button>`:''}`;
+   $('#sync-status').innerHTML=`<h3>Sincronización de leads</h3><p class="muted">${state.sync?`Última ejecución correcta: ${esc(state.sync.last_success_at||'Todavía no hay una')} UTC · ${Number(state.sync.visits_seen)} visitas en la lista · ${Number(state.sync.details_updated)} fichas leídas en esa ejecución. Total: ${Number(state.sync.completed_total||0)} completas · ${Number(state.sync.pending_total||0)} pendientes.`:'El sincronizador todavía no tiene ejecuciones registradas.'}</p>${state.sync?.last_error?`<p class="form-error">La última importación de fichas no se completó. Tus ventas y pagos siguen disponibles.</p><details class="detail"><summary>Ver diagnóstico de la importación</summary><p>${esc(state.sync.last_error)}</p></details>`:''}${state.user.role==='presenter_admin'?`<button id="sync-now" class="secondary" ${state.syncRunning?'disabled':''}>${state.syncRunning?'Sincronizando…':'Sincronizar ahora'}</button>`:''}`;
   }
  }
  async function load(){
@@ -56,6 +56,7 @@
   if(loading)return;
   if(navigator.onLine===false){connectionNotice('Sin conexión. Tus datos visibles se conservan; reconectaremos automáticamente.');return;}
   loading=true;
+  if(!state)connectionNotice('Cargando tus ventas…');
   try{
    const nextState=await api('/state');
    state=nextState;if(!$('#month').value)$('#month').value=state.today.slice(0,7);render();retryAttempt=0;

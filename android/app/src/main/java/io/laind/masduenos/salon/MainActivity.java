@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
     private static final String SALES_HOST = "masduenos.laind.io";
     private static final String SALON_URL = "https://" + SALON_HOST + "/floor";
     private static final String SALES_URL = "https://" + SALES_HOST + "/presentador?salon=1";
+    private static final String PREPARE_URL = "https://" + SALES_HOST + "/presentador/preparar?salon=1";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final boolean[] failed = {false, false};
     private final boolean[] retrySafe = {true, true};
@@ -50,6 +51,7 @@ public final class MainActivity extends Activity {
     private TextView errorText;
     private int selected = 0;
     private boolean resumed;
+    private boolean salesPrepared;
     private String navigationScript = "";
     private ValueCallback<Uri[]> fileResult;
     private ConnectivityManager connectivity;
@@ -99,7 +101,7 @@ public final class MainActivity extends Activity {
         for (int i = 0; i < pages.length; i++) {
             Bundle pageState = saved == null ? null : saved.getBundle("page" + i);
             if (pageState == null || pages[i].restoreState(pageState) == null)
-                pages[i].loadUrl(i == 0 ? SALON_URL : SALES_URL);
+                pages[i].loadUrl(i == 0 ? SALON_URL : PREPARE_URL);
         }
         select(saved == null ? 0 : saved.getInt("selected", 0));
         connectivity = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
@@ -161,14 +163,21 @@ public final class MainActivity extends Activity {
                 if (!failed[index]) attempts[index] = 0;
                 Uri uri = Uri.parse(url);
                 if (!failed[index] && SALON_HOST.equals(uri.getHost()) && trusted(uri))
-                    view.evaluateJavascript(navigationScript, null);
+                    view.evaluateJavascript("window.__mdSalesPrepared=" + salesPrepared + ";" + navigationScript, null);
+                if (!failed[index] && index == 1 && trusted(uri) && SALES_HOST.equals(uri.getHost()) &&
+                    ("/login".equals(uri.getPath()) || "/presentador/preparar".equals(uri.getPath()))) {
+                    salesPrepared = true;
+                    pages[0].evaluateJavascript("window.__mdSalesPrepared=true;window.dispatchEvent(new Event('md-sales-prepared'))", null);
+                }
                 // The only separate view is the first-party sign-in required by the sales account.
                 // Once connected, return to the unchanged activity and refresh its embedded section.
                 if (!failed[index] && index == 1 && SALES_HOST.equals(uri.getHost()) && "/presentador".equals(uri.getPath())) {
                     if (!"1".equals(uri.getQueryParameter("salon"))) view.loadUrl(SALES_URL);
                     else {
+                        salesPrepared = true;
                         select(0);
-                        pages[0].evaluateJavascript("window.dispatchEvent(new Event('md-sales-connected'))", null);
+                        pages[0].evaluateJavascript("window.__mdSalesPrepared=true;window.dispatchEvent(new Event('md-sales-connected'))", null);
+                        view.loadUrl(PREPARE_URL);
                     }
                 }
                 if (selected == index) progress.setVisibility(View.GONE);

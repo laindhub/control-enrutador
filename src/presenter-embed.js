@@ -2,11 +2,19 @@ export const salonOrigin = 'https://liniers.xn--somosmasdueos-skb.com';
 
 // Opt in only when connecting Android; ordinary web sessions keep their current cookie policy.
 export function enableSalonSession(req, _res, next) {
-  if (req.query.salon === '1') {
+  if (req.query.salon === '1' && ['/presentador', '/presentador/preparar'].includes(req.path)) req.session.salonIntegration = true;
+  if (req.session.salonIntegration) {
     req.session.cookie.sameSite = 'none';
     req.session.cookie.secure = true;
   }
   next();
+}
+
+export function restoreSalonSession(session, enabled) {
+  if (!enabled) return;
+  session.salonIntegration = true;
+  session.cookie.sameSite = 'none';
+  session.cookie.secure = true;
 }
 
 export function allowSalonFrame(_req, res, next) {

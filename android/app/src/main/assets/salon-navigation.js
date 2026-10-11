@@ -19,13 +19,17 @@
       if (existing) existing.remove();
       return;
     }
-    if (existing) return;
     let main = document.querySelector('main');
     if (!main) {
       const title = [...document.querySelectorAll('h1,h2')].find(h => h.textContent.trim() === 'Mi actividad');
       main = title?.parentElement?.parentElement;
     }
     if (!main) return;
+    if (existing) {
+      // React can append its activity after our section while the route finishes loading.
+      if (main.lastElementChild !== existing) main.append(existing);
+      return;
+    }
     const section = document.createElement('section');
     section.id = 'md-sales-integration';
     section.setAttribute('aria-label', 'Mis ventas y comisiones');
@@ -34,13 +38,18 @@
     heading.textContent = 'Mis ventas y comisiones';
     heading.style.cssText = 'font:inherit;font-size:24px;font-weight:600;margin:0 0 8px;color:#111';
     const frame = document.createElement('iframe');
+    const status = document.createElement('p');
+    status.id = 'md-sales-loading';
+    status.textContent = 'Conectando tus ventas…';
+    status.setAttribute('role', 'status');
+    status.style.cssText = 'margin:12px 0;color:#666;font:inherit';
     frame.id = 'md-sales-frame';
     frame.title = 'Ventas, carpetas y pagos';
-    frame.src = ownOrigin + '/presentador/integrado';
+    if (window.__mdSalesPrepared !== false) frame.src = ownOrigin + '/presentador/integrado';
     frame.style.cssText = 'display:block;width:100%;height:360px;border:0;background:white';
-    section.append(heading, frame);
+    section.append(heading, status, frame);
     main.append(section);
-    monitor(frame);
+    if (frame.src) monitor(frame);
   }
   function schedule() {
     if (scheduled) return;
@@ -59,6 +68,8 @@
     if (event.data?.type === 'md-sales-height' && Number.isFinite(event.data.height)) {
       frame.dataset.ready = '1';
       clearTimeout(frame.mdRetryTimer);
+      const status = document.getElementById('md-sales-loading');
+      if (status) status.hidden = true;
       frame.style.height = Math.max(260, Math.min(16000, event.data.height)) + 'px';
     }
   });
@@ -67,6 +78,13 @@
     if (frame) {
       frame.dataset.ready = '0';
       frame.src = ownOrigin + '/presentador/integrado?t=' + Date.now();
+      monitor(frame);
+    }
+  });
+  window.addEventListener('md-sales-prepared', () => {
+    const frame = document.getElementById('md-sales-frame');
+    if (frame && !frame.getAttribute('src')) {
+      frame.src = ownOrigin + '/presentador/integrado';
       monitor(frame);
     }
   });

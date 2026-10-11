@@ -7,6 +7,7 @@ test('startup diagnostics redact configured credentials and URLs and bound outpu
  assert.ok(!result.includes('example.com'));assert.equal(result.length,6000);
 });
 test('sync diagnostics distinguish browser installation, system libraries and source stages',()=>{
+ assert.match(leadSyncError(new Error('spawn chromium EACCES'),'browser'),/por permisos/);
  assert.match(leadSyncError(new Error("Executable doesn't exist at private-path"),'browser'),/npm run sync:browser/);
  assert.match(leadSyncError(new Error('error while loading shared libraries: private-path'),'browser'),/bibliotecas del sistema/);
  assert.match(leadSyncError(new Error('secret PIN 1234'),'login'),/acceder al sitio/);

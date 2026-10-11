@@ -1,7 +1,7 @@
 import { createReadStream, createWriteStream } from 'node:fs';
 import { access, chmod, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createBrotliDecompress } from 'node:zlib';
@@ -11,10 +11,14 @@ import tar from 'tar-fs';
 export async function bundledChromiumPath() {
   const require = createRequire(import.meta.url);
   const bin = path.resolve(path.dirname(require.resolve('@sparticuz/chromium')), '../../bin');
-  const destination = path.join(tmpdir(), 'masduenos-chromium-138');
+  // Managed Node hosts can mount /tmp with noexec. Keep binaries in the
+  // application's private dependency cache, never in its public assets.
+  const cacheRoot = fileURLToPath(new URL('../node_modules/.cache/masduenos-browser/', import.meta.url));
+  await mkdir(cacheRoot, { recursive:true, mode:0o700 });
+  const destination = path.join(cacheRoot, 'chromium-138');
   const ready = path.join(destination, '.ready');
   try { await access(ready); } catch {
-    const temp = await mkdtemp(path.join(tmpdir(), 'masduenos-chromium-unpack-'));
+    const temp = await mkdtemp(path.join(cacheRoot, 'unpack-'));
     try {
       const unpack = async (file, dir) => {
         const output = path.join(temp, dir);
@@ -34,6 +38,9 @@ export async function bundledChromiumPath() {
       await rename(temp, destination);
     } catch (error) { await rm(temp, {recursive:true,force:true}); throw error; }
   }
+  // Repair modes even when an existing extraction has its ready marker.
+  await chmod(destination, 0o700);
+  await chmod(path.join(destination, 'chromium'), 0o700);
   // The package's fontconfig refers to /tmp/fonts; our private extraction has another path.
   const fonts = path.join(destination, 'fonts');
   const cache = path.join(destination, 'font-cache');

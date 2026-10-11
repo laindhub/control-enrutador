@@ -10,6 +10,7 @@ export function leadSyncError(error, stage) {
  if(error?.code==='LEAD_AUTH_PAUSED')return 'Acceso no confirmado. Se suspendieron los intentos de PIN hasta reiniciar.';
  if(error?.code==='ERR_MODULE_NOT_FOUND')return 'Falta instalar Playwright en el despliegue.';
  if(stage==='browser'){
+  if(/EACCES|permission denied/i.test(message))return 'El alojamiento rechazó ejecutar Chromium por permisos. Revisá el diagnóstico de arranque en los registros del runtime.';
   if(/executable doesn't exist|executable.*not found|ENOENT/i.test(message))return 'Chromium no está instalado. Ejecutá npm run sync:browser en el build y redesplegá.';
   if(/shared libraries|cannot open shared object|missing dependencies|Host system is missing/i.test(message))return 'Chromium está instalado, pero faltan bibliotecas del sistema en Hostinger. Revisá los logs o usá un servidor compatible con Playwright.';
   return 'Chromium no pudo arrancar en el servidor. Revisá LEAD_SYNC_CHROMIUM_PATH y la compatibilidad del alojamiento.';

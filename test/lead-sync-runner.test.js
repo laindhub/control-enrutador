@@ -32,3 +32,14 @@ test('shutdown kills the child and prevents another cycle',async()=>{
  assert.equal(Math.abs(r.killed[0]),12345);
  const count=r.timers.length;r.children[0].emit('close',0);assert.equal(r.timers.length,count);
 });
+test('manual trigger starts a worker immediately and refuses a concurrent run',()=>{
+ const r=setup();
+ assert.deepEqual(r.triggerLeadSyncNow(),{started:true,reason:'started'});
+ assert.equal(r.children.length,1);
+ assert.deepEqual(r.triggerLeadSyncNow(),{started:false,reason:'busy'});
+ assert.equal(r.children.length,1);
+});
+test('manual trigger reports when synchronization is disabled',()=>{
+ const r=createLeadSyncRunner({env:{LEAD_SYNC_ENABLED:'false'}});
+ assert.deepEqual(r.triggerLeadSyncNow(),{started:false,reason:'disabled'});
+});

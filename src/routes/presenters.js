@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
 import { pool, withTransaction } from '../db.js';
+import { isLeadSyncRunning, triggerLeadSyncNow } from '../lead-sync-runner.js';
 import { config } from '../config.js';
 import { requireAuth } from '../auth.js';
 import { nowLocal } from '../time.js';
@@ -62,8 +63,9 @@ export function createPresenterRouter() {
   ]);
   let sync=null;
   if(req.session.user.role==='presenter_admin')try{const [rows]=await pool.query('SELECT lead_sync_state.*, (SELECT COUNT(*) FROM external_lead_visits WHERE detail_synced_at IS NOT NULL) AS completed_total, (SELECT COUNT(*) FROM external_lead_visits WHERE detail_synced_at IS NULL) AS pending_total FROM lead_sync_state WHERE id = 1');sync=rows[0]||null;}catch(error){if(error.code!=='ER_NO_SUCH_TABLE')throw error;}
-  const today=nowLocal().toISODate();res.set('Cache-Control','no-store').json({today,user:req.session.user,sales,payments,rates,people,sync,folders:aggregateSales(sales,payments,today)});
+  const today=nowLocal().toISODate();res.set('Cache-Control','no-store').json({today,user:req.session.user,sales,payments,rates,people,sync,syncRunning:isLeadSyncRunning(),folders:aggregateSales(sales,payments,today)});
  });
+ router.post('/sync-now',adminAccess,async(_req,res)=>{const result=triggerLeadSyncNow();if(!result.started)return res.status(result.reason==='busy'?409:503).json({error:result.reason==='busy'?'Ya hay una sincronización en curso.':'El sincronizador está desactivado. Revisá LEAD_SYNC_ENABLED.'});res.status(202).json({ok:true,message:'Sincronización iniciada.'});});
  router.post('/extract',extractionLimit,async(req,res)=>{
   const message=text(req.body.message,12000);if(!message) return res.status(400).json({error:'Pegá el mensaje de venta.'});
   if(!config.groq.apiKey)return res.status(503).json({error:'Falta configurar GROQ_API_KEY. Podés completar los datos manualmente.'});

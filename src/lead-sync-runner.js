@@ -6,6 +6,7 @@ let timer;
 let watchdog;
 let stopped = true;
 let authPaused = false;
+let runNow;
 const script = fileURLToPath(new URL('../scripts/sync-leads.js', import.meta.url));
 function killWorker() {
  if (!child) return;
@@ -19,7 +20,7 @@ function startLeadSync() {
   if (stopped || child || authPaused) return;
   let remaining = 0;
   let successful = false;
-  child = spawnProcess(process.execPath, ['--max-old-space-size=128', script], {
+  try { child = spawnProcess(process.execPath, ['--max-old-space-size=128', script], {
    detached:process.platform !== 'win32', stdio:['ignore','ignore','ignore','ipc'],
    env:{...env,LEAD_SYNC_WORKER:'true'},
   });
@@ -37,14 +38,25 @@ function startLeadSync() {
    }
   };
   child.once('error', () => console.error('No se pudo iniciar el proceso de sincronización.'));
-  child.once('close', finish);
+  child.once('close', finish); return true; } catch(error) { child=undefined; throw error; }
  };
+ runNow=run;
  timer = setTimer(run, 15000); timer.unref();
 }
+function triggerLeadSyncNow() {
+ if(env.LEAD_SYNC_ENABLED!=='true')return {started:false,reason:'disabled'};
+ if(child)return {started:false,reason:'busy'};
+ authPaused=false;
+ if(stopped)startLeadSync();
+ clearTimer(timer);timer=undefined;
+ const started=runNow?.()||false;
+ return {started,reason:started?'started':'busy'};
+}
+function isLeadSyncRunning(){return Boolean(child);}
 async function stopLeadSync() {
  stopped = true; clearTimer(timer); clearTimer(watchdog); killWorker();
 }
 
-return {startLeadSync,stopLeadSync};
+return {startLeadSync,stopLeadSync,triggerLeadSyncNow,isLeadSyncRunning};
 }
-export const {startLeadSync,stopLeadSync}=createLeadSyncRunner();
+export const {startLeadSync,stopLeadSync,triggerLeadSyncNow,isLeadSyncRunning}=createLeadSyncRunner();

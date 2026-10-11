@@ -2,6 +2,9 @@
   'use strict';
   if (location.origin !== 'https://liniers.xn--somosmasdueos-skb.com' || window.__mdActivityIntegration) return;
   window.__mdActivityIntegration = true;
+  const touchStyle = document.createElement('style');
+  touchStyle.textContent = '*{-webkit-tap-highlight-color:transparent}button,a,summary,[role="button"]{-webkit-user-select:none;user-select:none}:focus:not(:focus-visible){outline:none}';
+  document.documentElement.append(touchStyle);
   const ownOrigin = 'https://masduenos.laind.io';
   let scheduled = false;
   let modalStyle, rootOverflow, sectionMinHeight;

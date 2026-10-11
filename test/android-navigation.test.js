@@ -19,7 +19,7 @@ function setup(path='/floor',origin='https://liniers.xn--somosmasdueos-skb.com',
  function find(id,n=main){if(n.id===id)return n;for(const child of n.children){const found=find(id,child);if(found)return found;}return null;}
  const location={origin,pathname:path,href:origin+path};
  const window={__mdSalesPrepared:prepared,addEventListener:(name,fn)=>events.set(name,fn)};
- const context={location,window,document:{documentElement:{style:{}},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
+ const context={location,window,document:{documentElement:{style:{},append(){}},getElementById:find,querySelector:()=>main,createElement:tag=>new Element(tag)},
   MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
   setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),history:{pushState(){},replaceState(){}},Date};
  vm.runInNewContext(source,context);

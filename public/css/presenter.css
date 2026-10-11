@@ -69,6 +69,9 @@ a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
 ::selection { background: var(--selected); color: var(--foreground); }
 .top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -84,7 +87,10 @@ a { color: inherit; text-decoration: none; }
 .brand small { display: block; font-size: 11px; color: var(--faint); font-weight: 400; }
 .identity { display: flex; align-items: center; gap: 16px; font-size: 12px; min-width: 0; }
 .identity form { margin: 0; }
-.identity .quiet { border: 1px solid var(--border); }
+.identity .quiet { border: 0; }
+.account-pill { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 4px 10px 4px 4px; min-width: 0; }
+.avatar { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: #f6f1ed; color: #625245; font-size: 11px; font-weight: 500; }
+.account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); }
 .shell { max-width: 1160px; margin: auto; padding: 28px 24px; }
 .intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin: 0 0 24px; }
 .intro .muted { margin-bottom: 0; }
@@ -112,6 +118,8 @@ h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: -.01em; font-weight: 600
 .tabs button { white-space: nowrap; background: transparent; color: var(--muted-foreground); padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; font-size: 12px; }
 .tabs button:hover { background: var(--surface-hover); }
 .tabs .selected { color: var(--brand-deep); border-color: var(--brand-deep); font-weight: 600; }
+.tabs button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.tabs svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 22px 0 12px; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric, .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; min-width: 0; }
@@ -165,12 +173,13 @@ footer { padding: 32px 0 8px; text-align: center; font-size: 11px; color: var(--
   body { font-size: 14px; }
   .top { padding: 14px 16px; gap: 12px; }
   .brand { gap: 10px; }
-  .brand img { width: 85px; }
-  .brand > span { padding-left: 10px; font-size: 12px; }
-  .brand small { font-size: 10px; }
-  .identity { gap: 6px; font-size: 11px; max-width: 36%; }
-  .identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .shell { padding: 24px 16px; }
+  .brand img, .brand small { display: none; }
+  .brand > span { border: 0; padding-left: 0; font-size: 17px; font-weight: 500; }
+  .identity { gap: 4px; font-size: 12px; max-width: 64%; }
+  .account-pill { max-width: 100%; }
+  .account-location { display: none; }
+  .shell { padding: 24px 16px calc(100px + env(safe-area-inset-bottom, 0px)); }
+  html { scroll-padding-top: 84px; scroll-padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
   .intro { display: block; }
   h1 { font-size: 26px; }
   .intro > .primary { width: 100%; margin-top: 18px; }
@@ -181,8 +190,14 @@ footer { padding: 32px 0 8px; text-align: center; font-size: 11px; color: var(--
   .metric { padding: 16px; }
   .metric strong { font-size: 22px; }
   .metric, .card, .empty, .notice, dialog { border-radius: var(--radius-card-mobile); }
-  .tabs { margin-left: -16px; margin-right: -16px; padding: 0 10px; }
-  .tabs button { min-height: 44px; padding: 12px; }
+  .tabs { position: fixed; z-index: 30; bottom: 0; left: 0; right: 0; display: flex; gap: 0; margin: 0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--border); border-bottom: 0; overflow: visible; }
+  .tabs button { flex: 1; min-width: 0; min-height: 60px; padding: 4px 2px; flex-direction: column; gap: 5px; border: 0; color: var(--muted-foreground); font-size: 12px; font-weight: 400; }
+  .tabs svg { width: 24px; height: 24px; }
+  .tabs .selected { color: var(--foreground); border: 0; font-weight: 500; }
+  .tabs button:hover { background: var(--surface-hover); }
+  .section-head { flex-wrap: wrap; }
+  #panel-folders > .section-head, #panel-payments > .section-head { margin-top: 0; }
+  #panel-folders > .section-head h2, #panel-payments > .section-head h2, #panel-admin > h2 { font-size: 22px; font-weight: 500; }
   .cards { gap: 10px; }
   .card { padding: 18px; }
   .sale-name { font-size: 14px; }
@@ -196,6 +211,13 @@ footer { padding: 32px 0 8px; text-align: center; font-size: 11px; color: var(--
   dialog { padding: 22px; max-height: 90dvh; }
   .close { width: 44px; height: 44px; border-radius: var(--radius-field-mobile); }
   .folder-values { gap: 20px; }
+}
+@media (max-width: 360px) {
+  .top { padding-inline: 12px; gap: 6px; }
+  .brand > span { font-size: 15px; }
+  .identity { max-width: 58%; }
+  .account-pill { padding-right: 6px; }
+  .identity .quiet { padding-inline: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }

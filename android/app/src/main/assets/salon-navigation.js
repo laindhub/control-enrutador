@@ -97,8 +97,58 @@
     const value = top + 'px';
     if (tabs.style.top !== value) tabs.style.top = value;
   }
+  // The first-party visits list can paint over its own bottom navigation.
+  // Scope the correction to /floor/visits; retain the original links and SPA handlers.
+  const visitsStyle = document.createElement('style');
+  visitsStyle.textContent = '[data-md-visits-bottom-nav]{position:fixed!important;inset:auto 0 0 0!important;top:auto!important;bottom:0!important;width:100%!important;max-width:100%!important;z-index:2147483600!important;transform:none!important;pointer-events:auto!important;background:#fff!important;box-sizing:border-box!important}[data-md-visits-bottom-nav] a,[data-md-visits-bottom-nav] button,[data-md-visits-bottom-nav] [role="link"],[data-md-visits-bottom-nav] [role="tab"]{pointer-events:auto!important;position:relative;z-index:1}[data-md-visits-scroll-content]{padding-bottom:calc(var(--md-visits-nav-height,80px) + 16px)!important;scroll-padding-bottom:calc(var(--md-visits-nav-height,80px) + 16px)!important}';
+  document.documentElement.append(visitsStyle);
+  let visitsNav, visitsContent;
+  const normalizeNavLabel = node => (node.textContent || '').replace(/\\s+/g,' ').trim().toLocaleLowerCase('es');
+  function hasAncestor(child, ancestor) {
+    for (let node=child;node;node=node.parentElement) if (node===ancestor) return true;
+    return false;
+  }
+  function findVisitsNav() {
+    const controls=[...document.querySelectorAll('a,button,[role="link"],[role="tab"]')];
+    const names=['puestos','hoy','yo'];
+    const selected=names.map(name=>controls.find(node=>normalizeNavLabel(node)===name));
+    if (selected.some(node=>!node)) return null;
+    // Use the closest common container of the three original bottom nav controls.
+    for(let parent=selected[0].parentElement;parent && parent!==document.body;parent=parent.parentElement){
+      if(hasAncestor(selected[1],parent)&&hasAncestor(selected[2],parent)) return parent;
+    }
+    return null;
+  }
+  function clearVisitsNav() {
+    if(visitsNav?.getAttribute('data-md-visits-bottom-nav')!==null) visitsNav.removeAttribute('data-md-visits-bottom-nav');
+    if(visitsContent?.getAttribute('data-md-visits-scroll-content')!==null) visitsContent.removeAttribute('data-md-visits-scroll-content');
+    visitsNav=visitsContent=undefined;
+    document.documentElement.style.removeProperty('--md-visits-nav-height');
+  }
+  function syncVisitsNav() {
+    if(location.pathname.replace(/\\/$/,'')!=='/floor/visits') {
+      if(visitsNav||visitsContent) clearVisitsNav();
+      return;
+    }
+    const nav=findVisitsNav();
+    if(!nav) return; // Allow the CRM to finish rendering before applying the fix.
+    if(visitsNav && visitsNav!==nav) clearVisitsNav();
+    visitsNav=nav;
+    if(nav.getAttribute('data-md-visits-bottom-nav')===null) nav.setAttribute('data-md-visits-bottom-nav','');
+    const content=document.querySelector('main');
+    if(content && content!==nav && !hasAncestor(nav,content)) {
+      if(visitsContent && visitsContent!==content) visitsContent.removeAttribute('data-md-visits-scroll-content');
+      visitsContent=content;
+      if(content.getAttribute('data-md-visits-scroll-content')===null) content.setAttribute('data-md-visits-scroll-content','');
+    }
+    const measured=nav.getBoundingClientRect().height;
+    const height=Math.max(56,Math.min(140,Number.isFinite(measured)?measured:80))+'px';
+    if(document.documentElement.style.getPropertyValue('--md-visits-nav-height')!==height)
+      document.documentElement.style.setProperty('--md-visits-nav-height',height);
+  }
   function sync() {
     scheduled = false;
+    syncVisitsNav();
     const existing = document.getElementById('md-sales-integration');
     if (location.pathname.replace(/\/$/, '') !== '/floor/activity') {
       if (window.__mdSalesModalOpen) modal(document.getElementById('md-sales-frame'), false);

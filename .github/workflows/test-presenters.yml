@@ -4,10 +4,12 @@ on:
     paths:
       - 'src/routes/presenter*'
       - 'src/presenter-*'
+      - 'src/lead-sync-data.js'
       - 'src/schema.js'
       - 'public/js/presenter*'
       - 'views/presenter.ejs'
       - 'test/presenter*'
+      - 'test/lead-sync.test.js'
       - 'package*.json'
       - '.github/workflows/test-presenters.yml'
   workflow_dispatch:
@@ -25,4 +27,4 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
-      - run: node --test test/presenter-admin.test.js test/presenter-sales.test.js test/presenter-leads.test.js
+      - run: node --test test/presenter-admin.test.js test/presenter-sales.test.js test/presenter-leads.test.js test/lead-sync.test.js

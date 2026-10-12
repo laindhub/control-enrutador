@@ -40,6 +40,13 @@
           <div><strong id="file-name"></strong><span id="file-meta">Presentación cargada</span></div>
           <span class="workspace-tip">Flechas, espacio o clic para avanzar · Esc para salir del modo presentación</span>
         </div>
+        <details id="video-policy" class="video-policy" hidden>
+          <summary>Reproducción de videos</summary>
+          <label>Reproducir automáticamente solo en la diapositiva
+            <input id="video-auto-slide" type="number" min="1" step="1" placeholder="Automático" aria-label="Número de diapositiva para reproducción automática">
+          </label>
+          <p>Dejá el campo vacío para pausar automáticamente la primera de dos diapositivas consecutivas con el mismo video y reproducirlo en la segunda. Si el PPTX no permite identificar el video repetido, indicá el número de diapositiva en que debe reproducirse.</p>
+        </details>
         <div id="pptx-host" class="pptx-host" aria-label="Editor y visor de PowerPoint"></div>
       </section>
     </main>

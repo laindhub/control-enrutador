@@ -1,8 +1,8 @@
 {
-  "name": "control-enrutador",
+  "name": "salon-mas-duenos",
   "version": "1.0.0",
   "private": true,
-  "description": "Control interno de atenciones para la sucursal Liniers de Más Dueños.",
+  "description": "Plataforma comercial Salón Más Dueños: enrutadores, presentadores, ventas, leads, seguimiento y presentaciones.",
   "type": "module",
   "engines": {
     "node": ">=20 <25"

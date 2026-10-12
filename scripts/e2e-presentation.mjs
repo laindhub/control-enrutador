@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,15 +36,20 @@ try {
     }}
   }));
   app.use('/assets', express.static(path.join(root, 'public')));
+  const assetUrl = (resource) => {
+    const normalized = String(resource).replace(/^\\/+/, '');
+    if (normalized.includes('..')) throw Error('Invalid asset path');
+    readFileSync(path.join(root, 'public', normalized));
+    return '/assets/' + normalized;
+  };
   app.get('/presentacion', (_req, res) => {
     res.send(ejs.render(
       requireView(),
-      {assetUrl: (resource) => '/assets/' + resource},
+      {assetUrl},
       {filename: path.join(root, 'views/presentation.ejs')}
     ));
   });
   function requireView() { return readFileSync(path.join(root, 'views/presentation.ejs'), 'utf8'); }
-  const {readFileSync} = await import('node:fs');
   server = await new Promise(resolve => {
     const http = app.listen(0, '127.0.0.1', () => resolve(http));
   });
@@ -51,7 +57,10 @@ try {
   browser = await chromium.launch({headless:true});
   const page = await browser.newPage({acceptDownloads:true});
   page.on('pageerror', error => console.error('Browser error:', error.message));
-  await page.goto(address, {waitUntil:'domcontentloaded'});
+  const response = await page.goto(address, {waitUntil:'domcontentloaded'});
+  assert.equal(response.status(), 200, 'presentation must render without a server error');
+  await page.locator('h1').waitFor();
+  assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
   await page.locator('#file-input').setInputFiles(presentation);
   await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
   await page.waitForFunction(() => /1 diapositiva/.test(document.getElementById('file-meta')?.textContent || ''), null, {timeout:120000});

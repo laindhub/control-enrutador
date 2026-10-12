@@ -1,6 +1,8 @@
-# Control Enrutador
+# Salón Más Dueños
 
-Webapp interna para llevar el conteo de personas o grupos que se sientan con los asesores de Más Dueños, sucursal Liniers.
+Plataforma web interna de la sucursal Liniers de Más Dueños. Integra control de enrutadores y asesores, gestión de presentadores, ventas y comisiones, leads, demostraciones de seguimiento con IA, integración con el CRM y presentaciones PPTX desde el navegador. Se mantiene el repositorio histórico `laindhub/control-enrutador` y sus identificadores internos para preservar la infraestructura existente.
+
+El visor de archivos PPTX está disponible en `/presentacion` y no requiere instalación local.
 
 ## Funciones incluidas
 

@@ -160,7 +160,7 @@ app.get('/presentacion', (_req, res) => {
     .replace(/style-src ([^;]+)/, (all, sources) => 'style-src ' + sources + ' https://fonts.googleapis.com');
   res.setHeader('Content-Security-Policy', csp + '; media-src \'self\' blob: data: https:; worker-src \'self\' blob:');
   res.setHeader('Cache-Control', 'no-store');
-  res.render('presentation', { title: 'Presentación · Más Dueños' });
+  res.render('presentation', { title: 'Presentación · Salón Más Dueños' });
 });
 
 app.use(sessionMiddleware);
@@ -250,7 +250,7 @@ app.post('/operator', verifyCsrf, requireAuth, requireRole('router'), async (req
 });
 
 app.get('/', requireAuth, requireRole('router'), requireOperator, (req, res) => {
-  res.render('app', { title: 'Control Enrutador', operator: req.session.operator });
+  res.render('app', { title: 'Salón Más Dueños', operator: req.session.operator });
 });
 
 app.get('/presentador.webmanifest', (_req,res) => res.sendFile(path.join(publicRoot,'presentador.webmanifest')));
@@ -375,7 +375,7 @@ io.on('connection', (socket) => {
 
 initializeApplication();
 server.listen(config.port, '0.0.0.0', () => {
-  console.log(`Control Enrutador disponible en el puerto ${config.port}`);
+  console.log(`Salón Más Dueños disponible en el puerto ${config.port}`);
 });
 
 async function initializeApplication() {
@@ -384,7 +384,7 @@ async function initializeApplication() {
     await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
     try { startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
-    console.log('Control Enrutador inicializado correctamente.');
+    console.log('Salón Más Dueños inicializado correctamente.');
 
     cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));
 
@@ -395,7 +395,7 @@ async function initializeApplication() {
   } catch (error) {
     startupError = error;
     startupState = 'failed';
-    console.error('Error durante el arranque de Control Enrutador:', error);
+    console.error('Error durante el arranque de Salón Más Dueños:', error);
   }
 }
 async function initializeWithRetry(task, attempts = 5) {

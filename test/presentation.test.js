@@ -31,6 +31,9 @@ test('PPTX client loads locally, supports presentation and optional editing', ()
   assert.match(js, /onPresentationChange/);
   assert.match(js, /onSlideChange/);
   assert.match(js, /media\.play\(\)/);
+  assert.match(js, /duplicateVideoPreviewSlides/);
+  assert.match(js, /blockPreviewAutoplay/);
+  assert.match(html, /id="video-auto-slide"/);
   assert.doesNotMatch(js, /fetch\([^)]*file|FormData\(|XMLHttpRequest/);
 });
 
@@ -69,4 +72,32 @@ test('error page and main login use the current system name', () => {
     assert.doesNotMatch(read(path), /Control Enrutador|CONTROL ENRUTADOR/, path);
   }
   assert.match(read('views/error.ejs'), /SALÓN MÁS DUEÑOS/);
+});
+
+
+test('a repeated video previews paused then plays on the following slide', async () => {
+  const {duplicateVideoPreviewSlides, mayAutoPlayVideo} = await import('../public/js/presentation-media.js');
+  const slides = [
+    {elements:[{type:'text',text:'Intro'}]},
+    {elements:[{type:'media',mediaType:'video/mp4',src:'video.mp4',x:80,y:60,width:520,height:330}]},
+    {elements:[{type:'media',mediaType:'video/mp4',src:'video.mp4',x:80,y:60,width:520,height:330}]},
+    {elements:[{type:'media',mediaType:'video/mp4',src:'otro.mp4',x:80,y:100,width:520,height:300}]},
+  ];
+  const paused=duplicateVideoPreviewSlides(slides);
+  assert.deepEqual([...paused],[1]);
+  assert.equal(mayAutoPlayVideo(1,paused),false);
+  assert.equal(mayAutoPlayVideo(2,paused),true);
+  assert.equal(mayAutoPlayVideo(3,paused),true);
+  assert.equal(mayAutoPlayVideo(1,paused,1),true,'explicit override');
+  assert.equal(mayAutoPlayVideo(2,paused,1),false,'override disables other slides');
+});
+
+test('the same video with different temporary URLs remains paused on its preview', async () => {
+  const {duplicateVideoPreviewSlides} = await import('../public/js/presentation-media.js');
+  const slides=[
+    {elements:[{type:'video',src:'blob:temp-A',x:30,y:50,width:600,height:340}]},
+    {elements:[{type:'video',src:'blob:temp-B',x:30,y:50,width:600,height:340}]},
+    {elements:[{type:'video',src:'otro.mp4',x:0,y:0,width:100,height:80}]},
+  ];
+  assert.deepEqual([...duplicateVideoPreviewSlides(slides)],[0]);
 });

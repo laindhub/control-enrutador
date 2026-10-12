@@ -54,6 +54,7 @@ try {
   await page.goto(address, {waitUntil:'domcontentloaded'});
   await page.locator('#file-input').setInputFiles(presentation);
   await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
+  await page.waitForFunction(() => /1 diapositiva/.test(document.getElementById('file-meta')?.textContent || ''), null, {timeout:120000});
   assert.equal(await page.locator('#file-name').textContent(), 'smoke.pptx');
   assert.match(await page.locator('#file-meta').textContent(), /1 diapositiva/);
   assert.equal(await page.locator('#start').isVisible(), true);

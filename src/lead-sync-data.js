@@ -21,7 +21,7 @@ export function routerFromLeadDetail(detail) {
   if(typeof direct==='string' && direct.trim())return direct.trim().slice(0,255);
   if(typeof detail.router==='string' && detail.router.trim())return detail.router.trim().slice(0,255);
   const timeline=typeof detail.timeline==='string'?detail.timeline:'';
-  const matches=[...timeline.matchAll(/^[ \\t]*([^\\r\\n·•]{2,255}?)\\s*[·•]\\s*como\\s+enrutador\\b/gim)];
+  const matches=[...timeline.matchAll(/^[ \t]*([^\r\n·•]{2,255}?)\s*[·•]\s*como\s+enrutador\b/gim)];
   return matches.length?matches.at(-1)[1].trim():null;
 }
 export function normalizeDetail(detail) {

@@ -1,0 +1,27 @@
+name: Test PPTX presentation viewer
+on:
+  push:
+    paths:
+      - 'src/server.js'
+      - 'public/js/presentation.js'
+      - 'public/css/presentation.css'
+      - 'views/presentation.ejs'
+      - 'test/presentation.test.js'
+      - '.github/workflows/test-presentation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --check public/js/presentation.js
+      - run: node --test test/presentation.test.js
+      - run: npm run check

@@ -128,6 +128,20 @@ app.get('/health', async (req, res, next) => {
   });
 });
 
+// Visor local de PPTX: funciona sin login ni base de datos.
+// La CSP ampliada se aplica solo a este recurso, no a las rutas comerciales.
+app.get('/presentacion', (_req, res) => {
+  let csp = String(res.getHeader('Content-Security-Policy') || '');
+  csp = csp
+    .replace(/script-src ([^;]+)/, (all, sources) => 'script-src ' + sources + ' https://esm.sh')
+    .replace(/connect-src ([^;]+)/, (all, sources) => 'connect-src ' + sources + ' https://esm.sh https://fonts.googleapis.com https://fonts.gstatic.com')
+    .replace(/img-src ([^;]+)/, (all, sources) => 'img-src ' + sources + ' blob:')
+    .replace(/font-src ([^;]+)/, (all, sources) => 'font-src ' + sources + ' blob: data: https://fonts.gstatic.com');
+  res.setHeader('Content-Security-Policy', csp + '; media-src \'self\' blob: data: https:; worker-src \'self\' blob:');
+  res.setHeader('Cache-Control', 'no-store');
+  res.render('presentation', { title: 'Presentación · Más Dueños' });
+});
+
 app.use((req, res, next) => {
   if (startupState === 'starting') {
     res.setHeader('Retry-After', '2');

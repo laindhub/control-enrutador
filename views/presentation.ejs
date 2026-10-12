@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#151515">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Presentación | Más Dueños</title>
+  <link rel="icon" href="<%= assetUrl('favicon-red.svg') %>" type="image/svg+xml">
+  <link rel="stylesheet" href="<%= assetUrl('css/presentation.css') %>">
+  <script type="module" src="<%= assetUrl('js/presentation.js') %>"></script>
+</head>
+<body>
+  <div class="present-app">
+    <header class="topbar">
+      <div class="brand"><img src="<%= assetUrl('mas-duenos-isotipo.svg') %>" width="30" height="30" alt=""><span>Más Dueños <span class="brand-sub">/ Presentación</span></span></div>
+      <div class="top-actions">
+        <button id="change-file" class="subtle" type="button" hidden>Cambiar archivo</button>
+        <button id="download" class="subtle" type="button" hidden>Guardar PPTX</button>
+        <button id="start" class="accent" type="button" hidden>▶ Iniciar presentación</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="welcome" class="welcome">
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Elegir presentación PowerPoint">
+          <span class="file-symbol" aria-hidden="true">P</span>
+          <h1>Tu PowerPoint, directamente en el navegador.</h1>
+          <p>Abrí una presentación PPTX sin instalar programas. Presentá en pantalla completa, navegá las diapositivas y conservá los videos incrustados.</p>
+          <span class="file-select">Elegir archivo PPTX</span>
+          <p class="fine">También podés arrastrar tu archivo acá · PPTX, PPSX o PPTM · hasta 250 MB</p>
+        </div>
+        <label class="editor-option"><input id="edit-mode" type="checkbox"> Habilitar edición de diapositivas</label>
+        <p class="privacy">El archivo se abre en este dispositivo. No se carga a nuestros servidores ni se almacena en MySQL. Se requiere internet para cargar el motor de visualización.</p>
+        <p class="browser-note">Importante: para activar videos con sonido, iniciá la presentación desde el botón. El navegador puede impedir la reproducción automática con audio según sus políticas.</p>
+      </section>
+
+      <section id="workspace" class="workspace" hidden>
+        <div class="workspace-bar">
+          <div><strong id="file-name"></strong><span id="file-meta">Presentación cargada</span></div>
+          <span class="workspace-tip">Flechas, espacio o clic para avanzar · Esc para salir del modo presentación</span>
+        </div>
+        <div id="pptx-host" class="pptx-host" aria-label="Editor y visor de PowerPoint"></div>
+      </section>
+    </main>
+    <input id="file-input" type="file" accept=".pptx,.ppsx,.pptm,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+  </div>
+</body>
+</html>

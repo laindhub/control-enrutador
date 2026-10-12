@@ -1,0 +1,43 @@
+:root{font-family:Inter,Arial,Helvetica,sans-serif;color-scheme:dark;--red:#d6271d;--ink:#f4f4f5;--muted:#a9a9b0}
+*{box-sizing:border-box}
+body{margin:0;background:#111214;color:var(--ink)}
+button,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:wait;opacity:.65}
+button:focus-visible,.dropzone:focus-visible,input:focus-visible{outline:3px solid #ee766e;outline-offset:3px}
+[hidden]{display:none!important}
+.present-app{min-height:100dvh;display:flex;flex-direction:column}
+.topbar{height:76px;flex-shrink:0;display:flex;justify-content:space-between;gap:16px;align-items:center;padding:12px clamp(18px,4vw,54px);background:#18191c;border-bottom:1px solid #303035}
+.brand{display:flex;align-items:center;gap:13px;font-size:18px;letter-spacing:-.3px;font-weight:750;white-space:nowrap}
+.brand img{width:32px;height:32px;object-fit:contain}
+.brand-sub{font-weight:450;color:#aaa}
+.top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.top-actions button{border:1px solid #53535b;border-radius:8px;padding:10px 15px;min-height:42px;color:#f9f9fb;font-weight:650}
+.top-actions .subtle{background:#24252a}
+.top-actions .subtle:hover{background:#35363b}
+.top-actions .accent{background:var(--red);border-color:var(--red)}
+.top-actions .accent:hover{background:#ee3328}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.welcome{width:min(100% - 36px,830px);margin:auto;padding:35px 0}
+.dropzone{border:2px dashed #484951;border-radius:20px;text-align:center;padding:clamp(28px,5vw,65px) 30px;background:radial-gradient(ellipse at top,rgba(214,39,29,.1),transparent 65%),#1b1c20;transition:border-color .18s,background-color .18s;cursor:pointer}
+.dropzone:hover,.dropzone.dragging{border-color:#ed554b;background-color:#252125}
+.file-symbol{display:grid;place-items:center;width:64px;height:64px;border-radius:13px;background:#d6271d;margin:0 auto 24px;color:white;font-size:37px;font-weight:800;box-shadow:inset -9px 0 rgba(0,0,0,.12)}
+h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto 17px;letter-spacing:-1.4px}
+.dropzone>p{font-size:16px;line-height:1.6;color:#c4c4cc;max-width:590px;margin:0 auto 24px}
+.file-select{display:inline-flex;align-items:center;justify-content:center;border-radius:9px;min-height:46px;padding:12px 22px;background:var(--red);font-weight:750}
+.dropzone .fine{font-size:13px;color:#a6a6ad;margin-top:20px;margin-bottom:0}
+.editor-option{display:flex;gap:10px;align-items:center;margin:25px auto 0;width:max-content;max-width:100%;color:#e0e0e4}
+.editor-option input{accent-color:var(--red);width:18px;height:18px}
+.privacy,.browser-note{text-align:center;color:#aaa;max-width:670px;margin:18px auto 0;font-size:13px;line-height:1.5}
+.browser-note{color:#d4b7b4}
+.workspace{display:flex;flex:1;min-height:0;flex-direction:column;padding:15px clamp(10px,2vw,28px) 22px;gap:13px}
+.workspace-bar{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.workspace-bar div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.workspace-bar strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(55vw,800px)}
+.workspace-bar span,.workspace-tip{font-size:12px;color:#a3a3ab}
+.pptx-host{height:calc(100dvh - 76px - 97px);min-height:400px;width:100%;background:#19191b;border:1px solid #323238;border-radius:11px;overflow:hidden;position:relative}
+.pptx-host:fullscreen{height:100dvh;border:0;border-radius:0}
+.status{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:13px 20px;background:#313136;color:#fff;border:1px solid #53535b;border-radius:12px;max-width:min(92vw,700px);line-height:1.4;font-size:14px;z-index:10000;box-shadow:0 16px 50px #0007}
+.status.error{background:#4d211f;border-color:#c75e57}
+@media(max-width:700px){.topbar{height:auto;min-height:72px;padding:12px 16px;flex-wrap:wrap}.brand{font-size:16px}.top-actions{gap:7px}.top-actions button{min-height:39px;padding:8px 11px;font-size:12px}.welcome{padding:22px 0}.dropzone{padding:35px 18px}.dropzone>p{font-size:14px}.workspace{padding:9px}.workspace-bar{gap:6px}.workspace-tip{font-size:11px}.pptx-host{height:calc(100dvh - 178px);min-height:360px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation-duration:.01ms!important}}

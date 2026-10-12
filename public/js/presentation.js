@@ -114,6 +114,7 @@ function scheduleMedia() {
 }
 function slideChanged(index) {
   if (Number.isInteger(index) && index >= 0) activeSlideIndex = index;
+  host.dataset.activeSlideIndex = String(activeSlideIndex);
   if (presenting) scheduleMedia();
 }
 
@@ -180,6 +181,7 @@ async function openPresentation(file) {
     pausedPreviewSlides = duplicateVideoPreviewSlides(viewer.getSlides?.() || []);
     const current = viewer.getCurrentSlide?.();
     activeSlideIndex = Number.isInteger(current) ? current : 0;
+    host.dataset.activeSlideIndex = String(activeSlideIndex);
     $('video-auto-slide').max = String(slides);
     $('video-auto-slide').value = '';
     $('video-policy').hidden = false;

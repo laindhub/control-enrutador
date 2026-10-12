@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Prueba de integración · Salón Más Dueños</title>
+  <link rel="icon" type="image/svg+xml" href="<%= assetUrl('assets/favicon-red.svg') %>">
+  <style>
+    :root { color-scheme:light; font-family:Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif; color:#151515; background:#f4f5f5; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100dvh; }
+    button,a { font:inherit; }
+    button { cursor:pointer; }
+    .top { position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e6e6e6;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px max(18px,env(safe-area-inset-right)); }
+    .name { font-weight:700;font-size:16px; }
+    .top a { color:#333;font-size:13px; }
+    main { max-width:1200px;margin:auto;padding:16px 16px max(24px,env(safe-area-inset-bottom)); }
+    h1 { font-size:21px;margin:0 0 8px;letter-spacing:-.02em; }
+    p { margin:0 0 12px;line-height:1.45; }
+    .description { font-size:13px;color:#555; }
+    .actions { display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0; }
+    .actions button,.actions a { background:white;color:#111;border:1px solid #ddd;border-radius:12px;padding:10px 14px;min-height:43px;text-decoration:none;font-weight:600;font-size:13px; }
+    .actions button[aria-pressed="true"] { background:#111;color:white;border-color:#111; }
+    .status { font-size:12px;color:#666;margin:8px 0 12px;min-height:18px; }
+    .frame-box { overflow:hidden;background:#fff;border:1px solid #ddd;border-radius:14px; }
+    iframe { width:100%;height:max(420px,calc(100dvh - 280px));display:block;border:0;background:#fff; }
+    .diagnosis { margin:16px 0;padding:16px;background:#fff;border:1px solid #e4e4e4;border-radius:14px; }
+    .diagnosis h2 { font-size:15px;margin:0 0 10px; }
+    .diagnosis button { font-size:12px;flex:1 1 145px; }
+    #result { min-height:22px;font-size:13px;margin-top:10px; }
+    .footnote { color:#555;font-size:12px;margin:12px 0; }
+    @media(min-width:800px){ main { padding:24px; } iframe{height:70dvh;} }
+  </style>
+</head>
+<body>
+<header class="top">
+  <span class="name">Salón Más Dueños · Prueba</span>
+  <a href="https://masduenos.laind.io">Volver a la webapp</a>
+</header>
+<main>
+  <h1>¿Podemos incrustar el CRM de Liniers?</h1>
+  <p class="description">Prueba aislada para iPhone y Android. No modifica ninguna cuenta ni el CRM. La página original se carga directamente desde su dominio, sin servidores intermediarios.</p>
+  <div class="actions" role="group" aria-label="Destino dentro del CRM">
+    <button type="button" id="go-floor" aria-pressed="true">Salón</button>
+    <button type="button" id="go-visits" aria-pressed="false">Hoy · visitas</button>
+    <a href="<%= crmUrl %>" id="open-crm" target="_blank" rel="noopener noreferrer">Abrir CRM por separado ↗</a>
+  </div>
+  <p class="status" id="load-status" aria-live="polite">Intentando cargar el CRM…</p>
+  <div class="frame-box">
+    <iframe id="crm-frame" src="<%= crmUrl %>" title="CRM de Liniers" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
+  <section class="diagnosis" aria-labelledby="diagnosis-title">
+    <h2 id="diagnosis-title">¿Qué aparece dentro del recuadro?</h2>
+    <div class="actions">
+      <button type="button" data-result="visible">Se ve y puedo navegar</button>
+      <button type="button" data-result="login">Se ve, pero no puedo iniciar sesión</button>
+      <button type="button" data-result="blocked">Está vacío o bloqueado</button>
+    </div>
+    <p id="result" aria-live="polite">Marcá lo que ves para interpretar la prueba.</p>
+  </section>
+  <p class="footnote">Importante: un evento de carga del iframe no demuestra que el CRM se haya mostrado. Algunos navegadores disparan ese evento incluso cuando la web rechaza la incrustación. Si se bloquea, puede deberse a X-Frame-Options, CSP o políticas del navegador; una PWA no puede saltarse esos controles.</p>
+</main>
+<script src="<%= assetUrl('js/iframe-probe.js') %>" defer></script>
+</body>
+</html>

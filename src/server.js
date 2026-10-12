@@ -40,6 +40,7 @@ import {
 } from './routes/demo.js';
 import { createAiDemoRouter } from './routes/ai-demo.js';
 import { PROJECT_CATALOG } from './ai-demo-knowledge.js';
+import { CRM_TEST_URL, cspForCrmIframe } from './iframe-probe.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -161,6 +162,14 @@ app.get('/presentacion', (_req, res) => {
   res.setHeader('Content-Security-Policy', csp + '; media-src \'self\' blob: data: https:; worker-src \'self\' blob:');
   res.setHeader('Cache-Control', 'no-store');
   res.render('presentation', { title: 'Presentación · Salón Más Dueños' });
+});
+
+// Public diagnostic only: no stored lead data, no CRM proxy and no session required.
+// Inbound CSP stays unchanged; only outgoing framing of the single CRM origin is allowed.
+app.get('/prueba-iframe', (_req,res) => {
+  res.setHeader('Content-Security-Policy', cspForCrmIframe(res.getHeader('Content-Security-Policy')));
+  res.setHeader('Cache-Control','no-store');
+  res.render('iframe-probe',{crmUrl:CRM_TEST_URL});
 });
 
 app.use(sessionMiddleware);

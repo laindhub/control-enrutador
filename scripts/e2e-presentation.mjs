@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import ejs from 'ejs';
+import helmet from 'helmet';
+import {chromium} from 'playwright';
+import PptxGenJS from 'pptxgenjs';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const temp = await mkdtemp(path.join(tmpdir(), 'presentacion-e2e-'));
+const presentation = path.join(temp, 'smoke.pptx');
+let browser, server;
+try {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  const slide = pptx.addSlide();
+  slide.background = {color: 'FFFFFF'};
+  slide.addText('PRUEBA PPTX', {x: 1, y: 2, w: 9, h: 1, fontSize: 32, color: '202020'});
+  await pptx.writeFile({fileName: presentation});
+
+  const app = express();
+  app.use(helmet({
+    contentSecurityPolicy: {directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://esm.sh'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      connectSrc: ["'self'", 'https://esm.sh', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      fontSrc: ["'self'", 'data:', 'blob:', 'https://fonts.gstatic.com'],
+      mediaSrc: ["'self'", 'blob:', 'data:', 'https:'],
+      workerSrc: ["'self'", 'blob:']
+    }}
+  }));
+  app.use('/assets', express.static(path.join(root, 'public')));
+  app.get('/presentacion', (_req, res) => {
+    res.send(ejs.render(
+      requireView(),
+      {assetUrl: (resource) => '/assets/' + resource},
+      {filename: path.join(root, 'views/presentation.ejs')}
+    ));
+  });
+  function requireView() { return readFileSync(path.join(root, 'views/presentation.ejs'), 'utf8'); }
+  const {readFileSync} = await import('node:fs');
+  server = await new Promise(resolve => {
+    const http = app.listen(0, '127.0.0.1', () => resolve(http));
+  });
+  const address = 'http://127.0.0.1:' + server.address().port + '/presentacion';
+  browser = await chromium.launch({headless:true});
+  const page = await browser.newPage({acceptDownloads:true});
+  page.on('pageerror', error => console.error('Browser error:', error.message));
+  await page.goto(address, {waitUntil:'domcontentloaded'});
+  await page.locator('#file-input').setInputFiles(presentation);
+  await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
+  assert.equal(await page.locator('#file-name').textContent(), 'smoke.pptx');
+  assert.match(await page.locator('#file-meta').textContent(), /1 diapositiva/);
+  assert.equal(await page.locator('#start').isVisible(), true);
+  console.log('PPTX decoded and shown in Chromium. Start presentation control available.');
+} finally {
+  await browser?.close();
+  if (server) await new Promise(resolve => server.close(resolve));
+  await rm(temp, {recursive:true, force:true});
+}

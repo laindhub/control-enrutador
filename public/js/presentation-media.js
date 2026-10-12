@@ -33,8 +33,8 @@ export function duplicateVideoPreviewSlides(slides) {
   const paused = new Set();
   for (let index = 0; index < videoSlides.length - 1; index++) {
     if (videoSlides[index].some(first => videoSlides[index + 1].some(next =>
-      (first.source && next.source && first.source === next.source) ||
-      (first.position !== '0:0:0:0' && first.position === next.position)))) {
+      (first.source && next.source ? first.source === next.source :
+        (first.position !== '0:0:0:0' && first.position === next.position))))) {
       paused.add(index);
     }
   }

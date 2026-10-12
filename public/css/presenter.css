@@ -164,6 +164,16 @@ dialog::backdrop { background: #0006; }
 .form-error { color: var(--bad-text); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .mini-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid var(--border-row); padding: 10px 0; font-size: 12px; }
 .mini-row > * { min-width: 0; overflow-wrap: anywhere; }
+/* Sales listed inside weekly folders open the same accessible sale dialog as Resumen. */
+.folder-sale-row {
+ width:100%; min-height:48px; padding:10px 8px; background:transparent;
+ border:0; border-top:1px solid var(--border-row); border-radius:0;
+ color:inherit; text-align:left; cursor:pointer;
+}
+.folder-sale-row:hover, .folder-sale-row:focus-visible { background:var(--surface-hover); }
+.folder-sale-row:active { background:var(--pressed); }
+.folder-sale-row strong { flex-shrink:0; white-space:nowrap; }
+
 .detail { border-top: 1px solid var(--border-row); margin-top: 12px; padding-top: 10px; font-size: 12px; }
 .detail summary { cursor: pointer; color: var(--muted-foreground); }
 .detail pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted-foreground); font: inherit; }

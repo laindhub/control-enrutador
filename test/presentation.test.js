@@ -10,7 +10,7 @@ test('presentation route is isolated and available without the CRM session', () 
   const startupGate = server.indexOf("app.use((req, res, next) => {\n  if (startupState === 'starting')");
   const session = server.indexOf('app.use(sessionMiddleware);');
   assert.ok(presentation > 0, 'presentation route exists');
-  assert.ok(presentation < startupGate, 'viewer survives database startup problems');
+  assert.ok(presentation > startupGate, 'viewer follows normal service readiness checks');
   assert.ok(presentation < session, 'local-only viewer does not require login');
   assert.match(server, /res\.render\('presentation'/);
   assert.match(server, /https:\/\/esm\.sh/);

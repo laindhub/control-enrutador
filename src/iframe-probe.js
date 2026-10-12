@@ -5,7 +5,7 @@ export const CRM_TEST_URL = CRM_ORIGIN + '/floor';
 
 export function cspForCrmIframe(currentCsp = '') {
   const directives = String(currentCsp || '').split(';').map(value => value.trim())
-    .filter(Boolean).filter(value => !/^frame-src(?:\\s|$)/i.test(value));
+    .filter(Boolean).filter(value => !/^frame-src(?:\s|$)/i.test(value));
   directives.push('frame-src ' + CRM_ORIGIN);
   return directives.join('; ');
 }

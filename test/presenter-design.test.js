@@ -32,3 +32,16 @@ test('embedded salon presenter preserves horizontal gutters and full-width month
   assert.match(css, /\.embedded #panel-leads > \.section-head:first-child\s*\{[^}]*flex-direction:column;/);
   assert.match(css, /\.embedded #panel-leads > \.section-head:first-child input\s*\{[^}]*width:100%;[^}]*max-width:100%;/);
 });
+
+test('weekly folder sale rows reuse the exact sale detail dialog from Resumen', () => {
+  const script = read('public/js/presenter.js').toString();
+  const css = read('public/css/presenter.css').toString();
+  // Both the Resumen tiles and the folder rows use the delegated handler.
+  assert.match(script, /class="sale-tile" data-sale-view="\$\{s\.id\}"/);
+  assert.match(script, /class="mini-row folder-sale-row" data-sale-view="\$\{s\.id\}"/);
+  assert.match(script, /if\(button\.dataset\.saleView\)\{const item=state\.sales\.find\(/);
+  assert.match(script, /\$\('#sale-detail-content'\)\.innerHTML=saleDetail\(item\)/);
+  assert.match(script, /\$\('#sale-detail-dialog'\)\.showModal\(\)/);
+  assert.match(css, /\.folder-sale-row\s*\{[^}]*min-height:48px/);
+  assert.match(css, /\.folder-sale-row:hover, \.folder-sale-row:focus-visible/);
+});

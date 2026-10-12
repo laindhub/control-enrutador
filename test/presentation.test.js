@@ -7,7 +7,7 @@ const read = (name) => readFileSync(new URL('../' + name, import.meta.url), 'utf
 test('presentation route is isolated and available without the CRM session', () => {
   const server = read('src/server.js');
   const presentation = server.indexOf("app.get('/presentacion'");
-  const startupGate = server.indexOf("if (startupState === 'starting')", server.indexOf("app.get('/health'") + 20);
+  const startupGate = server.indexOf("app.use((req, res, next) => {\n  if (startupState === 'starting')");
   const session = server.indexOf('app.use(sessionMiddleware);');
   assert.ok(presentation > 0, 'presentation route exists');
   assert.ok(presentation < startupGate, 'viewer survives database startup problems');

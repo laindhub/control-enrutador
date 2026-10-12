@@ -97,7 +97,8 @@ function playVisibleMedia() {
 }
 // Interceptamos también reproducciones automáticas que inicie el motor.
 function blockPreviewAutoplay(event) {
-  if (presenting && event.target?.tagName === 'VIDEO' && !slideAllowsVideo()) {
+  const stage = document.fullscreenElement || host;
+  if (presenting && stage.contains(event.target) && event.target?.tagName === 'VIDEO' && !slideAllowsVideo()) {
     pausePreview(event.target);
   }
 }
@@ -251,5 +252,5 @@ $('video-auto-slide').addEventListener('change', event => {
   }
   forcedAutoplaySlide = number - 1;
 });
-host.addEventListener('play', blockPreviewAutoplay, true);
+document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);

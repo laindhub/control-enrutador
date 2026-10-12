@@ -29,3 +29,8 @@ Visor/editor integrado al repositorio existente.
 - GitHub Actions test-presentation.yml ejecuta análisis de sintaxis y una prueba real de carga con Chromium y un PPTX sintético.
 
 No se necesita instalar nada en las computadoras: solo un navegador compatible.
+
+## Reproducción de videos repetidos
+- Si dos diapositivas consecutivas incluyen el mismo video, la primera se conserva como vista previa pausada y la segunda lo reproduce automáticamente.
+- Hay un control opcional «Reproducción de videos» para indicar manualmente la diapositiva que debe reproducir el video cuando el PPTX utiliza referencias difíciles de identificar.
+- Se mantiene el inicio de reproducción con gesto de presentación y el comportamiento del navegador.

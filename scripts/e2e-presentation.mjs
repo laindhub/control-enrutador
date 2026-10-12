@@ -37,7 +37,7 @@ try {
   }));
   app.use('/assets', express.static(path.join(root, 'public')));
   const assetUrl = (resource) => {
-    const normalized = String(resource).replace(/^\\/+/, '');
+    const normalized = String(resource).replace(/^[/]+/, '');
     if (normalized.includes('..')) throw Error('Invalid asset path');
     readFileSync(path.join(root, 'public', normalized));
     return '/assets/' + normalized;

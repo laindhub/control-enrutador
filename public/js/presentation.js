@@ -99,6 +99,12 @@ async function openPresentation(file) {
     const { createPptxViewer } = await modulePromise;
     if (typeof createPptxViewer !== 'function') throw Error('No se encontró el motor de PowerPoint.');
     cleanupViewer();
+    // Medir y montar el motor con un contenedor visible evita una escala cero.
+    $('welcome').hidden = true;
+    $('workspace').hidden = false;
+    $('file-name').textContent = file.name;
+    $('file-meta').textContent = 'Abriendo diapositivas…';
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     let slides = 0;
     viewer = createPptxViewer(host, {
       editable: $('edit-mode').checked,
@@ -123,6 +129,12 @@ async function openPresentation(file) {
     showReady(file, slides);
   } catch (error) {
     cleanupViewer();
+    currentFile = null;
+    $('workspace').hidden = true;
+    $('welcome').hidden = false;
+    $('start').hidden = true;
+    $('download').hidden = true;
+    $('change-file').hidden = true;
     status('No se pudo abrir la presentación: ' + (error?.message || 'error desconocido') +
       '. Comprobá tu conexión y que el archivo no esté dañado.', true, true);
     console.error('Error del visor PPTX:', error);

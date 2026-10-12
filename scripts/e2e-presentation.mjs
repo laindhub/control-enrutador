@@ -57,7 +57,10 @@ try {
   assert.equal(await page.locator('#file-name').textContent(), 'smoke.pptx');
   assert.match(await page.locator('#file-meta').textContent(), /1 diapositiva/);
   assert.equal(await page.locator('#start').isVisible(), true);
-  console.log('PPTX decoded and shown in Chromium. Start presentation control available.');
+  const hostSize = await page.locator('#pptx-host').evaluate(el => ({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}));
+  assert.ok(hostSize.width > 300 && hostSize.height > 300, 'viewer has a measurable stage');
+  await page.waitForFunction(() => document.getElementById('pptx-host')?.textContent?.includes('PRUEBA PPTX'), null, {timeout:30000});
+  console.log('PPTX decoded and its slide text actually rendered in Chromium.');
 } finally {
   await browser?.close();
   if (server) await new Promise(resolve => server.close(resolve));

@@ -80,7 +80,17 @@ try {
   // Verificar controles sobre medios reales, sin requerir audio ni códec H264
   // en el runner (sí requiere video nativo en el DOM del visor).
   await page.locator('#start').click();
+  // El motor monta el escenario de pantalla completa de forma asíncrona.
+  // Esperar a que deje de mostrar "Loading…" antes de navegar.
+  await page.waitForFunction(() => {
+    const stage=document.fullscreenElement;
+    return stage && /1\s*\/\s*3/.test(stage.textContent || '') && !stage.textContent?.trimEnd().endsWith('Loading…');
+  }, null, {timeout:45000});
   await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => {
+    const stage=document.fullscreenElement;
+    return stage && /2\s*\/\s*3/.test(stage.textContent || '');
+  }, null, {timeout:15000});
   const getStageVideo = () => {
     const stage = document.fullscreenElement || document.getElementById('pptx-host');
     const candidates = [...stage.querySelectorAll('video')];
@@ -114,6 +124,10 @@ try {
   }
   assert.equal(previewAutoplay, false, 'first repeated video is a paused preview');
   await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => {
+    const stage=document.fullscreenElement;
+    return stage && /3\s*\/\s*3/.test(stage.textContent || '');
+  }, null, {timeout:15000});
   await page.waitForTimeout(500);
   const playbackAutoplay = await page.evaluate(() => {
     const stage = document.fullscreenElement || document.getElementById('pptx-host');

@@ -101,3 +101,13 @@ test('the same video with different temporary URLs remains paused on its preview
   ];
   assert.deepEqual([...duplicateVideoPreviewSlides(slides)],[0]);
 });
+
+
+test('two different videos in the same slide position are not treated as previews', async () => {
+  const {duplicateVideoPreviewSlides} = await import('../public/js/presentation-media.js');
+  const slides = [
+    {elements:[{type:'media',src:'intro.mp4',x:60,y:60,width:800,height:480}]},
+    {elements:[{type:'media',src:'next.mp4',x:60,y:60,width:800,height:480}]},
+  ];
+  assert.deepEqual([...duplicateVideoPreviewSlides(slides)], []);
+});

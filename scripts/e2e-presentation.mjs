@@ -97,6 +97,21 @@ try {
     const stage = document.fullscreenElement || document.getElementById('pptx-host');
     return [...stage.querySelectorAll('video')].find(x => x.getBoundingClientRect().width > 1)?.autoplay;
   });
+  if (previewAutoplay === undefined) {
+    console.log('MEDIA DEBUG', await page.evaluate(() => {
+      const stage = document.fullscreenElement || document.getElementById('pptx-host');
+      return {fullscreen: Boolean(document.fullscreenElement), stageTag: stage.tagName,
+        stageText: stage.textContent?.slice(-400),
+        videos: [...document.querySelectorAll('video')].map(v => ({
+          autoplay:v.autoplay, paused:v.paused,
+          width:Math.round(v.getBoundingClientRect().width),
+          height:Math.round(v.getBoundingClientRect().height),
+          src: v.getAttribute('src')?.slice(0,70),
+        })),
+        notices:[...document.querySelectorAll('.status')].map(e=>e.textContent),
+      };
+    }));
+  }
   assert.equal(previewAutoplay, false, 'first repeated video is a paused preview');
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(500);

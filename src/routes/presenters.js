@@ -9,7 +9,7 @@ import { isLeadSyncRunning, triggerLeadSyncNow } from '../lead-sync-runner.js';
 import { config } from '../config.js';
 import { requireAuth } from '../auth.js';
 import { nowLocal } from '../time.js';
-import { normalizePhone } from '../lead-sync-data.js';
+import { normalizePhone, routerFromLeadDetail } from '../lead-sync-data.js';
 import { aggregateSales, extractedSale, money, salesFolder, validDate } from '../presenter-sales.js';
 export function presenterAccess(req,res,next) {
  if (['presenter','presenter_admin'].includes(req.session.user?.role)) return next();
@@ -84,7 +84,7 @@ export function createPresenterRouter() {
   const [sales]=await pool.execute('SELECT source_visit_id FROM presenter_sales WHERE id=? AND user_id=? AND deleted_at IS NULL',[id(req.params.id),req.session.user.id]);
   if(!sales.length)return res.status(404).json({error:'Venta no encontrada.'});
   if(!sales[0].source_visit_id)return res.json({lead:null});
-  try{const [rows]=await pool.execute('SELECT source_visit_id, source_date, name, phone, advisor, promoter, detail_json FROM external_lead_visits WHERE source_visit_id=?',[sales[0].source_visit_id]);res.json({lead:rows[0]||null});}catch(error){if(error.code==='ER_NO_SUCH_TABLE')return res.json({lead:null});throw error;}
+  try{const [rows]=await pool.execute('SELECT source_visit_id, source_date, name, phone, advisor, detail_json FROM external_lead_visits WHERE source_visit_id=?',[sales[0].source_visit_id]);const lead=rows[0]||null;if(lead){const detail=typeof lead.detail_json==='string'?JSON.parse(lead.detail_json):lead.detail_json;lead.router=routerFromLeadDetail(detail);}res.set('Cache-Control','no-store').json({lead});}catch(error){if(error.code==='ER_NO_SUCH_TABLE')return res.json({lead:null});throw error;}
  });
  router.get('/leads',async(req,res)=>res.json({leads:await findLeads(normalizePhone(req.query.phone),text(req.query.name),text(req.query.date,10),text(req.query.advisor))}));
  router.post('/sales',async(req,res)=>{

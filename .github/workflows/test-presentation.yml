@@ -24,4 +24,13 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node --check public/js/presentation.js
       - run: node --test test/presentation.test.js
+      - name: Verify pinned browser engine is available
+        run: |
+          node --input-type=module -e "
+            const response = await fetch('https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle');
+            if (!response.ok) throw Error('PPTX viewer CDN returned HTTP ' + response.status);
+            const code = await response.text();
+            if (!code.includes('pptx-vanilla-viewer')) throw Error('Unexpected viewer module response');
+            console.log('Pinned PPTX viewer module available (' + code.length + ' bytes)');
+          "
       - run: npm run check

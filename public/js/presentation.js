@@ -1,3 +1,4 @@
+import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
 const VIEWER_MODULE = 'https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
@@ -14,6 +15,11 @@ let mediaObserver = null;
 let modulePromise = null;
 let statusTimer = null;
 let mediaAttempted = new WeakSet();
+let pausedPreviewSlides = new Set();
+let activeSlideIndex = 0;
+let forcedAutoplaySlide = null;
+let slidesTotal = 0;
+let mediaGeneration = 0;
 
 function status(message, isError = false, persist = false) {
   clearTimeout(statusTimer);
@@ -47,38 +53,75 @@ function showReady(file, slideCount) {
 
 // El clic en «Iniciar» proporciona la interacción necesaria para solicitar
 // reproducción audible. Para diapositivas posteriores no se requiere tocar el video.
-function playVisibleMedia() {
-  if (!presenting) return;
+function slideAllowsVideo() {
+  return mayAutoPlayVideo(activeSlideIndex, pausedPreviewSlides, forcedAutoplaySlide);
+}
+function getVisibleMedia() {
   const root = document.fullscreenElement || host;
-  root.querySelectorAll('video, audio').forEach((media) => {
+  return [...root.querySelectorAll('video, audio')].filter(media => {
     const rect = media.getBoundingClientRect();
-    const visible = rect.width > 1 && rect.height > 1 && rect.left < innerWidth &&
+    return rect.width > 1 && rect.height > 1 && rect.left < innerWidth &&
       rect.right > 0 && rect.top < innerHeight && rect.bottom > 0 &&
       !media.closest('[aria-hidden="true"]');
-    if (!visible) return;
-    if (mediaAttempted.has(media)) return;
+  });
+}
+function pausePreview(media) {
+  media.autoplay = false;
+  if (!media.paused) media.pause();
+  if (Number.isFinite(media.currentTime) && media.currentTime > 0) {
+    try { media.currentTime = 0; } catch { /* Medio no desplazable. */ }
+  }
+}
+function playVisibleMedia() {
+  if (!presenting) return;
+  for (const media of getVisibleMedia()) {
+    if (media.tagName === 'VIDEO' && !slideAllowsVideo()) {
+      pausePreview(media);
+      continue;
+    }
+    if (mediaAttempted.has(media)) continue;
     mediaAttempted.add(media);
     media.autoplay = true;
     if (media.tagName === 'VIDEO') media.playsInline = true;
     const result = media.play();
     if (result && typeof result.catch === 'function') {
-      result.catch((error) => {
-        if (error && error.name === 'NotAllowedError') {
+      result.catch(error => {
+        if (error?.name === 'NotAllowedError') {
           status('Este navegador bloqueó el video con sonido. Activá el audio una vez desde los controles del reproductor.', true, true);
-        } else if (error && error.name === 'NotSupportedError') {
+        } else if (error?.name === 'NotSupportedError') {
           status('El formato de este video no es compatible con el navegador. Convertirlo a MP4 H.264/AAC puede resolverlo.', true, true);
         }
       });
     }
-  });
+  }
+}
+// Interceptamos también reproducciones automáticas que inicie el motor.
+function blockPreviewAutoplay(event) {
+  if (presenting && event.target?.tagName === 'VIDEO' && !slideAllowsVideo()) {
+    pausePreview(event.target);
+  }
 }
 function scheduleMedia() {
+  const generation = ++mediaGeneration;
   mediaAttempted = new WeakSet();
-  setTimeout(playVisibleMedia, 0);
-  setTimeout(playVisibleMedia, 350);
+  const refresh = () => { if (generation === mediaGeneration) playVisibleMedia(); };
+  refresh();
+  setTimeout(refresh, 100);
+  setTimeout(refresh, 350);
 }
+function slideChanged(index) {
+  if (Number.isInteger(index) && index >= 0) activeSlideIndex = index;
+  if (presenting) scheduleMedia();
+}
+
 function cleanupViewer() {
   presenting = false;
+  mediaGeneration++;
+  pausedPreviewSlides = new Set();
+  activeSlideIndex = 0;
+  forcedAutoplaySlide = null;
+  slidesTotal = 0;
+  mediaAttempted = new WeakSet();
   mediaObserver?.disconnect();
   mediaObserver = null;
   if (viewer) { viewer.destroy(); viewer = null; }
@@ -116,7 +159,7 @@ async function openPresentation(file) {
       fileName: file.name,
       onLoad: ({slideCount}) => { slides = slideCount; },
       onError: (message) => { status('Problema al interpretar el archivo: ' + message, true, true); },
-      onSlideChange: () => { if (presenting) scheduleMedia(); },
+      onSlideChange: slideChanged,
       onPresentationChange: (active) => {
         presenting = Boolean(active);
         if (presenting) scheduleMedia();
@@ -124,6 +167,13 @@ async function openPresentation(file) {
     });
     await viewer.loadFile(file);
     if (!slides) throw Error('El archivo no contiene diapositivas reconocibles.');
+    slidesTotal = slides;
+    pausedPreviewSlides = duplicateVideoPreviewSlides(viewer.getSlides?.() || []);
+    const current = viewer.getCurrentSlide?.();
+    activeSlideIndex = Number.isInteger(current) ? current : 0;
+    $('video-auto-slide').max = String(slides);
+    $('video-auto-slide').value = '';
+    $('video-policy').hidden = false;
     mediaObserver = new MutationObserver(() => { if (presenting) playVisibleMedia(); });
     mediaObserver.observe(host, {childList: true, subtree: true});
     showReady(file, slides);
@@ -135,6 +185,7 @@ async function openPresentation(file) {
     $('start').hidden = true;
     $('download').hidden = true;
     $('change-file').hidden = true;
+    $('video-policy').hidden = true;
     status('No se pudo abrir la presentación: ' + (error?.message || 'error desconocido') +
       '. Comprobá tu conexión y que el archivo no esté dañado.', true, true);
     console.error('Error del visor PPTX:', error);
@@ -188,4 +239,17 @@ document.addEventListener('fullscreenchange', () => {
     mediaAttempted = new WeakSet();
   }
 });
+$('video-auto-slide').addEventListener('change', event => {
+  const value = event.target.value.trim();
+  if (!value) { forcedAutoplaySlide = null; return; }
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 1 || number > slidesTotal) {
+    status('Ingresá un número de diapositiva válido.', true);
+    event.target.value = '';
+    forcedAutoplaySlide = null;
+    return;
+  }
+  forcedAutoplaySlide = number - 1;
+});
+host.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);

@@ -37,7 +37,7 @@ test('the enrutador comes from CRM derivación activity, not from La trajo/promo
   'Keren Botini · como Enrutador',
   '',
   'Lo que sigue —la charla, la entrevista con el asesor'
- ].join('\\n');
+ ].join('\n');
  const detail=normalizeDetail({name:'Ejemplo',fields,timeline,summary:'Derivación'});
  assert.equal(detail.advisor,'Jackeline Pernambuco');
  assert.equal(detail.promoter,'entró por su cuenta');
@@ -45,16 +45,16 @@ test('the enrutador comes from CRM derivación activity, not from La trajo/promo
  assert.equal(routerFromLeadDetail({fields,timeline}),'Keren Botini');
 });
 test('read routers from already synchronized detail JSON, including accented role',()=>{
- const stored={timeline:'Derivación\\n14:02\\nMaría Gómez · como Enrutador\\n',fields:[]};
+ const stored={timeline:'Derivación\n14:02\nMaría Gómez · como Enrutador\n',fields:[]};
  assert.equal(routerFromLeadDetail(stored),'María Gómez');
  assert.equal(routerFromLeadDetail({fields:[{label:'Enrutador',value:'  Nadia Pérez  '}],timeline:'Otra · como Enrutador'}),'Nadia Pérez');
- assert.equal(routerFromLeadDetail({fields:[],timeline:'Entró por su cuenta\\nDerivación'}),null);
+ assert.equal(routerFromLeadDetail({fields:[],timeline:'Entró por su cuenta\nDerivación'}),null);
  assert.equal(routerFromLeadDetail(null),null);
 });
 test('linked sale panel emphasizes asesor and enrutador, never the promoter field',()=>{
  const js=readFileSync(new URL('../public/js/presenter.js',import.meta.url),'utf8');
  assert.match(js,/lead-assignment/);
- assert.match(js,/lead\\.router\\|\\|detail\\?\\.router/);
- assert.doesNotMatch(js,/Promotor: \\$\\{esc\\(lead\\.promoter/);
- assert.match(js,/filter\\(f=>!\\/\\^la trajo\\$\\/i/);
+ assert.ok(js.includes('lead.router||detail?.router'));
+ assert.ok(!js.includes('Promotor: ${esc(lead.promoter'));
+ assert.ok(js.includes('filter(f=>!/^la trajo$/i'));
 });

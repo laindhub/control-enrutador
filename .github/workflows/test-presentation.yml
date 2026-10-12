@@ -14,7 +14,7 @@ permissions:
 jobs:
   presentation:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,3 +34,9 @@ jobs:
             console.log('Pinned PPTX viewer module available (' + code.length + ' bytes)');
           "
       - run: npm run check
+      - name: Install E2E fixture generator and Chromium
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund pptxgenjs
+          npx playwright install --with-deps chromium
+      - name: Open a real PPTX in headless Chromium
+        run: node scripts/e2e-presentation.mjs

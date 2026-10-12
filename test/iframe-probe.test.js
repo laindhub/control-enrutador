@@ -8,7 +8,7 @@ test('iframe experiment permits only Liniers, without weakening unrelated CSP di
   const initial="default-src 'self'; script-src 'self'; frame-ancestors 'self'; frame-src 'self'; form-action 'self'";
   const updated=cspForCrmIframe(initial);
   assert.equal(updated.split('frame-src').length-1,1);
-  assert.match(updated,new RegExp('frame-src '+CRM_ORIGIN.replace(/[.*+?^\$\{\}()|[\]\\]/g,'\\$&')));
+  assert.ok(updated.includes('frame-src '+CRM_ORIGIN));
   assert.ok(updated.includes("script-src 'self'"));
   assert.ok(updated.includes("frame-ancestors 'self'"));
   assert.ok(updated.includes("form-action 'self'"));

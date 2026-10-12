@@ -77,9 +77,9 @@ try {
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
   await page.keyboard.press('ArrowDown');
-  await page.waitForTimeout(350);
+  await page.waitForFunction(() => document.getElementById('pptx-host')?.dataset.activeSlideIndex === '1', null, {timeout:15000});
   await page.keyboard.press('ArrowDown');
-  await page.waitForTimeout(350);
+  await page.waitForFunction(() => document.getElementById('pptx-host')?.dataset.activeSlideIndex === '0', null, {timeout:15000});
   assert.equal(await page.evaluate(() => Boolean(document.fullscreenElement)), true,
     'advancing beyond last slide must not close fullscreen');
   // Esc must still exit the fullscreen presentation.

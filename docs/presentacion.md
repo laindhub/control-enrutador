@@ -34,3 +34,7 @@ No se necesita instalar nada en las computadoras: solo un navegador compatible.
 - Si dos diapositivas consecutivas incluyen el mismo video, la primera se conserva como vista previa pausada y la segunda lo reproduce automáticamente.
 - Hay un control opcional «Reproducción de videos» para indicar manualmente la diapositiva que debe reproducir el video cuando el PPTX utiliza referencias difíciles de identificar.
 - Se mantiene el inicio de reproducción con gesto de presentación y el comportamiento del navegador.
+
+## Loop continuo al presentar
+
+Al iniciar la pantalla completa se activa temporalmente la opción nativa de PowerPoint `presentationProperties.loopContinuously`. El motor vuelve al primer slide al avanzar más allá del último (también con la rueda del mouse y la navegación del visor), sin mostrar una pantalla negra y sin cerrar la presentación. Al salir con Esc o al cambiar de archivo se restaura el valor original para no guardar involuntariamente este ajuste en el PPTX. El menú contextual de salida se desactiva durante la presentación.

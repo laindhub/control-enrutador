@@ -1,3 +1,4 @@
+import {enablePresentationLoop} from './presentation-loop.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
@@ -20,6 +21,7 @@ let activeSlideIndex = 0;
 let forcedAutoplaySlide = null;
 let slidesTotal = 0;
 let mediaGeneration = 0;
+let restorePresentationLoop = null;
 
 function status(message, isError = false, persist = false) {
   clearTimeout(statusTimer);
@@ -116,6 +118,8 @@ function slideChanged(index) {
 }
 
 function cleanupViewer() {
+  restorePresentationLoop?.();
+  restorePresentationLoop = null;
   presenting = false;
   mediaGeneration++;
   pausedPreviewSlides = new Set();
@@ -164,6 +168,10 @@ async function openPresentation(file) {
       onPresentationChange: (active) => {
         presenting = Boolean(active);
         if (presenting) scheduleMedia();
+        else {
+          restorePresentationLoop?.();
+          restorePresentationLoop = null;
+        }
       }
     });
     await viewer.loadFile(file);
@@ -200,11 +208,19 @@ async function openPresentation(file) {
 
 $('start').addEventListener('click', () => {
   if (!viewer) return;
+  restorePresentationLoop?.();
+  restorePresentationLoop = enablePresentationLoop(viewer);
+  if (!restorePresentationLoop) {
+    status('Este motor no permite repetir las diapositivas de forma segura. No se inició la presentación.', true, true);
+    return;
+  }
   presenting = true;
   // No await antes de enterPresentation(): el permiso de fullscreen debe
   // solicitarse directamente desde el gesto del usuario.
   Promise.resolve(viewer.enterPresentation()).then(scheduleMedia).catch((error) => {
     presenting = false;
+    restorePresentationLoop?.();
+    restorePresentationLoop = null;
     status('No se pudo abrir pantalla completa: ' + (error?.message || 'permiso denegado'), true, true);
   });
 });
@@ -252,5 +268,18 @@ $('video-auto-slide').addEventListener('change', event => {
   }
   forcedAutoplaySlide = number - 1;
 });
+// No permitir salir accidentalmente mediante el menú contextual o el
+// comando "Finalizar" del toolbar. Esc sigue bajo el control del navegador.
+document.addEventListener('contextmenu', event => {
+  if (!presenting) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
+document.addEventListener('present-toolbar-request', event => {
+  if (presenting && event.detail?.id === 'end') {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
 document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);

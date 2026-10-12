@@ -111,3 +111,41 @@ test('two different videos in the same slide position are not treated as preview
   ];
   assert.deepEqual([...duplicateVideoPreviewSlides(slides)], []);
 });
+
+
+test('slideshow loop turns on only for the active session, preserving other properties', async () => {
+  const {enablePresentationLoop} = await import('../public/js/presentation-loop.js');
+  let state={presentationProperties:{showSubtitles:true,loopContinuously:false}, endOfShow:true};
+  const viewer={store:{get:()=>state,set:patch=>{state={...state,...patch};}}};
+  const restore=enablePresentationLoop(viewer);
+  assert.equal(typeof restore,'function');
+  assert.equal(state.presentationProperties.loopContinuously,true);
+  assert.equal(state.presentationProperties.showSubtitles,true);
+  assert.equal(state.endOfShow,false);
+  viewer.store.set({presentationProperties:{...state.presentationProperties,showSubtitles:false}});
+  restore();
+  restore();
+  assert.equal(state.presentationProperties.loopContinuously,false);
+  assert.equal(state.presentationProperties.showSubtitles,false);
+  assert.equal(state.endOfShow,false);
+});
+
+test('unconfigured looping flag is removed on exit, never baked into saved presentation', async () => {
+  const {enablePresentationLoop} = await import('../public/js/presentation-loop.js');
+  let state={presentationProperties:{showSubtitles:true}};
+  const viewer={store:{get:()=>state,set:patch=>{state={...state,...patch};}}};
+  const restore=enablePresentationLoop(viewer);
+  assert.equal(state.presentationProperties.loopContinuously,true);
+  restore();
+  assert.equal(Object.hasOwn(state.presentationProperties,'loopContinuously'),false);
+  assert.equal(enablePresentationLoop({}),null,'do not start a show if the library changes its API');
+});
+
+test('presentation uses the native continuous loop for keyboard, wheel and click navigation', () => {
+  const script=read('public/js/presentation.js');
+  const css=read('public/css/presentation.css');
+  assert.match(script,/enablePresentationLoop\(viewer\)/);
+  assert.match(script,/restorePresentationLoop\?\.\(\)/);
+  assert.match(script,/onPresentationChange:/);
+  assert.match(css,/\.pptxv-presentation-touch-exit\{display:none!important\}/);
+});

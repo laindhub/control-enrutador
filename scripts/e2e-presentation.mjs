@@ -20,6 +20,8 @@ try {
   const slide = pptx.addSlide();
   slide.background = {color: 'FFFFFF'};
   slide.addText('PRUEBA PPTX', {x: 1, y: 2, w: 9, h: 1, fontSize: 32, color: '202020'});
+  const last=pptx.addSlide();
+  last.addText('DIAPOSITIVA FINAL', {x: 1, y: 2, w: 9, h: 1, fontSize: 32, color: '202020'});
   await pptx.writeFile({fileName: presentation});
 
   const app = express();
@@ -63,14 +65,27 @@ try {
   assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
   await page.locator('#file-input').setInputFiles(presentation);
   await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
-  await page.waitForFunction(() => /1 diapositiva/.test(document.getElementById('file-meta')?.textContent || ''), null, {timeout:120000});
+  await page.waitForFunction(() => /2 diapositivas/.test(document.getElementById('file-meta')?.textContent || ''), null, {timeout:120000});
   assert.equal(await page.locator('#file-name').textContent(), 'smoke.pptx');
-  assert.match(await page.locator('#file-meta').textContent(), /1 diapositiva/);
+  assert.match(await page.locator('#file-meta').textContent(), /2 diapositivas/);
   assert.equal(await page.locator('#start').isVisible(), true);
   const hostSize = await page.locator('#pptx-host').evaluate(el => ({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}));
   assert.ok(hostSize.width > 300 && hostSize.height > 300, 'viewer has a measurable stage');
   await page.waitForFunction(() => document.getElementById('pptx-host')?.textContent?.includes('PRUEBA PPTX'), null, {timeout:30000});
-  console.log('PPTX decoded and its slide text actually rendered in Chromium.');
+  // Exercise the real pinned viewer: the show must wrap from its final
+  // slide back to the first while retaining fullscreen.
+  await page.locator('#start').click();
+  await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(350);
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(350);
+  assert.equal(await page.evaluate(() => Boolean(document.fullscreenElement)), true,
+    'advancing beyond last slide must not close fullscreen');
+  // Esc must still exit the fullscreen presentation.
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.fullscreenElement, null, {timeout:10000});
+  console.log('PPTX opened, wrapped continuously, and exited with Escape in Chromium.');
 } finally {
   await browser?.close();
   if (server) await new Promise(resolve => server.close(resolve));

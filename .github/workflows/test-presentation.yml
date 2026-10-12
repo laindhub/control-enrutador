@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/server.js'
       - 'public/js/presentation.js'
+      - 'public/js/presentation-media.js'
       - 'public/css/presentation.css'
       - 'views/presentation.ejs'
       - 'test/presentation.test.js'
@@ -25,6 +26,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node --check public/js/presentation.js
+      - run: node --check public/js/presentation-media.js
       - run: node --test test/presentation.test.js
       - name: Verify pinned browser engine is available
         run: |

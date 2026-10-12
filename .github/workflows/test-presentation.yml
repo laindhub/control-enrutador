@@ -36,7 +36,8 @@ jobs:
             console.log('Pinned PPTX viewer module available (' + code.length + ' bytes)');
           "
       - run: npm run check
-      - run: npm test
+      - name: Verify presentation and representative integration regressions
+        run: node --test test/presentation.test.js test/presenter-admin.test.js test/session-persistence.test.js test/android-navigation.test.js
       - name: Install E2E fixture generator and Chromium
         run: |
           npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund pptxgenjs

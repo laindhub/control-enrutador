@@ -180,9 +180,16 @@ try {
   // slide back to the first while retaining fullscreen.
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
-  await page.keyboard.press('KeyP');
-  assert.equal(await page.locator('#intro-overlay').isVisible(),false,
-    'mapped intro button must not interrupt an active slide show');
+  // Same physical Tab may start the intro over slide 1. It must preserve
+  // fullscreen and reveal physical slide 1 after the video has ended.
+  await page.keyboard.press('Tab');
+  await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
+  assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
+    '/assets/presentaciones/introduccion.mp4');
+  assert.equal(await page.evaluate(()=>Boolean(document.fullscreenElement)),true);
+  await page.locator('#intro-video').evaluate(video=>video.dispatchEvent(new Event('ended')));
+  await page.locator('#intro-overlay').waitFor({state:'hidden',timeout:10000});
+  assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0');
   await page.waitForFunction(() => window.__screenWakeLog.requests===1,null,{timeout:10000});
   assert.equal(await page.evaluate(()=>window.__screenWakeLog.releases),0,
     'wake lock must remain held while the slideshow is fullscreen');
@@ -196,6 +203,9 @@ try {
 
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => document.getElementById('pptx-host')?.dataset.activeSlideIndex === '1', null, {timeout:15000});
+  await page.keyboard.press('Tab');
+  assert.equal(await page.locator('#intro-overlay').isVisible(),false,
+    'intro button must not interrupt slide 2 or later');
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => document.getElementById('pptx-host')?.dataset.activeSlideIndex === '0', null, {timeout:15000});
   assert.equal(await page.evaluate(() => Boolean(document.fullscreenElement)), true,

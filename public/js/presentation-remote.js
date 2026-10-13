@@ -98,7 +98,12 @@ export function initRemoteControl({
     selection.textContent=captured?('Última señal: '+captured.label+
       (captured.assignable?'':' · no se puede asignar con seguridad')):'Aún no se detectaron señales.';
   };
-  const listen=flag=>{listening=Boolean(flag);captured=null;render();};
+  const listen=flag=>{
+    listening=Boolean(flag);captured=null;render();
+    // Remote keydowns target the focused button after clicking "Detectar".
+    // Release focus so they reach the document instead of the setup control.
+    doc.activeElement?.blur?.();
+  };
   const persist=()=>saveRemoteSettings(settings,storage);
   const addRecord=desc=>{
     records.unshift({when:new Date().toLocaleTimeString('es-AR'),...desc});

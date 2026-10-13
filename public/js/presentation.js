@@ -5,6 +5,9 @@ import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-medi
 // El motor se fija a una versión específica para evitar cambios inesperados.
 const VIEWER_MODULE = 'https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
 const MAX_FILE_SIZE = 250 * 1024 * 1024;
+const DEFAULT_PPTX_URL = '/assets/presentaciones/mas-duenos-liniers.pptx';
+const DEFAULT_PPTX_NAME = 'Nueva - Más dueños.pptx';
+const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const $ = (id) => document.getElementById(id);
 const picker = $('file-input');
 const dropzone = $('dropzone');
@@ -39,6 +42,44 @@ function status(message, isError = false, persist = false) {
 function validPresentation(file) {
   return file && /\.(pptx|ppsx|pptm)$/i.test(file.name) &&
     file.size > 0 && file.size <= MAX_FILE_SIZE;
+}
+
+
+async function checkDefaultPresentation() {
+  const button = $('open-default');
+  const state = $('default-availability');
+  button.disabled = true;
+  try {
+    const response = await fetch(DEFAULT_PPTX_URL, {method:'HEAD', cache:'no-store'});
+    if (!response.ok) throw new Error('Archivo no publicado');
+    button.dataset.available = 'true';
+    button.disabled = false;
+    state.textContent = 'Lista para abrir';
+    state.classList.add('available');
+  } catch {
+    button.dataset.available = 'false';
+    button.disabled = true;
+    state.textContent = 'Archivo pendiente de publicación';
+    state.classList.add('unavailable');
+  }
+}
+async function openDefaultPresentation() {
+  if (loading) return;
+  const button = $('open-default');
+  button.disabled = true;
+  status('Descargando la presentación del salón…', false, true);
+  try {
+    const response = await fetch(DEFAULT_PPTX_URL, {cache:'no-store'});
+    if (!response.ok) throw Error('La presentación todavía no está disponible en el servidor.');
+    const data = await response.blob();
+    if (!data.size || data.size > MAX_FILE_SIZE) throw Error('Archivo inválido o superior a 250 MB.');
+    const file = new File([data], DEFAULT_PPTX_NAME, {type:PPTX_MIME});
+    await openPresentation(file);
+  } catch (error) {
+    status(error?.message || 'No se pudo descargar la presentación.', true, true);
+  } finally {
+    button.disabled = button.dataset.available !== 'true';
+  }
 }
 
 function humanSize(bytes) {
@@ -251,6 +292,7 @@ $('download').addEventListener('click', async () => {
   finally { $('download').disabled = false; }
 });
 $('change-file').addEventListener('click', () => picker.click());
+$('open-default').addEventListener('click', openDefaultPresentation);
 dropzone.addEventListener('click', () => picker.click());
 dropzone.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); picker.click(); }
@@ -323,3 +365,4 @@ document.addEventListener('keydown', handleMediaBuildAdvance, true);
 document.addEventListener('wheel', handleMediaBuildAdvance, {capture:true, passive:false});
 document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);
+void checkDefaultPresentation();

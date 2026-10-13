@@ -624,6 +624,14 @@ introVideo.addEventListener('error',()=>{
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement && introRunning) closeIntro();
 });
+// The presenter hardware emits Tab. Beyond slide 1, ignore that shortcut
+// without allowing the browser to move focus out of the fullscreen viewer.
+document.addEventListener('keydown',event=>{
+  if(!presenting || activeSlideIndex===0 || event.code!=='Tab')return;
+  if(event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+},true);
 document.addEventListener('keydown', handleMediaBuildAdvance, true);
 document.addEventListener('wheel', handleMediaBuildAdvance, {capture:true, passive:false});
 document.addEventListener('click', handleMediaBuildAdvance, true);

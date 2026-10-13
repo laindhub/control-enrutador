@@ -119,3 +119,20 @@ h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto
   opacity:0;visibility:hidden;pointer-events:none;z-index:-1;
 }
 .workspace.prewarming .pptx-host{width:100%;min-height:400px}
+
+/* Remote diagnostic on the landing screen only. No changes to PPTX engine CSS. */
+.remote-settings{margin:24px auto 0;max-width:760px;padding:17px 20px;background:#1c1d22;border:1px solid #3c3c44;border-radius:13px;color:#d9d9df}
+.remote-settings>summary{font-weight:750;cursor:pointer}
+.remote-settings p{font-size:13px;line-height:1.5;color:#bcbcc5}
+.remote-actions,.remote-url-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.remote-actions button,.remote-url-row button,.intro-close{background:#2d2e33;border:1px solid #606068;border-radius:8px;padding:9px 12px;color:white}
+.remote-actions button:hover:not(:disabled),.remote-url-row button:hover{background:#47484e}
+.remote-actions button:disabled{opacity:.5;cursor:not-allowed}
+.remote-events{max-height:188px;overflow-y:auto;padding-left:24px;margin:12px 0;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;color:#dedee4}
+.remote-settings label{font-size:13px;display:block;margin-top:13px}
+.remote-url-row input{flex:1;min-width:200px;padding:9px 11px;color:#f6f6f8;background:#111214;border:1px solid #606068;border-radius:8px}
+.remote-settings .remote-warning{color:#ecc49b}
+.intro-overlay{position:fixed;inset:0;z-index:20000;background:#000;display:flex;align-items:center;justify-content:center}
+.intro-overlay video{height:100%;width:100%;object-fit:contain;background:black}
+.intro-close{position:absolute;top:15px;right:18px;background:#1a1a1acc;z-index:2}
+.intro-overlay:fullscreen{background:#000}

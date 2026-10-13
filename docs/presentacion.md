@@ -162,3 +162,25 @@ y no cambia las funcionalidades de Salón.
 Al iniciar la presentación en pantalla completa se solicita `navigator.wakeLock.request('screen')` mediante la Screen Wake Lock API. Se libera al salir con Escape, cerrar la sesión o abandonar la página. Si la aplicación pasa a segundo plano, el bloqueo puede revocarse; al regresar a una pestaña visible y a la presentación activa se intenta adquirir nuevamente. Fuera del modo presentación no se solicita bloqueo. No afecta al archivo PPTX, la caché, el video de Geraldine ni los controles de edición.
 
 Esta API exige un contexto seguro (HTTPS) y depende del navegador, el sistema operativo, las políticas de ahorro de energía y los permisos del dispositivo. Si no está soportada o se deniega, la presentación sigue funcionando, pero no es posible garantizar desde la web que la pantalla permanezca encendida.
+
+## Prueba aislada del control remoto (rama feature)
+
+El panel «Configurar control remoto (prueba)» detecta eventos DOM de teclado
+(`keydown`), botones de mouse (`mousedown`) y desplazamiento (`wheel`).
+Se puede comparar una pulsación y una doble pulsación en el historial y
+asignar manualmente una señal observable al video introductorio.
+La asignación (firma y ruta opcional del MP4) se guarda en `localStorage`
+del navegador de la notebook. Solo se aplica **antes de iniciar el modo
+presentación**; las 40 diapositivas, el loop y el video Geraldine siguen
+controlados por el visor estándar.
+
+El MP4 será una ruta del mismo dominio y **aún no está publicado**. El
+video introductorio se mostrará en un reproductor separado, con botón de
+cierre, sin modificar el PPTX. La prueba no requiere archivos secretos ni
+un servidor de producción.
+
+Limitaciones: los navegadores no diferencian la tecla `PageDown` de un control
+USB de la misma tecla del teclado normal. Tampoco pueden capturar una pulsación
+que el hardware no exponga como evento DOM; si no hay señal con una pulsación,
+no se puede remapear únicamente mediante JavaScript. Los clics izquierdos
+normales aparecen en diagnóstico, pero no pueden asignarse por seguridad.

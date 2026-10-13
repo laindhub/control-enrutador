@@ -1,6 +1,7 @@
 import {getTimedVideoSlide, isForwardInput, videoStepForHash} from './presentation-timing.js';
 import {enablePresentationLoop} from './presentation-loop.js';
 import {createPresentationWakeLock} from './presentation-wake-lock.js';
+import {initRemoteControl} from './presentation-remote.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
 import {isOfficialDeckResponse, OFFICIAL_DECK_SHA256, OFFICIAL_DECK_SIZE} from './presentation-source.js';
 import {hasCachedOfficialDeck, loadOfficialDeck} from './presentation-cache.js';
@@ -532,6 +533,44 @@ function handleMediaTouchEnd(event) {
   });
 }
 
+// Branch-only remote pilot: listen for USB presenter events on the landing
+// screen. Mapping does not affect slideshow navigation or Geraldine.
+const introOverlay=$('intro-overlay');
+const introVideo=$('intro-video');
+function closeIntro(){
+  introVideo.pause();
+  introVideo.removeAttribute('src');
+  introVideo.load();
+  if(document.fullscreenElement===introOverlay){
+    void document.exitFullscreen().catch(()=>{});
+  }
+  introOverlay.hidden=true;
+}
+function openIntroFromRemote({url}){
+  if(!url){
+    status('Se detectó el botón asignado. Falta configurar o publicar el video introductorio.',true);
+    return;
+  }
+  introOverlay.hidden=false;
+  introVideo.src=url;
+  // Trigger fullscreen from the physical keyboard/mouse event when allowed.
+  if(typeof introOverlay.requestFullscreen==='function'){
+    void introOverlay.requestFullscreen().catch(()=>{});
+  }
+  void introVideo.play().catch(()=>{
+    status('No se pudo iniciar el MP4. Verificá que esté publicado y hacé clic en reproducir.',true,true);
+  });
+}
+const remoteControl=initRemoteControl({
+  isPresenting:()=>presenting || Boolean(document.fullscreenElement),
+  onIntro:openIntroFromRemote,
+  onNotice:message=>status(message),
+});
+$('intro-close').addEventListener('click',closeIntro);
+introVideo.addEventListener('ended',closeIntro);
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement && !introOverlay.hidden) closeIntro();
+});
 document.addEventListener('keydown', handleMediaBuildAdvance, true);
 document.addEventListener('wheel', handleMediaBuildAdvance, {capture:true, passive:false});
 document.addEventListener('click', handleMediaBuildAdvance, true);
@@ -539,6 +578,7 @@ document.addEventListener('touchstart', handleMediaTouchStart, {capture:true, pa
 document.addEventListener('touchend', handleMediaTouchEnd, {capture:true, passive:false});
 document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', () => {
+  remoteControl.dispose();
   void screenWakeLock.dispose();
   cleanupViewer();
 });

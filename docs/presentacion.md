@@ -106,3 +106,13 @@ MySQL y sesiones. La tarjeta valida MIME y tamaño declarado al comprobar
 HEAD; en GET comprueba bytes, firma ZIP y SHA-256 antes de abrir la presentación.
 Una respuesta HTML con HTTP 200 nunca anuncia «Lista para abrir» ni llega
 al motor PPTX. La opción de subir otros archivos sigue independiente.
+
+## Video Geraldine: reproducción única por visita (diapositiva 21)
+
+La diapositiva física 21 incorpora el efecto `playFrom(0)`. El primer avance
+inicia el video una sola vez y el segundo salta a la diapositiva 22 usando
+`viewer.goToSlide` para evitar que el motor ejecute otra vez dicho efecto.
+El visor conserva el registro de reproducción aunque refresque la misma
+diapositiva y, al finalizar, mantiene el último fotograma. Contempla
+teclado, rueda, clic y gesto táctil vertical. Al regresar a esa diapositiva
+en una nueva vuelta, el estado se reinicia para permitir una sola reproducción.

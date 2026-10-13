@@ -12,6 +12,8 @@ export function videoStepForHash(size, sha256) {
 export function isForwardInput(event) {
   if (event.type === 'wheel') return event.deltaY > 0 || (event.deltaY === 0 && event.deltaX > 0);
   if (event.type === 'keydown') return ['ArrowDown', 'ArrowRight', 'PageDown', ' ', 'Enter'].includes(event.key);
+  if (event.type === 'click') return event.button === 0;
+  if (event.type === 'touchend') return event.deltaY > 0;
   return false;
 }
 

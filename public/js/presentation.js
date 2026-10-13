@@ -30,6 +30,10 @@ let restorePresentationLoop = null;
 let mediaBuildSlide = null;
 let mediaBuildTriggered = false;
 let blockWheelUntil = 0;
+let videoPlaybackNode = null;
+let videoPlaybackEnded = false;
+let touchStartPosition = null;
+let suppressSyntheticClickUntil = 0;
 
 function status(message, isError = false, persist = false) {
   clearTimeout(statusTimer);
@@ -104,7 +108,7 @@ function showReady(file, slideCount) {
 // El clic en «Iniciar» proporciona la interacción necesaria para solicitar
 // reproducción audible. Para diapositivas posteriores no se requiere tocar el video.
 function slideAllowsVideo() {
-  if (activeSlideIndex === mediaBuildSlide && !mediaBuildTriggered) return false;
+  if (activeSlideIndex === mediaBuildSlide && (!mediaBuildTriggered || videoPlaybackEnded)) return false;
   return mayAutoPlayVideo(activeSlideIndex, pausedPreviewSlides, forcedAutoplaySlide);
 }
 function getVisibleMedia() {
@@ -126,9 +130,24 @@ function pausePreview(media) {
 function playVisibleMedia() {
   if (!presenting) return;
   for (const media of getVisibleMedia()) {
-    if (media.tagName === 'VIDEO' && !slideAllowsVideo()) {
-      pausePreview(media);
-      continue;
+    if (media.tagName === 'VIDEO') {
+      if (activeSlideIndex === mediaBuildSlide && videoPlaybackEnded) {
+        media.pause(); // Preserve the last frame, even if the viewer refreshes.
+        continue;
+      }
+      if (!slideAllowsVideo() ||
+          (activeSlideIndex === mediaBuildSlide && videoPlaybackNode && videoPlaybackNode !== media)) {
+        pausePreview(media);
+        continue;
+      }
+      if (activeSlideIndex === mediaBuildSlide && !videoPlaybackNode) {
+        videoPlaybackNode = media;
+        media.addEventListener('ended', () => {
+          if (videoPlaybackNode === media && activeSlideIndex === mediaBuildSlide) {
+            videoPlaybackEnded = true;
+          }
+        }, {once:true});
+      }
     }
     if (mediaAttempted.has(media)) continue;
     mediaAttempted.add(media);
@@ -149,13 +168,17 @@ function playVisibleMedia() {
 // Interceptamos también reproducciones automáticas que inicie el motor.
 function blockPreviewAutoplay(event) {
   const stage = document.fullscreenElement || host;
-  if (presenting && stage.contains(event.target) && event.target?.tagName === 'VIDEO' && !slideAllowsVideo()) {
+  if (!presenting || !stage.contains(event.target) || event.target?.tagName !== 'VIDEO') return;
+  if (activeSlideIndex === mediaBuildSlide && videoPlaybackEnded) {
+    event.target.pause();
+  } else if (!slideAllowsVideo() ||
+      (activeSlideIndex === mediaBuildSlide && videoPlaybackNode && videoPlaybackNode !== event.target)) {
     pausePreview(event.target);
   }
 }
 function scheduleMedia() {
   const generation = ++mediaGeneration;
-  mediaAttempted = new WeakSet();
+  // Repeated refreshes must never replay an already-attempted video.
   const refresh = () => { if (generation === mediaGeneration) playVisibleMedia(); };
   refresh();
   setTimeout(refresh, 100);
@@ -165,6 +188,9 @@ function slideChanged(index) {
   if (Number.isInteger(index) && index >= 0 && index !== activeSlideIndex) {
     // A new visit to slide 21 (including another loop) starts on its still frame.
     mediaBuildTriggered = false;
+    videoPlaybackNode = null;
+    videoPlaybackEnded = false;
+    mediaAttempted = new WeakSet();
     blockWheelUntil = 0;
     activeSlideIndex = index;
   }
@@ -183,6 +209,10 @@ function cleanupViewer() {
   slidesTotal = 0;
   mediaBuildSlide = null;
   mediaBuildTriggered = false;
+  videoPlaybackNode = null;
+  videoPlaybackEnded = false;
+  touchStartPosition = null;
+  suppressSyntheticClickUntil = 0;
   blockWheelUntil = 0;
   mediaAttempted = new WeakSet();
   mediaObserver?.disconnect();
@@ -345,27 +375,61 @@ document.addEventListener('present-toolbar-request', event => {
     event.stopImmediatePropagation();
   }
 }, true);
-// Consume the first forward navigation on the known video slide as an
-// animation build, rather than allowing the slide to advance past the video.
+// The source deck's slide 21 contains a native playFrom(0) click-effect.
+// First advance plays Geraldine once. The next advance skips that effect
+// and goes directly to slide 22 via the viewer's public navigation API.
 function handleMediaBuildAdvance(event) {
   if (!presenting || activeSlideIndex !== mediaBuildSlide || !isForwardInput(event)) return;
   const stage = document.fullscreenElement || host;
-  if (event.type === 'wheel' && !stage.contains(event.target)) return;
+  if (event.type !== 'keydown' && !stage.contains(event.target)) return;
   if (event.type === 'keydown' && /^(INPUT|TEXTAREA|SELECT)$/i.test(event.target?.tagName || '')) return;
-  if (event.type === 'wheel' && mediaBuildTriggered && performance.now() < blockWheelUntil) {
+  if (event.type === 'click' && event.target.closest?.('video, audio, button, a, input, select, textarea, [contenteditable="true"]')) return;
+  if (event.type === 'click' && performance.now() < suppressSyntheticClickUntil) {
     event.preventDefault();
     event.stopImmediatePropagation();
     return;
   }
-  if (mediaBuildTriggered) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  mediaBuildTriggered = true;
-  blockWheelUntil = performance.now() + 650;
-  scheduleMedia();
+  // One move on a touchpad can dispatch many wheel events.
+  if ((event.type === 'wheel' || event.type === 'touchend') &&
+      performance.now() < blockWheelUntil) return;
+  if (!mediaBuildTriggered) {
+    mediaBuildTriggered = true;
+    blockWheelUntil = performance.now() + 850;
+    scheduleMedia();
+    return;
+  }
+  // Letting a second "next" event reach PowerPoint would replay the video.
+  viewer?.goToSlide(activeSlideIndex + 1);
 }
+
+function handleMediaTouchStart(event) {
+  if (!presenting || activeSlideIndex !== mediaBuildSlide || event.touches.length !== 1) return;
+  const stage = document.fullscreenElement || host;
+  if (!stage.contains(event.target)) return;
+  touchStartPosition = {x:event.touches[0].clientX, y:event.touches[0].clientY};
+}
+function handleMediaTouchEnd(event) {
+  const start = touchStartPosition;
+  touchStartPosition = null;
+  if (!start || !event.changedTouches?.length) return;
+  const deltaY = start.y - event.changedTouches[0].clientY;
+  const deltaX = start.x - event.changedTouches[0].clientX;
+  if (deltaY < 45 || Math.abs(deltaY) < Math.abs(deltaX)) return;
+  suppressSyntheticClickUntil = performance.now() + 750;
+  handleMediaBuildAdvance({
+    type:'touchend', target:event.target, deltaY, deltaX,
+    preventDefault:()=>event.preventDefault(),
+    stopImmediatePropagation:()=>event.stopImmediatePropagation(),
+  });
+}
+
 document.addEventListener('keydown', handleMediaBuildAdvance, true);
 document.addEventListener('wheel', handleMediaBuildAdvance, {capture:true, passive:false});
+document.addEventListener('click', handleMediaBuildAdvance, true);
+document.addEventListener('touchstart', handleMediaTouchStart, {capture:true, passive:true});
+document.addEventListener('touchend', handleMediaTouchEnd, {capture:true, passive:false});
 document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);
 void checkDefaultPresentation();

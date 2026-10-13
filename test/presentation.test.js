@@ -161,6 +161,10 @@ test('the real 40-slide deck has a deferred video animation on logical slide 21'
   assert.equal(isForwardInput({type:'wheel',deltaY:-20,deltaX:0}),false);
   assert.equal(isForwardInput({type:'keydown',key:'ArrowDown'}),true);
   assert.equal(isForwardInput({type:'keydown',key:'Escape'}),false);
+  assert.equal(isForwardInput({type:'click',button:0}),true);
+  assert.equal(isForwardInput({type:'click',button:2}),false);
+  assert.equal(isForwardInput({type:'touchend',deltaY:75}),true);
+  assert.equal(isForwardInput({type:'touchend',deltaY:-75}),false);
 });
 
 test('video playback is suppressed until the slide internal step is triggered', () => {
@@ -241,4 +245,15 @@ test('official deck endpoint precedes startup warmup middleware', () => {
   const route=source.indexOf("app.get('/assets/presentaciones/mas-duenos-liniers.pptx'");
   const gate=source.indexOf("app.use((req, res, next) => {");
   assert.ok(route>0 && route<gate, 'PPTX must be delivered even during DB startup');
+});
+
+test('Geraldine clip plays once, and the next navigation skips the native playFrom animation', () => {
+  const js=read('public/js/presentation.js');
+  assert.match(js,/videoPlaybackEnded = true/);
+  assert.match(js,/mediaAttempted = new WeakSet\(\);\n    blockWheelUntil = 0/);
+  assert.match(js,/videoPlaybackNode && videoPlaybackNode !== media/);
+  assert.doesNotMatch(js,/const generation = \+\+mediaGeneration;\s*mediaAttempted = new WeakSet/);
+  assert.match(js,/viewer\?\.goToSlide\(activeSlideIndex \+ 1\)/);
+  assert.match(js,/document\.addEventListener\('touchend', handleMediaTouchEnd/);
+  assert.match(js,/document\.addEventListener\('click', handleMediaBuildAdvance/);
 });

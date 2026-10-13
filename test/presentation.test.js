@@ -220,7 +220,7 @@ test('official presentation and local upload are separate cards', () => {
   assert.match(script, /isOfficialDeckResponse\(response\)/);
   assert.match(script, /loadOfficialDeck\(\{/);
   assert.match(script, /hasCachedOfficialDeck\(\{/);
-  assert.match(script, /openPresentation\(file\)/);
+  assert.match(script, /openPresentation\(file,\{verifiedOfficial:true\}\)/);
   assert.match(script, /Archivo pendiente de publicación/);
 });
 

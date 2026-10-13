@@ -52,3 +52,22 @@ Inspección del archivo recibido el 2026-10-13:
 - Detección limitada al SHA-256 exacto de la presentación original, para no alterar el comportamiento de otras presentaciones.
 
 **Importante:** el PPTX binario completo no está incluido en el repositorio mediante esta documentación. Una vez incorporado por el canal de archivos correspondiente, debe conservarse exactamente y no sustituirse por una versión reexportada, porque la configuración de `p:timing` forma parte del comportamiento esperado.
+
+## Acceso directo y presentación comercial predeterminada
+
+El acceso **Presentaciones** está disponible desde la pantalla de ingreso,
+la selección de operador, la vista de enrutadores y el panel de administración.
+En `/presentacion` hay dos tarjetas: **Nueva - Más Dueños** y
+**Subir otro PPTX**.
+
+La presentación oficial se busca en el recurso estático
+`public/presentaciones/mas-duenos-liniers.pptx`
+(`/assets/presentaciones/mas-duenos-liniers.pptx`).
+La tarjeta comprueba la existencia mediante HEAD y solo permite descargar
+y abrir el archivo si este existe. Si falta, muestra
+«Archivo pendiente de publicación»; la subida local funciona de igual modo.
+
+Por ser público el repositorio, la carga del archivo PPTX de 34,8 MB implica
+publicación sin restricción de acceso. La interfaz no debe anunciar el
+archivo como disponible hasta que se haya incorporado el binario real.
+Los PPTX locales no se suben al servidor.

@@ -47,3 +47,9 @@ test('official repository public directory takes precedence over the hosting fal
   await writeFile(candidate,content);
   assert.equal(await resolveOfficialPresentation({projectRoot,homeDir,expectedSize,expectedSha256}),candidate);
 });
+
+test('Hostinger builds find the account root even when Node HOME is different', () => {
+  const projectRoot = '/home/account-example/domains/masduenos.laind.io/hbuilds/current/nodejs';
+  const paths = officialPresentationPaths(projectRoot, '/tmp/isolated-process-home');
+  assert.ok(paths.includes('/home/account-example/masduenos/mas-duenos-liniers.pptx'));
+});

@@ -13,11 +13,18 @@ export const OFFICIAL_PRESENTATION_SHA256 = 'bdb35bfa366b7c2570a36a0d5b117283676
 const verifiedFiles = new Map();
 
 export function officialPresentationPaths(projectRoot, homeDir = os.homedir(), configuredPath = '') {
+  // Hostinger Git deployments live below /home/<account>/domains/<site>/hbuilds/current/nodejs.
+  // HOME can differ from the hosting account root, so infer it from the deployment path.
+  const absoluteProjectRoot = path.resolve(projectRoot);
+  const domainMarker = path.sep + 'domains' + path.sep;
+  const markerAt = absoluteProjectRoot.indexOf(domainMarker);
+  const hostingAccountHome = markerAt > 0 ? absoluteProjectRoot.slice(0, markerAt) : '';
   return [...new Set([
     configuredPath,
     path.join(projectRoot, 'public', 'presentaciones', OFFICIAL_PRESENTATION_NAME),
     path.join(projectRoot, OFFICIAL_PRESENTATION_NAME),
     path.join(homeDir, 'masduenos', OFFICIAL_PRESENTATION_NAME),
+    hostingAccountHome ? path.join(hostingAccountHome, 'masduenos', OFFICIAL_PRESENTATION_NAME) : '',
   ].filter(Boolean).map(value => path.resolve(value)))];
 }
 

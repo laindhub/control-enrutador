@@ -93,3 +93,8 @@ persistir en el sistema de archivos del hosting. Si Hostinger despliega la web
 en un directorio o usuario distinto y no encuentra el archivo, se puede indicar
 su ruta absoluta con la variable opcional `MAS_DUENOS_PRESENTATION_PATH`.
 Esto no afecta los PPTX abiertos manualmente, que siguen siendo locales.
+
+En despliegues Hostinger recientes, el proyecto suele ejecutarse en
+`/home/<usuario>/domains/<dominio>/hbuilds/current/nodejs`. El servidor
+también deriva la carpeta `/home/<usuario>/masduenos` desde ese directorio
+cuando la variable HOME del proceso no apunta al home de la cuenta.

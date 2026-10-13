@@ -86,6 +86,32 @@ try {
   }, null, {timeout:15000});
 
   assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
+  // Browser-local remote proof: capture one key event and a rapid pair, bind it
+  // to the independent intro, and ensure settings persist across reload.
+  await page.locator('#remote-settings summary').click();
+  await page.locator('#remote-listen').click();
+  await page.keyboard.press('KeyP');
+  await page.keyboard.press('KeyP');
+  await page.keyboard.press('KeyP');
+  assert.equal(await page.locator('#remote-events li').count(),3,
+    'one press and two presses should produce three visible DOM records');
+  assert.equal(await page.locator('#remote-assign').isEnabled(),true);
+  await page.locator('#remote-assign').click();
+  assert.match(await page.locator('#remote-current').textContent(),/key::KeyP/);
+  await page.locator('#remote-intro-url').fill('/assets/presentaciones/video-intro.mp4');
+  await page.locator('#remote-save-url').click();
+  await page.keyboard.press('KeyP');
+  await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
+  assert.equal(await page.locator('#intro-video').getAttribute('src'),'/assets/presentaciones/video-intro.mp4');
+  await page.locator('#intro-close').click();
+  await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:10000});
+  await page.reload({waitUntil:'domcontentloaded'});
+  assert.match(await page.locator('#remote-current').textContent(),/key::KeyP/);
+  assert.equal(await page.locator('#remote-intro-url').inputValue(),
+    '/assets/presentaciones/video-intro.mp4');
+  // Test the mapped key outside fullscreen; while presenting, the same key
+  // must never unexpectedly replace the slides with the intro.
+
   // In a no-cache test environment, the viewer ESM is preloaded, but no
   // presentation should be fetched or built until the user selects one.
   assert.equal(await page.locator('#welcome').isVisible(),true);
@@ -115,6 +141,9 @@ try {
   // slide back to the first while retaining fullscreen.
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
+  await page.keyboard.press('KeyP');
+  assert.equal(await page.locator('#intro-overlay').isVisible(),false,
+    'mapped intro button must not interrupt an active slide show');
   await page.waitForFunction(() => window.__screenWakeLog.requests===1,null,{timeout:10000});
   assert.equal(await page.evaluate(()=>window.__screenWakeLog.releases),0,
     'wake lock must remain held while the slideshow is fullscreen');

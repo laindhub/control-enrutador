@@ -157,7 +157,9 @@ export function initRemoteControl({
       return;
     }
     settings={...settings,introUrl:next};
-    introUrl.value=next;persist();onNotice(next?'Ruta guardada en esta notebook.':'Ruta del video eliminada.');
+    introUrl.value=next;persist();
+    doc.activeElement?.blur?.();
+    onNotice(next?'Ruta guardada en esta notebook.':'Ruta del video eliminada.');
   };
   button.addEventListener('click',toggle);
   assign.addEventListener('click',assignLatest);

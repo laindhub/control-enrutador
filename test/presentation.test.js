@@ -433,3 +433,14 @@ test('screen wake lock is active only in fullscreen playback, not slide editing'
   assert.match(script,/void screenWakeLock\.deactivate\(\)/);
   assert.match(script,/void screenWakeLock\.dispose\(\)/);
 });
+
+test('remote setup is isolated from slideshow and never requires raw USB access',()=>{
+  const script=read('public/js/presentation.js');
+  const page=read('views/presentation.ejs');
+  assert.match(script,/initRemoteControl\(/);
+  assert.match(script,/isPresenting:\(\)=>presenting \|\| Boolean\(document.fullscreenElement\)/);
+  assert.match(page,/id="remote-listen"/);
+  assert.match(page,/id="remote-events"/);
+  assert.match(page,/id="intro-overlay"/);
+  assert.doesNotMatch(script,/navigator\.hid\.requestDevice|WebUSB|window\.open/);
+});

@@ -7,6 +7,9 @@ on:
       - 'src/official-presentation.js'
       - 'src/server.js'
       - 'public/js/presentation.js'
+      - 'src/intro-video.js'
+      - 'public/js/presentation-remote.js'
+      - 'views/presentation.ejs'
       - 'public/js/presentation-wake-lock.js'
       - 'public/js/presentation-source.js'
       - 'public/js/presentation-cache.js'
@@ -74,6 +77,21 @@ jobs:
           }
           assert.ok(verified, 'Production GET never returned the complete original PPTX');
           console.log('Production GET: exact SHA-256, 40-slide PPTX source bytes verified.');
+
+          // The user will upload this file to Hostinger later. 404 is
+          // expected until then; do not claim that it is already working.
+          const introUrl=base+'/assets/presentaciones/introduccion.mp4';
+          const introResponse=await fetch(introUrl,{method:'HEAD',cache:'no-store',signal:AbortSignal.timeout(30000)});
+          if(introResponse.status===404){
+            console.log('Introduction MP4: pending manual upload to Hostinger (expected HTTP 404).');
+          }else{
+            assert.equal(introResponse.status,200,'intro endpoint must return MP4 or HTTP 404 if not yet uploaded');
+            assert.match(introResponse.headers.get('content-type')||'',/video\/mp4/,
+              'the intro endpoint must not send a 200 HTML warmup page');
+            assert.ok(Number(introResponse.headers.get('content-length'))>12,
+              'the complete MP4 is required');
+            console.log('Introduction MP4: production HEAD returns valid video/mp4 headers.');
+          }
 
           const browser=await chromium.launch({headless:true});
           try {

@@ -193,3 +193,16 @@ test('official presentation and local upload are separate cards', () => {
   assert.match(script, /openPresentation\(file\)/);
   assert.match(script, /Archivo pendiente de publicación/);
 });
+
+test('the default deck has a hash-verified same-origin route before authentication', () => {
+  const server=read('src/server.js');
+  const pptxRoute=server.indexOf("app.get('/assets/presentaciones/mas-duenos-liniers.pptx'");
+  const session=server.indexOf('app.use(sessionMiddleware);');
+  const helper=read('src/official-presentation.js');
+  assert.ok(pptxRoute > 0 && pptxRoute < session, 'default deck is available without requiring a CRM login');
+  assert.match(server, /resolveOfficialPresentation\(/);
+  assert.match(server, /Cache-Control', 'no-store'/);
+  assert.match(server, /res\.sendFile\(filename/);
+  assert.match(helper, /masduenos/);
+  assert.match(helper, /OFFICIAL_PRESENTATION_SHA256/);
+});

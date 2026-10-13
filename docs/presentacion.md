@@ -71,3 +71,25 @@ Por ser público el repositorio, la carga del archivo PPTX de 34,8 MB implica
 publicación sin restricción de acceso. La interfaz no debe anunciar el
 archivo como disponible hasta que se haya incorporado el binario real.
 Los PPTX locales no se suben al servidor.
+
+## Archivo alojado en Hostinger (sin binario en Git)
+
+El archivo original fue subido al administrador de archivos de Hostinger bajo
+`masduenos/mas-duenos-liniers.pptx`. La ruta pública del visor no cambia:
+`/assets/presentaciones/mas-duenos-liniers.pptx`. Node.js resuelve el archivo
+en orden: ruta opcional `MAS_DUENOS_PRESENTATION_PATH`, archivo dentro de
+`public/presentaciones`, raíz del proyecto desplegado y carpeta
+`masduenos` del directorio home del usuario de ejecución de Node.
+
+La ruta fija se publica mediante GET y HEAD sin requerir sesión. Antes de
+servirla se verifican el tamaño exacto (34.796.967 bytes) y el SHA-256 original;
+si el archivo está ausente o no coincide, devuelve 404 y la tarjeta no se habilita.
+No se permite navegar por otras rutas del directorio de hosting. La validación
+exitosa queda cacheada mientras no cambien los metadatos del archivo. Se
+deshabilita el caché HTTP de esta respuesta.
+
+**Importante:** publicar el código en GitHub no publica el binario: debe
+persistir en el sistema de archivos del hosting. Si Hostinger despliega la web
+en un directorio o usuario distinto y no encuentra el archivo, se puede indicar
+su ruta absoluta con la variable opcional `MAS_DUENOS_PRESENTATION_PATH`.
+Esto no afecta los PPTX abiertos manualmente, que siguen siendo locales.

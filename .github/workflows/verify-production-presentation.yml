@@ -100,6 +100,31 @@ jobs:
             // physical slides. One advance plays Geraldine, the next leaves.
             await page.locator('#start').click();
             await page.waitForFunction(() => Boolean(document.fullscreenElement),null,{timeout:15000});
+            // Diagnostic: identify the viewer's fullscreen-only floating toolbar
+            // without logging slide contents or user data.
+            await page.mouse.move(700,700);
+            await page.mouse.move(700,18);
+            await page.waitForTimeout(550);
+            const floatingChrome = await page.evaluate(() => {
+              const full=document.fullscreenElement;
+              const all=[...document.querySelectorAll('[class*="pptxv"],[role="toolbar"]')];
+              return {
+                fullscreen:full?.className || full?.tagName,
+                matches:all.filter(el=>{
+                  const cls=typeof el.className==='string' ? el.className : '';
+                  if (!/(toolbar|control|presentation|slideshow|presenter|overlay)/i.test(cls)) return false;
+                  const style=getComputedStyle(el);
+                  const bounds=el.getBoundingClientRect();
+                  return style.display!=='none' && style.visibility!=='hidden' &&
+                    bounds.width>0 && bounds.height>0 && bounds.top<innerHeight && bounds.bottom>0;
+                }).slice(0,45).map(el=>({
+                  tag:el.tagName,cls:String(el.className).slice(0,200),
+                  role:el.getAttribute('role'),parent:String(el.parentElement?.className||'').slice(0,90),
+                  top:Math.round(el.getBoundingClientRect().top),
+                })),
+              };
+            });
+            console.log('Fullscreen presentation chrome diagnostic:',JSON.stringify(floatingChrome));
             for (let index=1;index<=20;index++) {
               await page.keyboard.press('ArrowDown');
               await page.waitForFunction(i => document.querySelector('#pptx-host')?.dataset.activeSlideIndex===String(i),

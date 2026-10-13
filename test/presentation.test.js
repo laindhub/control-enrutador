@@ -195,7 +195,8 @@ test('official presentation and local upload are separate cards', () => {
   assert.match(script, /fetch\(DEFAULT_PPTX_URL, \{method:'HEAD'/);
   assert.match(script, /new File\(\[data\], DEFAULT_PPTX_NAME/);
   assert.match(script, /isOfficialDeckResponse\(response\)/);
-  assert.match(script, /readVerifiedOfficialDeck\(response\)/);
+  assert.match(script, /loadOfficialDeck\(\{/);
+  assert.match(script, /hasCachedOfficialDeck\(\{/);
   assert.match(script, /openPresentation\(file\)/);
   assert.match(script, /Archivo pendiente de publicación/);
 });
@@ -256,4 +257,74 @@ test('Geraldine clip plays once, and the next navigation skips the native playFr
   assert.match(js,/viewer\?\.goToSlide\(activeSlideIndex \+ 1\)/);
   assert.match(js,/document\.addEventListener\('touchend', handleMediaTouchEnd/);
   assert.match(js,/document\.addEventListener\('click', handleMediaBuildAdvance/);
+});
+
+test('the official deck is stored and reused before any subsequent network request', async () => {
+  const {createHash, webcrypto} = await import('node:crypto');
+  const {loadOfficialDeck,hasCachedOfficialDeck} = await import('../public/js/presentation-cache.js');
+  const bytes = Buffer.from([80,75,3,4,10,20,30,40]);
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const url = 'https://example.test/assets/presentaciones/mas-duenos-liniers.pptx';
+  const entries = new Map();
+  let requests = 0;
+  const cache = {
+    match:async key=>entries.get(key)?.clone() || null,
+    put:async (key,response)=>{ entries.set(key,response.clone()); },
+    delete:async key=>entries.delete(key),
+  };
+  const cacheStorage = {
+    open:async()=>cache,
+    keys:async()=>['salon-mas-duenos-official-pptx-'+sha256],
+    delete:async()=>true,
+  };
+  const verification={size:bytes.length,sha256,subtle:webcrypto.subtle};
+  const fetcher=async()=>{
+    requests++;
+    return new Response(bytes,{status:200,headers:{
+      'content-type':'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    }});
+  };
+  assert.equal(await hasCachedOfficialDeck({url,cacheStorage,verification}),false);
+  const first=await loadOfficialDeck({url,fetcher,cacheStorage,verification});
+  assert.equal(first.fromCache,false);
+  assert.equal(first.saved,true);
+  assert.equal(requests,1);
+  assert.equal(await hasCachedOfficialDeck({url,cacheStorage,verification}),true);
+  const second=await loadOfficialDeck({url,fetcher:()=>{throw Error('must not download twice');},cacheStorage,verification});
+  assert.equal(second.fromCache,true);
+  assert.equal(second.blob.size,bytes.length);
+  assert.equal(requests,1);
+  // Changing the source SHA invalidates the cache key.
+  assert.equal(await hasCachedOfficialDeck({url,cacheStorage,verification:{...verification,sha256:'0'.repeat(64)}}),false);
+});
+
+test('corrupt cached files are discarded and downloaded again; storage failure is harmless', async () => {
+  const {createHash,webcrypto}=await import('node:crypto');
+  const {loadOfficialDeck} = await import('../public/js/presentation-cache.js');
+  const data=Buffer.from([80,75,3,4,9,8,7,6]);
+  const sha256=createHash('sha256').update(data).digest('hex');
+  const verification={size:data.length,sha256,subtle:webcrypto.subtle};
+  const url='https://example.test/assets/presentaciones/mas-duenos-liniers.pptx';
+  let removed=0, calls=0;
+  const bad=new Response(Buffer.from([80,75,3,4,1,1,1,1]),{headers:{
+    'content-type':'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'content-length':String(data.length),
+    'x-laind-pptx-sha256':sha256,
+  }});
+  const cacheStorage={open:async()=>({
+    match:async()=>bad.clone(),
+    delete:async()=>{removed++;return true;},
+    put:async()=>{throw Error('QuotaExceededError');},
+  })};
+  const result=await loadOfficialDeck({url,cacheStorage,verification,fetcher:async()=>{
+    calls++;
+    return new Response(data,{headers:{
+      'content-type':'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    }});
+  }});
+  assert.equal(removed,1);
+  assert.equal(calls,1);
+  assert.equal(result.saved,false);
+  assert.equal(result.fromCache,false);
+  assert.equal(result.blob.size,data.length);
 });

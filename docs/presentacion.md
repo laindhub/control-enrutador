@@ -116,3 +116,19 @@ El visor conserva el registro de reproducción aunque refresque la misma
 diapositiva y, al finalizar, mantiene el último fotograma. Contempla
 teclado, rueda, clic y gesto táctil vertical. Al regresar a esa diapositiva
 en una nueva vuelta, el estado se reinicia para permitir una sola reproducción.
+
+## Caché persistente del PPTX oficial
+
+La primera apertura del archivo oficial descarga y verifica el PPTX original
+(34.796.967 bytes, SHA-256 fijado). Después almacena una copia de esa misma
+versión en **Cache Storage** del navegador, sin service worker. En visitas
+posteriores se comprueba primero la caché del dispositivo y, si está presente,
+se abre desde allí sin solicitar HEAD ni GET del PPTX al servidor. El archivo
+se vuelve a validar por firma y SHA-256 al cargarlo desde la caché. El nombre
+de la caché incluye el SHA-256, para invalidar automáticamente una eventual
+actualización del PowerPoint y poder eliminar las versiones viejas.
+
+Si Cache Storage no está disponible o no tiene cuota (por ejemplo, navegación
+privada), la descarga verificada sigue funcionando. El navegador puede limpiar
+la copia por presión de almacenamiento o al borrar los datos del sitio.
+La carga manual de otros PPTX no almacena archivos en esta caché.

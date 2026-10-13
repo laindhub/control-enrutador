@@ -8,6 +8,7 @@ on:
       - 'src/server.js'
       - 'public/js/presentation.js'
       - 'public/js/presentation-source.js'
+      - 'public/js/presentation-cache.js'
   workflow_dispatch:
 permissions:
   contents: read

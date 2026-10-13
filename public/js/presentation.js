@@ -1,7 +1,8 @@
 import {getTimedVideoSlide, isForwardInput} from './presentation-timing.js';
 import {enablePresentationLoop} from './presentation-loop.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
-import {isOfficialDeckResponse, readVerifiedOfficialDeck} from './presentation-source.js';
+import {isOfficialDeckResponse} from './presentation-source.js';
+import {hasCachedOfficialDeck, loadOfficialDeck} from './presentation-cache.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
 const VIEWER_MODULE = 'https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
@@ -55,11 +56,16 @@ async function checkDefaultPresentation() {
   const state = $('default-availability');
   button.disabled = true;
   try {
-    const response = await fetch(DEFAULT_PPTX_URL, {method:'HEAD', cache:'no-store'});
-    if (!isOfficialDeckResponse(response)) throw new Error('Archivo no disponible');
+    // A saved, checksum-versioned copy needs no network HEAD request.
+    const saved = await hasCachedOfficialDeck({url:DEFAULT_PPTX_URL});
+    if (!saved) {
+      const response = await fetch(DEFAULT_PPTX_URL, {method:'HEAD', cache:'no-store'});
+      if (!isOfficialDeckResponse(response)) throw new Error('Archivo no disponible');
+    }
     button.dataset.available = 'true';
     button.disabled = false;
-    state.textContent = 'Lista para abrir';
+    state.textContent = saved ? 'Lista para abrir · guardada en este dispositivo' :
+      'Lista para abrir · se guardará tras la primera descarga';
     state.classList.add('available');
     state.classList.remove('unavailable');
   } catch {
@@ -74,12 +80,22 @@ async function openDefaultPresentation() {
   if (loading) return;
   const button = $('open-default');
   button.disabled = true;
-  status('Descargando la presentación del salón…', false, true);
+  status('Buscando la presentación guardada en este dispositivo…', false, true);
   try {
-    const response = await fetch(DEFAULT_PPTX_URL, {cache:'no-store'});
-    const data = await readVerifiedOfficialDeck(response);
-    const file = new File([data], DEFAULT_PPTX_NAME, {type:PPTX_MIME});
+    const {blob, fromCache, saved} = await loadOfficialDeck({
+      url:DEFAULT_PPTX_URL,
+      onSource: source => status(source === 'cache' ?
+        'Abriendo la presentación guardada…' :
+        'Descargando la presentación por primera vez…', false, true),
+    });
+    const file = new File([blob], DEFAULT_PPTX_NAME, {type:PPTX_MIME});
     await openPresentation(file);
+    if (!fromCache && saved) {
+      const state = $('default-availability');
+      state.textContent = 'Lista para abrir · guardada en este dispositivo';
+    } else if (!fromCache && !saved && viewer) {
+      status('La presentación abrió, pero el navegador no permitió guardarla. Se descargará nuevamente la próxima vez.', true, true);
+    }
   } catch (error) {
     status(error?.message || 'No se pudo descargar la presentación.', true, true);
     button.dataset.available = 'false';

@@ -140,3 +140,19 @@ barra flotante del motor `pptxv-present-toolbar-wrap`, incluso si el mouse
 se mueve hacia sus bordes. Los controles del editor, disponibles fuera de
 pantalla completa, no se alteran. Se mantiene la navegación con teclado,
 rueda, clic y gestos, además de la salida con Escape y el loop continuo.
+
+## Preparación anticipada del motor (visitas posteriores)
+
+El módulo `pptx-vanilla-viewer@3.31.1` comienza a importarse al abrir
+`/presentacion`, no al hacer clic. Si la copia del PPTX oficial ya está
+en Cache Storage, se valida localmente y se interpreta anticipadamente en
+un contenedor fuera de pantalla con tamaño medible. Mientras tanto, el
+usuario ve la pantalla normal de selección.
+
+Al pulsar «Nueva - Más Dueños» se hace visible **el mismo visor ya cargado**
+sin volver a ejecutar `viewer.loadFile()`. El motor solo se crea una vez
+por página; no se persiste la estructura DOM entre cierres del navegador.
+Si el archivo todavía no está en caché, falla la precarga, o está activado
+el modo de edición, sigue disponible el flujo convencional. La precarga
+nunca descarga PPTX faltantes, no reproduce videos, no solicita fullscreen
+y no cambia las funcionalidades de Salón.

@@ -71,6 +71,11 @@ try {
   }, null, {timeout:15000});
 
   assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
+  // In a no-cache test environment, the viewer ESM is preloaded, but no
+  // presentation should be fetched or built until the user selects one.
+  assert.equal(await page.locator('#welcome').isVisible(),true);
+  assert.equal(await page.locator('#open-default').getAttribute('data-prepared'),null);
+
   // Hostinger sometimes answers asset requests with HTTP 200 + HTML startup page.
   const officialAsset='**/assets/presentaciones/mas-duenos-liniers.pptx';
   await page.route(officialAsset,route=>route.fulfill({

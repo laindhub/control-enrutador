@@ -176,6 +176,26 @@ jobs:
               null,{timeout:120000});
             assert.equal(networkDeckRequests,0,'cache reuse must not perform HEAD or GET requests');
             console.log('Persistent browser cache: second full 40-slide opening succeeds after reload with PPTX network blocked in '+(Date.now()-cachedStart)+'ms.');
+
+            // Third entry: leave the landing screen visible until the cached
+            // slide model/DOM is ready. Clicking must reuse that viewer instantly.
+            await page.reload({waitUntil:'domcontentloaded'});
+            await page.waitForFunction(() =>
+              document.querySelector('#open-default')?.dataset.prepared === 'true',
+              null,{timeout:120000});
+            assert.equal(await page.locator('#welcome').isVisible(),true);
+            assert.equal(await page.locator('#workspace').isVisible(),false,
+              'background parse must not replace the landing screen');
+            const launchStarted=Date.now();
+            await page.locator('#open-default').click();
+            await page.waitForFunction(() =>
+              /40 diapositivas/.test(document.querySelector('#file-meta')?.textContent||'') &&
+              !document.querySelector('#workspace')?.classList.contains('prewarming'),
+              null,{timeout:15000});
+            const launchMs=Date.now()-launchStarted;
+            console.log('Prepared deck: click-to-ready in '+launchMs+'ms; PPTX network requests='+networkDeckRequests);
+            assert.ok(launchMs<5000,'click on a pre-parsed deck should avoid repeating the 40-slide build');
+            assert.equal(networkDeckRequests,0,'preloaded deck must stay fully local');
           } finally {
             await browser.close();
           }

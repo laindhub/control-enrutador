@@ -192,6 +192,21 @@ test('salon menus include an accessible shortcut to presentations', () => {
   assert.match(read('public/css/styles.css'), /\.presentation-shortcut/);
 });
 
+test('warmup imports the viewer early and reuses the parsed DOM instead of loading twice', () => {
+  const script=read('public/js/presentation.js');
+  const css=read('public/css/presentation.css');
+  assert.match(script,/void ensureViewerModule\(\)\.catch/);
+  assert.match(script,/if \(saved\) startOfficialWarmup\(\)/);
+  assert.match(script,/fetcher: \(\) => \{ throw Error\('La preparación anticipada solo utiliza la caché local/);
+  assert.match(script,/await openPresentation\(file, \{background:true,verifiedOfficial:true\}\)/);
+  assert.match(script,/if \(activatePreparedPresentation\(\)\) return/);
+  assert.match(script,/warmReady = \{file,slides\}/);
+  assert.match(script,/classList\.toggle\('prewarming', background\)/);
+  assert.match(script,/if \(verifiedOfficial\) mediaBuildSlide = videoStepForHash/);
+  assert.match(css,/\.workspace\.prewarming/);
+  assert.match(css,/visibility:hidden;pointer-events:none/);
+});
+
 test('official presentation and local upload are separate cards', () => {
   const view = read('views/presentation.ejs');
   const script = read('public/js/presentation.js');

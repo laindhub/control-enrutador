@@ -1,7 +1,7 @@
-import {getTimedVideoSlide, isForwardInput} from './presentation-timing.js';
+import {getTimedVideoSlide, isForwardInput, videoStepForHash} from './presentation-timing.js';
 import {enablePresentationLoop} from './presentation-loop.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
-import {isOfficialDeckResponse} from './presentation-source.js';
+import {isOfficialDeckResponse, OFFICIAL_DECK_SHA256, OFFICIAL_DECK_SIZE} from './presentation-source.js';
 import {hasCachedOfficialDeck, loadOfficialDeck} from './presentation-cache.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
@@ -20,6 +20,8 @@ let loading = false;
 let presenting = false;
 let mediaObserver = null;
 let modulePromise = null;
+let warmPromise = null;
+let warmReady = null;
 let statusTimer = null;
 let mediaAttempted = new WeakSet();
 let pausedPreviewSlides = new Set();
@@ -68,6 +70,7 @@ async function checkDefaultPresentation() {
       'Lista para abrir · se guardará tras la primera descarga';
     state.classList.add('available');
     state.classList.remove('unavailable');
+    if (saved) startOfficialWarmup();
   } catch {
     button.dataset.available = 'false';
     button.disabled = true;
@@ -76,30 +79,68 @@ async function checkDefaultPresentation() {
     state.classList.remove('available');
   }
 }
+// The pinned module and cached deck can be prepared while the selection
+// screen remains visible. This preloading never downloads a missing deck.
+function ensureViewerModule() {
+  if (!modulePromise) modulePromise = import(VIEWER_MODULE).catch(error => {
+    modulePromise = null; // Permit retry after a transient CDN failure.
+    throw error;
+  });
+  return modulePromise;
+}
+
+function startOfficialWarmup() {
+  if (warmPromise || warmReady || loading || $('edit-mode').checked) return;
+  warmPromise = (async () => {
+    const {blob, fromCache} = await loadOfficialDeck({
+      url:DEFAULT_PPTX_URL,
+      fetcher: () => { throw Error('La preparación anticipada solo utiliza la caché local.'); },
+    });
+    if (!fromCache || $('edit-mode').checked) return;
+    const file = new File([blob], DEFAULT_PPTX_NAME, {type:PPTX_MIME});
+    await openPresentation(file, {background:true,verifiedOfficial:true});
+  })().catch(error => {
+    console.debug('El visor se preparará al abrir la presentación:',error?.message || error);
+  }).finally(() => {warmPromise = null;});
+}
+
+function activatePreparedPresentation() {
+  if (!viewer || !warmReady || $('edit-mode').checked) return false;
+  const {file, slides} = warmReady;
+  warmReady = null;
+  $('workspace').classList.remove('prewarming');
+  showReady(file, slides);
+  try { viewer.zoomToFit?.(); } catch { /* ResizeObserver still handles fitting. */ }
+  return true;
+}
+
 async function openDefaultPresentation() {
-  if (loading) return;
+  if (loading && !warmPromise) return;
   const button = $('open-default');
   button.disabled = true;
-  status('Buscando la presentación guardada en este dispositivo…', false, true);
+  status('Abriendo la presentación del salón…', false, true);
   try {
+    if (warmPromise) await warmPromise;
+    if (activatePreparedPresentation()) return;
     const {blob, fromCache, saved} = await loadOfficialDeck({
       url:DEFAULT_PPTX_URL,
       onSource: source => status(source === 'cache' ?
-        'Abriendo la presentación guardada…' :
+        'Preparando las diapositivas guardadas…' :
         'Descargando la presentación por primera vez…', false, true),
     });
     const file = new File([blob], DEFAULT_PPTX_NAME, {type:PPTX_MIME});
-    await openPresentation(file);
+    await openPresentation(file,{verifiedOfficial:true});
     if (!fromCache && saved) {
-      const state = $('default-availability');
-      state.textContent = 'Lista para abrir · guardada en este dispositivo';
+      $('default-availability').textContent = 'Lista para abrir · guardada en este dispositivo';
     } else if (!fromCache && !saved && viewer) {
       status('La presentación abrió, pero el navegador no permitió guardarla. Se descargará nuevamente la próxima vez.', true, true);
     }
   } catch (error) {
     status(error?.message || 'No se pudo descargar la presentación.', true, true);
     button.dataset.available = 'false';
-    void checkDefaultPresentation();
+    // Start fetching the ESM engine during landing rather than after clicking.
+void ensureViewerModule().catch(() => {});
+void checkDefaultPresentation();
   } finally {
     button.disabled = button.dataset.available !== 'true';
   }
@@ -233,29 +274,38 @@ function cleanupViewer() {
   mediaAttempted = new WeakSet();
   mediaObserver?.disconnect();
   mediaObserver = null;
+  warmReady = null;
+  delete $('open-default').dataset.prepared;
   if (viewer) { viewer.destroy(); viewer = null; }
   host.replaceChildren();
 }
-async function openPresentation(file) {
-  if (loading) return;
+async function openPresentation(file, {background = false, verifiedOfficial = false} = {}) {
+  // A manual upload waits for any offscreen warmup before replacing its viewer.
+  if (!background && warmPromise) await warmPromise;
+  if (loading) return false;
   if (!validPresentation(file)) {
     status('Seleccioná un PPTX, PPSX o PPTM válido de hasta 250 MB.', true, true);
     return;
   }
   loading = true;
-  dropzone.setAttribute('aria-busy', 'true');
-  $('change-file').disabled = true;
-  status('Preparando el motor de presentaciones…', false, true);
+  if (!background) {
+    dropzone.setAttribute('aria-busy', 'true');
+    $('change-file').disabled = true;
+    status('Abriendo y ajustando las diapositivas…', false, true);
+  }
   try {
-    modulePromise ||= import(VIEWER_MODULE);
-    const { createPptxViewer } = await modulePromise;
+    const {createPptxViewer} = await ensureViewerModule();
     if (typeof createPptxViewer !== 'function') throw Error('No se encontró el motor de PowerPoint.');
     cleanupViewer();
-    // Medir y montar el motor con un contenedor visible evita una escala cero.
-    $('welcome').hidden = true;
+    // During background preparation keep a measurable, offscreen workspace.
+    // The *same* viewer DOM will become visible on click; no second loadFile.
     $('workspace').hidden = false;
-    $('file-name').textContent = file.name;
-    $('file-meta').textContent = 'Abriendo diapositivas…';
+    $('workspace').classList.toggle('prewarming', background);
+    if (!background) {
+      $('welcome').hidden = true;
+      $('file-name').textContent = file.name;
+      $('file-meta').textContent = 'Abriendo diapositivas…';
+    }
     await new Promise((resolve) => requestAnimationFrame(resolve));
     let slides = 0;
     viewer = createPptxViewer(host, {
@@ -267,7 +317,10 @@ async function openPresentation(file) {
       showCompatibilityToasts: true,
       fileName: file.name,
       onLoad: ({slideCount}) => { slides = slideCount; },
-      onError: (message) => { status('Problema al interpretar el archivo: ' + message, true, true); },
+      onError: (message) => {
+        if (!background) status('Problema al interpretar el archivo: ' + message, true, true);
+        else console.debug('Preparación anticipada:',message);
+      },
       onSlideChange: slideChanged,
       onPresentationChange: (active) => {
         presenting = Boolean(active);
@@ -281,8 +334,11 @@ async function openPresentation(file) {
     await viewer.loadFile(file);
     // The source deck contains a video playFrom animation on slide 21.
     // A single logical PPTX slide can therefore have two presentation steps.
-    try { mediaBuildSlide = await getTimedVideoSlide(file); }
-    catch (error) { console.warn('Could not inspect video build fingerprint:', error); }
+    if (verifiedOfficial) mediaBuildSlide = videoStepForHash(OFFICIAL_DECK_SIZE, OFFICIAL_DECK_SHA256);
+    else {
+      try { mediaBuildSlide = await getTimedVideoSlide(file); }
+      catch (error) { console.warn('Could not inspect video build fingerprint:', error); }
+    }
     if (!slides) throw Error('El archivo no contiene diapositivas reconocibles.');
     slidesTotal = slides;
     pausedPreviewSlides = duplicateVideoPreviewSlides(viewer.getSlides?.() || []);
@@ -294,24 +350,38 @@ async function openPresentation(file) {
     $('video-policy').hidden = false;
     mediaObserver = new MutationObserver(() => { if (presenting) playVisibleMedia(); });
     mediaObserver.observe(host, {childList: true, subtree: true});
-    showReady(file, slides);
+    if (background) {
+      warmReady = {file,slides};
+      $('open-default').dataset.prepared = 'true';
+      $('default-availability').textContent = 'Lista para abrir · guardada en este dispositivo · visor preparado';
+    } else {
+      showReady(file,slides);
+    }
+    return true;
   } catch (error) {
     cleanupViewer();
     currentFile = null;
     $('workspace').hidden = true;
+    $('workspace').classList.remove('prewarming');
     $('welcome').hidden = false;
     $('start').hidden = true;
     $('download').hidden = true;
     $('change-file').hidden = true;
     $('video-policy').hidden = true;
-    status('No se pudo abrir la presentación: ' + (error?.message || 'error desconocido') +
-      '. Comprobá tu conexión y que el archivo no esté dañado.', true, true);
-    console.error('Error del visor PPTX:', error);
+    if (background) console.debug('No se pudo preparar la presentación anticipadamente:',error);
+    else {
+      status('No se pudo abrir la presentación: ' + (error?.message || 'error desconocido') +
+        '. Comprobá tu conexión y que el archivo no esté dañado.', true, true);
+      console.error('Error del visor PPTX:', error);
+    }
+    return false;
   } finally {
     loading = false;
-    picker.value = '';
-    dropzone.removeAttribute('aria-busy');
-    $('change-file').disabled = false;
+    if (!background) {
+      picker.value = '';
+      dropzone.removeAttribute('aria-busy');
+      $('change-file').disabled = false;
+    }
   }
 }
 
@@ -342,6 +412,18 @@ $('download').addEventListener('click', async () => {
 });
 $('change-file').addEventListener('click', () => picker.click());
 $('open-default').addEventListener('click', openDefaultPresentation);
+$('edit-mode').addEventListener('change', () => {
+  // Editing needs its own editable instance; don't reuse read-only warmup.
+  if ($('edit-mode').checked && warmReady) {
+    cleanupViewer();
+    $('workspace').classList.remove('prewarming');
+    $('workspace').hidden = true;
+  } else if (!$('edit-mode').checked && !warmPromise && !viewer) {
+    void hasCachedOfficialDeck({url:DEFAULT_PPTX_URL}).then(saved => {
+      if (saved) startOfficialWarmup();
+    });
+  }
+});
 dropzone.addEventListener('click', () => picker.click());
 dropzone.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); picker.click(); }

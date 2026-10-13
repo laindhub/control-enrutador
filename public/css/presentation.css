@@ -108,3 +108,14 @@ h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto
   .deck-info strong{font-size:21px}
   .deck-open{margin-top:7px}
 }
+
+/* A cached presentation is parsed offscreen at a measurable size, so the
+   original live viewer can be revealed instantly without a second loadFile.
+   Do not use display:none or content-visibility:hidden: the engine measures
+   its container while loading. */
+.workspace.prewarming{
+  position:fixed!important;left:-200vw!important;top:0!important;
+  width:calc(100vw - 40px);height:100dvh;
+  opacity:0;visibility:hidden;pointer-events:none;z-index:-1;
+}
+.workspace.prewarming .pptx-host{width:100%;min-height:400px}

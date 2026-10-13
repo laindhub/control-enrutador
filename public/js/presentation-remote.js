@@ -3,7 +3,7 @@
 // No access to USB serials, raw HID devices, server storage, or CRM data.
 export const REMOTE_STORAGE_KEY = 'salon-mas-duenos-intro-remote-v1';
 const eventsToWatch = ['keydown','mousedown','wheel'];
-const protectedCodes = new Set(['Escape','F5','F11','Tab','MetaLeft','MetaRight',
+const protectedCodes = new Set(['Escape','F5','F11','MetaLeft','MetaRight',
   'AltLeft','AltRight','ControlLeft','ControlRight','ShiftLeft','ShiftRight']);
 
 export function describeRemoteEvent(event) {
@@ -18,7 +18,10 @@ export function describeRemoteEvent(event) {
     const signature='key:'+modifiers.join('+')+':'+code;
     return {type:'teclado',signature,label:shortcut+(event.key&&event.key!=='Unidentified'?event.key:code),
       detail:'code='+code+' · key='+String(event.key||'?')+(modifiers.length?' · '+modifiers.join('+'):''),
-      assignable:!event.metaKey&&!event.ctrlKey&&!event.altKey};
+      // The real K01 USB remote emits unmodified Tab. Shift+Tab remains
+      // normal keyboard navigation, never a configurable action.
+      assignable:!event.metaKey&&!event.ctrlKey&&!event.altKey&&
+        !(code==='Tab'&&event.shiftKey)};
   }
   if (event.type === 'mousedown') {
     const n=Number(event.button);
@@ -55,10 +58,11 @@ export function safeIntroUrl(raw, origin) {
 export function loadRemoteSettings(storage=globalThis.localStorage) {
   try {
     const data=JSON.parse(storage?.getItem(REMOTE_STORAGE_KEY)||'null');
-    if (!data || data.version!==1) return {signature:'',label:'',introUrl:''};
+    if (!data || data.version!==1) return {signature:'',label:'',introUrl:'',armed:false};
     return {signature:typeof data.signature==='string'?data.signature.slice(0,100):'',
       label:typeof data.label==='string'?data.label.slice(0,150):'',
-      introUrl:typeof data.introUrl==='string'?data.introUrl.slice(0,1000):''};
+      introUrl:typeof data.introUrl==='string'?data.introUrl.slice(0,1000):'',
+      armed:data.armed===true};
   } catch {return {signature:'',label:'',introUrl:''};}
 }
 
@@ -80,7 +84,8 @@ export function initRemoteControl({
   const events=byId('remote-events'), current=byId('remote-current');
   const introUrl=byId('remote-intro-url'), saveUrl=byId('remote-save-url');
   const selection=byId('remote-last'), state=byId('remote-state');
-  if (![button,assign,clear,events,current,introUrl,saveUrl,selection,state].every(Boolean)) {
+  const enabled=byId('remote-enabled');
+  if (![button,assign,clear,events,current,introUrl,saveUrl,selection,state,enabled].every(Boolean)) {
     return {dispose(){}};
   }
   let settings=loadRemoteSettings(storage);
@@ -91,6 +96,8 @@ export function initRemoteControl({
   const render=()=>{
     current.textContent=settings.signature?'Asignado: '+settings.label+' ('+settings.signature+')':'Sin botón asignado';
     current.dataset.signature=settings.signature;
+    enabled.disabled=!settings.signature;
+    enabled.checked=Boolean(settings.armed && settings.signature);
     state.textContent=listening?'Escuchando… pulsá el botón una vez, después dos veces para comparar.':
       'Detector detenido. Activá la escucha para registrar señales.';
     button.textContent=listening?'Detener detección':'Detectar señales del control';
@@ -127,7 +134,12 @@ export function initRemoteControl({
       render();
       return;
     }
-    if(!settings.signature || desc.signature!==settings.signature || isPresenting()) return;
+    // Mapping only operates when explicitly armed on the landing screen.
+    // A physical Tab press is indistinguishable from a notebook keyboard Tab.
+    if(!settings.armed || !settings.signature ||
+       desc.signature!==settings.signature || isPresenting()) return;
+    if(desc.signature==='key::Tab' &&
+       /^(A|BUTTON|INPUT|TEXTAREA|SELECT|SUMMARY)$/.test(event.target?.tagName||'')) return;
     // Don't intercept text editing, buttons, dialogs, or the event produced by
     // a conventional mouse primary click.
     if(event.type==='keydown' &&
@@ -142,12 +154,12 @@ export function initRemoteControl({
   const toggle=()=>listen(!listening);
   const assignLatest=()=>{
     if(!captured?.assignable)return;
-    settings={...settings,signature:captured.signature,label:captured.label};
+    settings={...settings,signature:captured.signature,label:captured.label,armed:false};
     persist();listen(false);
-    onNotice('Botón asignado. Solo activará la introducción antes de presentar.');
+    onNotice('Se reconoció '+captured.label+'. Activá el modo control remoto para usarlo antes de presentar.');
   };
   const clearMap=()=>{
-    settings={...settings,signature:'',label:''};
+    settings={...settings,signature:'',label:'',armed:false};
     persist();listen(false);onNotice('Asignación eliminada.');
   };
   const storeUrl=()=>{
@@ -161,6 +173,18 @@ export function initRemoteControl({
     doc.activeElement?.blur?.();
     onNotice(next?'Ruta guardada en esta notebook.':'Ruta del video eliminada.');
   };
+  const toggleEnabled=()=>{
+    settings={...settings,armed:Boolean(enabled.checked && settings.signature)};
+    persist();
+    render();
+    // A button from the remote sends Tab: release focus from the checkbox
+    // so it can be captured on the waiting screen.
+    doc.activeElement?.blur?.();
+    onNotice(settings.armed?
+      'Control remoto activado en esta notebook. Tab inicia la introducción cuando esté disponible.':
+      'Control remoto desactivado. Tab vuelve a navegar normalmente.');
+  };
+  enabled.addEventListener('change',toggleEnabled);
   button.addEventListener('click',toggle);
   assign.addEventListener('click',assignLatest);
   clear.addEventListener('click',clearMap);
@@ -171,6 +195,7 @@ export function initRemoteControl({
     getSettings:()=>({...settings}),
     dispose() {
       for(const eventName of eventsToWatch) doc.removeEventListener(eventName,handle,true);
+      enabled.removeEventListener('change',toggleEnabled);
       button.removeEventListener('click',toggle);
       assign.removeEventListener('click',assignLatest);
       clear.removeEventListener('click',clearMap);

@@ -562,7 +562,7 @@ function openIntroFromRemote({url}){
   });
 }
 const remoteControl=initRemoteControl({
-  isPresenting:()=>presenting || Boolean(document.fullscreenElement),
+  isPresenting:()=>presenting || Boolean(document.fullscreenElement) || !introOverlay.hidden,
   onIntro:openIntroFromRemote,
   onNotice:message=>status(message),
 });

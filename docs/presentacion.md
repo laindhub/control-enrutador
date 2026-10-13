@@ -184,3 +184,14 @@ USB de la misma tecla del teclado normal. Tampoco pueden capturar una pulsación
 que el hardware no exponga como evento DOM; si no hay señal con una pulsación,
 no se puede remapear únicamente mediante JavaScript. Los clics izquierdos
 normales aparecen en diagnóstico, pero no pueden asignarse por seguridad.
+
+## Señal física identificada en el K01 (13/10/2026)
+
+La captura del detector en Windows/Edge muestra una secuencia `keydown Tab`
+(`code=Tab`, `keyCode=9`) seguida de `keyup Tab` para cada pulsación.
+No hay diferencia identificable respecto de la tecla Tab de la notebook.
+En esta rama se permite detectar y asignar `key::Tab` **solo** con una
+habilitación explícita del modo remoto en la pantalla de espera. La entrada
+se captura una vez por `keydown`, sin considerar `keyup`. Se respeta
+Shift+Tab como navegación, y no se intercepta Tab al editar campos o durante
+la presentación comercial. La opción puede desactivarse en cualquier momento.

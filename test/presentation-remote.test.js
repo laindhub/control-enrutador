@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {describeRemoteEvent,safeIntroUrl,loadRemoteSettings,saveRemoteSettings,
   REMOTE_STORAGE_KEY} from '../public/js/presentation-remote.js';
@@ -11,6 +12,11 @@ test('classifies USB presenter keyboard signals and modifiers consistently',()=>
   assert.equal(describeRemoteEvent({type:'keydown',code:'PageDown',repeat:true}),null);
   assert.equal(describeRemoteEvent({type:'keydown',code:'Escape'}),null);
   assert.equal(describeRemoteEvent({type:'keydown',code:'F5'}),null);
+  const tab=describeRemoteEvent({type:'keydown',code:'Tab',key:'Tab',repeat:false,
+    ctrlKey:false,altKey:false,shiftKey:false,metaKey:false});
+  assert.equal(tab.signature,'key::Tab');
+  assert.equal(tab.assignable,true);
+  assert.equal(describeRemoteEvent({type:'keydown',code:'Tab',key:'Tab',shiftKey:true}).assignable,false);
   const ctrl=describeRemoteEvent({type:'keydown',code:'KeyP',key:'p',ctrlKey:true});
   assert.equal(ctrl.assignable,false);
   assert.notEqual(ctrl.signature,down.signature);
@@ -38,10 +44,18 @@ test('video URL only accepts paths from the same web origin',()=>{
 test('mapping persists per browser and handles disabled private storage',()=>{
   const values=new Map();
   const storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};
-  const data={signature:'key::F8',label:'F8',introUrl:'/assets/presentaciones/video-intro.mp4'};
+  const data={signature:'key::Tab',label:'Tab',introUrl:'/assets/presentaciones/video-intro.mp4',armed:true};
   assert.equal(saveRemoteSettings(data,storage),true);
   assert.equal(JSON.parse(values.get(REMOTE_STORAGE_KEY)).version,1);
   assert.deepEqual(loadRemoteSettings(storage),data);
   assert.equal(saveRemoteSettings(data,{setItem(){throw Error('Quota exceeded');}}),false);
-  assert.deepEqual(loadRemoteSettings({getItem(){throw Error('Denied');}}),{signature:'',label:'',introUrl:''});
+  assert.deepEqual(loadRemoteSettings({getItem(){throw Error('Denied');}}),{signature:'',label:'',introUrl:'',armed:false});
+});
+
+test('Tab remapping requires an explicit enabled mode, never global interception',()=>{
+  const source=readFileSync(new URL('../public/js/presentation-remote.js',import.meta.url),'utf8');
+  assert.match(source,/if\(!settings\.armed/);
+  assert.match(source,/desc\.signature==='key::Tab'/);
+  assert.match(source,/enabled\.addEventListener\('change',toggleEnabled\)/);
+  assert.match(source,/enabled\.disabled=!settings\.signature/);
 });

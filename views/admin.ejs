@@ -16,6 +16,7 @@
       <div class="topbar-inner">
         <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="Más Dueños" class="topbar-logo">
         <span class="operator-pill"><strong>Administración</strong></span>
+        <a class="presentation-shortcut" href="/presentacion" title="Abrir presentaciones"><span aria-hidden="true">▣</span> Presentaciones</a>
         <form method="post" action="/logout">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <button class="text-button" type="submit">Salir</button>

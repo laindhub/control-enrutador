@@ -62,6 +62,14 @@ try {
   const response = await page.goto(address, {waitUntil:'domcontentloaded'});
   assert.equal(response.status(), 200, 'presentation must render without a server error');
   await page.locator('h1').waitFor();
+
+  assert.equal(await page.locator('#open-default').isVisible(), true);
+  assert.equal(await page.locator('#dropzone').isVisible(), true);
+  await page.waitForFunction(() => {
+    const status = document.getElementById('default-availability')?.textContent || '';
+    return /Lista para abrir|pendiente de publicación/.test(status);
+  }, null, {timeout:15000});
+
   assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
   await page.locator('#file-input').setInputFiles(presentation);
   await page.locator('#workspace').waitFor({state:'visible',timeout:120000});

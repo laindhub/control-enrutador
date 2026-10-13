@@ -71,6 +71,17 @@ try {
   }, null, {timeout:15000});
 
   assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
+  // Hostinger sometimes answers asset requests with HTTP 200 + HTML startup page.
+  const officialAsset='**/assets/presentaciones/mas-duenos-liniers.pptx';
+  await page.route(officialAsset,route=>route.fulfill({
+    status:200,contentType:'text/html; charset=utf-8',body:'<h1>Conectando</h1>',
+  }));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#default-availability')?.textContent?.includes('Archivo pendiente de publicación'));
+  assert.equal(await page.locator('#open-default').isDisabled(),true);
+  assert.equal(await page.locator('#dropzone').isVisible(),true);
+  await page.unroute(officialAsset);
+
   await page.locator('#file-input').setInputFiles(presentation);
   await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
   await page.waitForFunction(() => /2 diapositivas/.test(document.getElementById('file-meta')?.textContent || ''), null, {timeout:120000});

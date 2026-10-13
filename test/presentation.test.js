@@ -190,6 +190,8 @@ test('official presentation and local upload are separate cards', () => {
   assert.match(script, /\/assets\/presentaciones\/mas-duenos-liniers\.pptx/);
   assert.match(script, /fetch\(DEFAULT_PPTX_URL, \{method:'HEAD'/);
   assert.match(script, /new File\(\[data\], DEFAULT_PPTX_NAME/);
+  assert.match(script, /isOfficialDeckResponse\(response\)/);
+  assert.match(script, /readVerifiedOfficialDeck\(response\)/);
   assert.match(script, /openPresentation\(file\)/);
   assert.match(script, /Archivo pendiente de publicación/);
 });
@@ -205,4 +207,38 @@ test('the default deck has a hash-verified same-origin route before authenticati
   assert.match(server, /res\.sendFile\(filename/);
   assert.match(helper, /masduenos/);
   assert.match(helper, /OFFICIAL_PRESENTATION_SHA256/);
+});
+
+test('Hostinger 200/HTML warming does not make the official PPTX appear available', async () => {
+  const {isOfficialDeckResponse,readVerifiedOfficialDeck,OFFICIAL_DECK_MIME,OFFICIAL_DECK_SIZE} =
+    await import('../public/js/presentation-source.js');
+  const html = new Response('<h1>Conectando</h1>',{status:200,headers:{'content-type':'text/html'}});
+  assert.equal(isOfficialDeckResponse(html),false);
+  await assert.rejects(readVerifiedOfficialDeck(html),/no entregó el archivo PowerPoint/);
+  assert.equal(isOfficialDeckResponse(new Response(null,{status:200,headers:{
+    'content-type':OFFICIAL_DECK_MIME,'content-length':String(OFFICIAL_DECK_SIZE+1)
+  }})),false);
+  assert.equal(isOfficialDeckResponse(new Response(null,{status:200,headers:{
+    'content-type':OFFICIAL_DECK_MIME,'content-length':String(OFFICIAL_DECK_SIZE)
+  }})),true);
+});
+
+test('official deck verifies bytes, ZIP signature and SHA-256 before viewer.loadFile', async () => {
+  const {createHash,webcrypto} = await import('node:crypto');
+  const {readVerifiedOfficialDeck,OFFICIAL_DECK_MIME} = await import('../public/js/presentation-source.js');
+  const bytes=Buffer.from([80,75,3,4,0,1,2,3]);
+  const sha256=createHash('sha256').update(bytes).digest('hex');
+  const settings={size:bytes.length,sha256,subtle:webcrypto.subtle};
+  const make=content=>new Response(content,{status:200,headers:{'content-type':OFFICIAL_DECK_MIME}});
+  assert.equal((await readVerifiedOfficialDeck(make(bytes),settings)).size,bytes.length);
+  await assert.rejects(readVerifiedOfficialDeck(make(bytes),{...settings,size:bytes.length+1}),/incompleta/);
+  await assert.rejects(readVerifiedOfficialDeck(make(bytes),{...settings,sha256:'0'.repeat(64)}),/no coincide/);
+  await assert.rejects(readVerifiedOfficialDeck(make(Buffer.alloc(bytes.length)),settings),/no es un PPTX/);
+});
+
+test('official deck endpoint precedes startup warmup middleware', () => {
+  const source=read('src/server.js');
+  const route=source.indexOf("app.get('/assets/presentaciones/mas-duenos-liniers.pptx'");
+  const gate=source.indexOf("app.use((req, res, next) => {");
+  assert.ok(route>0 && route<gate, 'PPTX must be delivered even during DB startup');
 });

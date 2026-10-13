@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/verify-production-presentation.yml'
       - 'src/official-presentation.js'
+      - 'src/server.js'
+      - 'public/js/presentation.js'
+      - 'public/js/presentation-source.js'
   workflow_dispatch:
 permissions:
   contents: read

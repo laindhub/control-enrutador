@@ -98,3 +98,11 @@ En despliegues Hostinger recientes, el proyecto suele ejecutarse en
 `/home/<usuario>/domains/<dominio>/hbuilds/current/nodejs`. El servidor
 también deriva la carpeta `/home/<usuario>/masduenos` desde ese directorio
 cuando la variable HOME del proceso no apunta al home de la cuenta.
+
+## Respuestas 200/HTML de Hostinger
+
+La ruta verificada del PPTX se registra antes del middleware de arranque de
+MySQL y sesiones. La tarjeta valida MIME y tamaño declarado al comprobar
+HEAD; en GET comprueba bytes, firma ZIP y SHA-256 antes de abrir la presentación.
+Una respuesta HTML con HTTP 200 nunca anuncia «Lista para abrir» ni llega
+al motor PPTX. La opción de subir otros archivos sigue independiente.

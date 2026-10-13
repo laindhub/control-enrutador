@@ -130,6 +130,24 @@ app.get('/health', async (req, res, next) => {
   });
 });
 
+// Serve the fixed, SHA-256-verified deck before the CRM startup readiness gate.
+// Serves the original verified deck from the hosting account (or public/ if later added).
+// HEAD uses the same validation as GET; never expose arbitrary hosting files.
+app.get('/assets/presentaciones/mas-duenos-liniers.pptx', async (_req, res, next) => {
+  try {
+    const filename = await resolveOfficialPresentation({
+      projectRoot: root,
+      configuredPath: process.env.MAS_DUENOS_PRESENTATION_PATH || '',
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    if (!filename) return res.status(404).end();
+    res.type('application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    return res.sendFile(filename, error => { if (error) next(error); });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.use((req, res, next) => {
   if (startupState === 'starting') {
     res.setHeader('Retry-After', '2');
@@ -163,23 +181,6 @@ app.get('/presentacion', (_req, res) => {
   res.setHeader('Content-Security-Policy', csp + '; media-src \'self\' blob: data: https:; worker-src \'self\' blob:');
   res.setHeader('Cache-Control', 'no-store');
   res.render('presentation', { title: 'Presentación · Salón Más Dueños' });
-});
-
-// Serves the original verified deck from the hosting account (or public/ if later added).
-// HEAD uses the same validation as GET; never expose arbitrary hosting files.
-app.get('/assets/presentaciones/mas-duenos-liniers.pptx', async (_req, res, next) => {
-  try {
-    const filename = await resolveOfficialPresentation({
-      projectRoot: root,
-      configuredPath: process.env.MAS_DUENOS_PRESENTATION_PATH || '',
-    });
-    res.setHeader('Cache-Control', 'no-store');
-    if (!filename) return res.status(404).end();
-    res.type('application/vnd.openxmlformats-officedocument.presentationml.presentation');
-    return res.sendFile(filename, error => { if (error) next(error); });
-  } catch (error) {
-    return next(error);
-  }
 });
 
 // Public diagnostic only: no stored lead data, no CRM proxy and no session required.

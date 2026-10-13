@@ -5,6 +5,7 @@ on:
       - 'src/server.js'
       - 'src/official-presentation.js'
       - 'public/js/presentation.js'
+      - 'public/js/presentation-source.js'
       - 'public/js/presentation-media.js'
       - 'public/js/presentation-loop.js'
       - 'public/js/presentation-timing.js'
@@ -29,6 +30,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --check public/js/presentation-source.js
       - run: node --check public/js/presentation.js
       - run: node --check public/js/presentation-media.js
       - run: node --check public/js/presentation-loop.js

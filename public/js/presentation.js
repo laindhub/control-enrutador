@@ -1,6 +1,7 @@
 import {getTimedVideoSlide, isForwardInput} from './presentation-timing.js';
 import {enablePresentationLoop} from './presentation-loop.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
+import {isOfficialDeckResponse, readVerifiedOfficialDeck} from './presentation-source.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
 const VIEWER_MODULE = 'https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
@@ -51,16 +52,18 @@ async function checkDefaultPresentation() {
   button.disabled = true;
   try {
     const response = await fetch(DEFAULT_PPTX_URL, {method:'HEAD', cache:'no-store'});
-    if (!response.ok) throw new Error('Archivo no publicado');
+    if (!isOfficialDeckResponse(response)) throw new Error('Archivo no disponible');
     button.dataset.available = 'true';
     button.disabled = false;
     state.textContent = 'Lista para abrir';
     state.classList.add('available');
+    state.classList.remove('unavailable');
   } catch {
     button.dataset.available = 'false';
     button.disabled = true;
     state.textContent = 'Archivo pendiente de publicación';
     state.classList.add('unavailable');
+    state.classList.remove('available');
   }
 }
 async function openDefaultPresentation() {
@@ -70,13 +73,13 @@ async function openDefaultPresentation() {
   status('Descargando la presentación del salón…', false, true);
   try {
     const response = await fetch(DEFAULT_PPTX_URL, {cache:'no-store'});
-    if (!response.ok) throw Error('La presentación todavía no está disponible en el servidor.');
-    const data = await response.blob();
-    if (!data.size || data.size > MAX_FILE_SIZE) throw Error('Archivo inválido o superior a 250 MB.');
+    const data = await readVerifiedOfficialDeck(response);
     const file = new File([data], DEFAULT_PPTX_NAME, {type:PPTX_MIME});
     await openPresentation(file);
   } catch (error) {
     status(error?.message || 'No se pudo descargar la presentación.', true, true);
+    button.dataset.available = 'false';
+    void checkDefaultPresentation();
   } finally {
     button.disabled = button.dataset.available !== 'true';
   }

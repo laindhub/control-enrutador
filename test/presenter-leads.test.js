@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {leadSummary,leadPolicy,leadPlan} from '../src/presenter-leads.js';
+import {leadSummary,leadPolicy,leadPlan,leadGoalProjection} from '../src/presenter-leads.js';
 const summary=(total,extra={})=>leadSummary({month:'2026-10',today:'2026-10-11',sourceCount:total,...extra});
 test('commission unlocks retroactively at 650 and all interviews use elite rate at 780',()=>{
  assert.equal(summary(649).earned,0);assert.equal(summary(649).potential,876150);
@@ -27,4 +27,21 @@ test('policies and goals are validated without requiring fixed off days',()=>{
  assert.throws(()=>leadPolicy({unlock:780,elite:650,baseRate:1350,eliteRate:1500}));
  assert.throws(()=>leadPlan({goal:0}));
  assert.deepEqual(leadPlan({goal:650}),{goal:650});
+});
+
+test('personal goal earnings switch rates at unlock and elite thresholds',()=>{
+ const examples=[[649,0,'locked'],[650,877500,'unlocked'],[779,1051650,'unlocked'],[780,1170000,'elite'],[900,1350000,'elite']];
+ for(const [goal,amount,level] of examples){
+  const result=leadGoalProjection(goal);
+  assert.equal(result.amount,amount,'goal '+goal);
+  assert.equal(result.level,level,'goal '+goal);
+  assert.equal(summary(184,{plan:{goal}}).goalProjection.amount,amount);
+ }
+});
+test('personal goal earnings use month-specific configured rates and thresholds',()=>{
+ const policy=leadPolicy({unlock:400,elite:500,baseRate:1800,eliteRate:2200});
+ assert.deepEqual(leadGoalProjection(399,policy),{target:399,rate:0,amount:0,level:'locked'});
+ assert.deepEqual(leadGoalProjection(400,policy),{target:400,rate:1800,amount:720000,level:'unlocked'});
+ assert.deepEqual(leadGoalProjection(500,policy),{target:500,rate:2200,amount:1100000,level:'elite'});
+ assert.throws(()=>leadGoalProjection(0,policy));
 });

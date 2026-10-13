@@ -8,6 +8,22 @@
  }
  const message=(text,error=false)=>{const node=$('#lead-notice');node.className=error?'form-error':'muted';node.textContent=text;};
  function fill(form,values){for(const [key,value]of Object.entries(values))if(form.elements.namedItem(key))form.elements.namedItem(key).value=value??'';}
+ function renderGoalProjection(){
+  if(!state)return;
+  const input=$('#lead-plan-form').elements.namedItem('goal');
+  const value=$('#lead-goal-projection-value'),detail=$('#lead-goal-projection-detail');
+  const raw=input.value.trim(),goal=Number(raw),p=state.policy;
+  if(!raw||!Number.isSafeInteger(goal)||goal<1||goal>100000){
+   value.textContent='—';detail.textContent='Ingresá una meta válida para calcular la proyección.';return;
+  }
+  const rate=goal>=p.elite?p.eliteRate:goal>=p.unlock?p.baseRate:0;
+  value.textContent=ars(goal*rate);
+  detail.textContent=goal<p.unlock
+   ?'Por debajo del desbloqueo de '+p.unlock+' entrevistas no se genera comisión.'
+   :goal>=p.elite
+    ?'Tarifa élite: '+ars(p.eliteRate)+' por entrevista.'
+    :'Tarifa de desbloqueo: '+ars(p.baseRate)+' por entrevista.';
+ }
  function render(){
   const s=state.summary,p=state.policy,snapshot=state.snapshot,manual=state.entries.reduce((n,e)=>n+Number(e.quantity),0);
   $('#lead-account').textContent=`Cuenta de comisiones: ${state.user.username}. `+(snapshot?`Salón: ${snapshot.source_label} · actualizado ${snapshot.captured_at} UTC.`:'Abrí Yo en la app para leer las derivaciones del salón. Las cargas externas quedan guardadas aunque no haya lectura del salón.');
@@ -18,7 +34,7 @@
   marks.sort((a,b)=>a.value-b.value);
   $('#lead-progress').innerHTML=`<div class="section-head"><h3>${s.unlocked?(s.total>=p.elite?'Nivel élite alcanzado':'Comisión desbloqueada'):'Todavía falta desbloquear'}</h3><strong>${s.total} / ${s.target}</strong></div><div class="threshold-bar" role="progressbar" aria-label="Entrevistas del mes" aria-valuemin="0" aria-valuemax="${scale}" aria-valuenow="${Math.min(s.total,scale)}" aria-valuetext="${s.total} entrevistas, desbloqueo ${p.unlock}, élite ${p.elite}"><div class="threshold-fill" style="width:${leadPercent}%"></div>${marks.map(m=>`<span class="threshold-mark ${s.total>=m.value?'reached':''}" style="left:${m.value/scale*100}%" aria-hidden="true"></span>`).join('')}</div><div class="lead-threshold-labels">${marks.map(m=>`<span class="${s.total>=m.value?'reached':''}">${esc(m.label)} <strong>${m.value}</strong></span>`).join('')}</div><p>${s.unlocked?`${ars(s.rate)} por cada entrevista del mes.`:`Faltan ${s.toUnlock} para las ${p.unlock} y desbloquear ${ars(p.baseRate)} por entrevista.`} ${s.toElite?`Faltan ${s.toElite} para élite (${p.elite}), a ${ars(p.eliteRate)} cada una.`:''}</p><p class="muted">Meta personal: ${s.target} · faltan ${s.remaining} · ${s.workingDays} jornadas restantes estimadas (5 de cada 7 días, con 2 francos rotativos semanales). ${!s.sourceKnown?'El cálculo todavía no incluye las derivaciones del salón. ':''}Los importes son calculados; no representan un pago recibido.</p>`;
   $('#lead-entries').innerHTML=state.entries.map(e=>`<article class="card"><div class="sale-row"><div><strong>${Number(e.quantity)} entrevistas externas</strong><p class="muted">${esc(e.entry_date)} · ${esc(e.notes)}</p></div><button type="button" class="quiet" data-lead-entry-delete="${e.id}">Eliminar</button></div></article>`).join('')||'<p class="muted">Sin cargas externas en este mes.</p>';
-  fill($('#lead-plan-form'),{goal:state.plan.goal});
+  fill($('#lead-plan-form'),{goal:state.plan.goal});renderGoalProjection();
   if($('#lead-policy-form'))fill($('#lead-policy-form'),{month:state.month,...p});
  }
  async function load(){
@@ -40,6 +56,7 @@
   if(source.month===$('#lead-month').value){loading=false;await load();}
  }
  $('#lead-month').onchange=load;
+ $('#lead-plan-form').elements.namedItem('goal').addEventListener('input',renderGoalProjection);
  $('#new-leads').onclick=()=>{const form=$('#lead-entry-form');form.reset();fill(form,{date:state?.today||'',requestId:crypto.randomUUID()});$('#lead-entry-error').textContent='';$('#lead-entry-dialog').showModal();};
  $('#lead-entry-form').onsubmit=async event=>{event.preventDefault();const form=event.currentTarget,b=form.querySelector('[type=submit]');b.disabled=true;try{await api('/lead-entries',Object.fromEntries(new FormData(form)),'POST');$('#lead-entry-dialog').close();await load();}catch(error){$('#lead-entry-error').textContent=error.message;}finally{b.disabled=false;}};
  document.addEventListener('click',event=>{const b=event.target.closest('[data-lead-entry-delete]');if(!b)return;deleteId=b.dataset.leadEntryDelete;$('#lead-delete-error').textContent='';$('#lead-delete-dialog').showModal();});

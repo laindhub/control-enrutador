@@ -301,3 +301,8 @@ dialog[open].is-closing::backdrop { animation:backdrop-out 160ms ease both; }
 .lead-assignment>div{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:10px 0;border-bottom:1px solid var(--border-row)}
 .lead-assignment span{flex:0 0 auto;color:var(--muted-foreground);font-size:12px}
 .lead-assignment strong{text-align:right;font-size:13px;overflow-wrap:anywhere;min-width:0}
+
+/* Hypothetical earnings preview for the personal monthly lead target. */
+.lead-goal-projection { display:flex; flex-wrap:wrap; align-items:baseline; column-gap:8px; row-gap:4px; margin:14px 0 18px; font-size:14px; line-height:1.45; }
+.lead-goal-projection strong { font-weight:700; font-size:clamp(18px,5vw,23px); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.lead-goal-projection small { display:block; flex-basis:100%; color:var(--muted-foreground); font-size:12px; line-height:1.4; }

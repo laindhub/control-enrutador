@@ -45,3 +45,15 @@ test('weekly folder sale rows reuse the exact sale detail dialog from Resumen', 
   assert.match(css, /\.folder-sale-row\s*\{[^}]*min-height:48px/);
   assert.match(css, /\.folder-sale-row:hover, \.folder-sale-row:focus-visible/);
 });
+
+test('personal monthly target shows a live projected earnings preview',()=>{
+ const html=read('views/presenter.ejs').toString();
+ const script=read('public/js/presenter-leads.js').toString();
+ const css=read('public/css/presenter.css').toString();
+ assert.match(html,/Con esta meta tu ganancia sería de:/);
+ assert.match(html,/id="lead-goal-projection-value"/);
+ assert.match(script,/goal>=p\.elite\?p\.eliteRate:goal>=p\.unlock\?p\.baseRate:0/);
+ assert.match(script,/addEventListener\('input',renderGoalProjection\)/);
+ assert.match(script,/renderGoalProjection\(\);/);
+ assert.match(css,/\.lead-goal-projection strong/);
+});

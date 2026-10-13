@@ -135,18 +135,18 @@ try {
   await page.locator('#remote-assign').click();
   assert.match(await page.locator('#remote-current').textContent(),/key::Tab/);
   await page.locator('#remote-enabled').check();
-  await page.locator('#remote-intro-url').fill('/assets/presentaciones/video-intro.mp4');
+  await page.locator('#remote-intro-url').fill('/assets/presentaciones/introduccion.mp4');
   await page.locator('#remote-save-url').click();
   await page.keyboard.press('Tab');
   await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
   assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
-    '/assets/presentaciones/video-intro.mp4');
+    '/assets/presentaciones/introduccion.mp4');
   await page.locator('#intro-close').click();
   await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:10000});
   await page.reload({waitUntil:'domcontentloaded'});
   assert.match(await page.locator('#remote-current').textContent(),/key::Tab/);
   assert.equal(await page.locator('#remote-intro-url').inputValue(),
-    '/assets/presentaciones/video-intro.mp4');
+    '/assets/presentaciones/introduccion.mp4');
   assert.equal(await page.locator('#remote-enabled').isChecked(),true);
   // Test the mapped key outside fullscreen; while presenting, the same key
   // must never unexpectedly replace the slides with the intro.

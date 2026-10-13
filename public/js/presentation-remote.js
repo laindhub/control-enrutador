@@ -159,9 +159,10 @@ export function initRemoteControl({
   const toggle=()=>listen(!listening);
   const assignLatest=()=>{
     if(!captured?.assignable)return;
-    settings={...settings,signature:captured.signature,label:captured.label,armed:false};
+    const selected=captured;
+    settings={...settings,signature:selected.signature,label:selected.label,armed:false};
     persist();listen(false);
-    onNotice('Se reconoció '+captured.label+'. Activá el modo control remoto para usarlo antes de presentar.');
+    onNotice('Se reconoció '+selected.label+'. Activá el modo control remoto para usarlo antes de presentar.');
   };
   const clearMap=()=>{
     settings={...settings,signature:'key::Tab',label:'Tab',armed:false};

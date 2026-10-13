@@ -121,6 +121,27 @@ jobs:
             await page.waitForFunction(() => document.querySelector('#pptx-host')?.dataset.activeSlideIndex==='21',
               null,{timeout:20000});
             console.log('Real deck: video played once on slide 21; next down-scroll advanced to slide 22.');
+
+            // Reload in the same browser profile, abort all network access to
+            // the PPTX, and confirm Cache Storage alone opens the full deck.
+            await page.keyboard.press('Escape');
+            let networkDeckRequests=0;
+            await page.route('**/assets/presentaciones/mas-duenos-liniers.pptx', route=>{
+              networkDeckRequests++;
+              return route.abort('failed');
+            });
+            await page.reload({waitUntil:'domcontentloaded'});
+            await page.waitForFunction(() =>
+              document.querySelector('#default-availability')?.textContent?.includes('guardada en este dispositivo'),
+              null,{timeout:30000});
+            assert.equal(await page.locator('#open-default').isEnabled(),true);
+            const cachedStart=Date.now();
+            await page.locator('#open-default').click();
+            await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
+            await page.waitForFunction(() => /40 diapositivas/.test(document.querySelector('#file-meta')?.textContent||''),
+              null,{timeout:120000});
+            assert.equal(networkDeckRequests,0,'cache reuse must not perform HEAD or GET requests');
+            console.log('Persistent browser cache: second full 40-slide opening succeeds after reload with PPTX network blocked in '+(Date.now()-cachedStart)+'ms.');
           } finally {
             await browser.close();
           }

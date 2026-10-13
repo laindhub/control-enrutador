@@ -193,7 +193,7 @@ test('official presentation and local upload are separate cards', () => {
   assert.match(view, /40 diapositivas/);
   assert.match(script, /\/assets\/presentaciones\/mas-duenos-liniers\.pptx/);
   assert.match(script, /fetch\(DEFAULT_PPTX_URL, \{method:'HEAD'/);
-  assert.match(script, /new File\(\[data\], DEFAULT_PPTX_NAME/);
+  assert.match(script, /new File\(\[blob\], DEFAULT_PPTX_NAME/);
   assert.match(script, /isOfficialDeckResponse\(response\)/);
   assert.match(script, /loadOfficialDeck\(\{/);
   assert.match(script, /hasCachedOfficialDeck\(\{/);

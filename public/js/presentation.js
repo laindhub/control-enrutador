@@ -1,3 +1,4 @@
+import {getTimedVideoSlide, isForwardInput} from './presentation-timing.js';
 import {enablePresentationLoop} from './presentation-loop.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
@@ -22,6 +23,9 @@ let forcedAutoplaySlide = null;
 let slidesTotal = 0;
 let mediaGeneration = 0;
 let restorePresentationLoop = null;
+let mediaBuildSlide = null;
+let mediaBuildTriggered = false;
+let blockWheelUntil = 0;
 
 function status(message, isError = false, persist = false) {
   clearTimeout(statusTimer);
@@ -56,6 +60,7 @@ function showReady(file, slideCount) {
 // El clic en «Iniciar» proporciona la interacción necesaria para solicitar
 // reproducción audible. Para diapositivas posteriores no se requiere tocar el video.
 function slideAllowsVideo() {
+  if (activeSlideIndex === mediaBuildSlide && !mediaBuildTriggered) return false;
   return mayAutoPlayVideo(activeSlideIndex, pausedPreviewSlides, forcedAutoplaySlide);
 }
 function getVisibleMedia() {
@@ -113,7 +118,12 @@ function scheduleMedia() {
   setTimeout(refresh, 350);
 }
 function slideChanged(index) {
-  if (Number.isInteger(index) && index >= 0) activeSlideIndex = index;
+  if (Number.isInteger(index) && index >= 0 && index !== activeSlideIndex) {
+    // A new visit to slide 21 (including another loop) starts on its still frame.
+    mediaBuildTriggered = false;
+    blockWheelUntil = 0;
+    activeSlideIndex = index;
+  }
   host.dataset.activeSlideIndex = String(activeSlideIndex);
   if (presenting) scheduleMedia();
 }
@@ -127,6 +137,9 @@ function cleanupViewer() {
   activeSlideIndex = 0;
   forcedAutoplaySlide = null;
   slidesTotal = 0;
+  mediaBuildSlide = null;
+  mediaBuildTriggered = false;
+  blockWheelUntil = 0;
   mediaAttempted = new WeakSet();
   mediaObserver?.disconnect();
   mediaObserver = null;
@@ -176,6 +189,10 @@ async function openPresentation(file) {
       }
     });
     await viewer.loadFile(file);
+    // The source deck contains a video playFrom animation on slide 21.
+    // A single logical PPTX slide can therefore have two presentation steps.
+    try { mediaBuildSlide = await getTimedVideoSlide(file); }
+    catch (error) { console.warn('Could not inspect video build fingerprint:', error); }
     if (!slides) throw Error('El archivo no contiene diapositivas reconocibles.');
     slidesTotal = slides;
     pausedPreviewSlides = duplicateVideoPreviewSlides(viewer.getSlides?.() || []);
@@ -283,5 +300,26 @@ document.addEventListener('present-toolbar-request', event => {
     event.stopImmediatePropagation();
   }
 }, true);
+// Consume the first forward navigation on the known video slide as an
+// animation build, rather than allowing the slide to advance past the video.
+function handleMediaBuildAdvance(event) {
+  if (!presenting || activeSlideIndex !== mediaBuildSlide || !isForwardInput(event)) return;
+  const stage = document.fullscreenElement || host;
+  if (event.type === 'wheel' && !stage.contains(event.target)) return;
+  if (event.type === 'keydown' && /^(INPUT|TEXTAREA|SELECT)$/i.test(event.target?.tagName || '')) return;
+  if (event.type === 'wheel' && mediaBuildTriggered && performance.now() < blockWheelUntil) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+  if (mediaBuildTriggered) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  mediaBuildTriggered = true;
+  blockWheelUntil = performance.now() + 650;
+  scheduleMedia();
+}
+document.addEventListener('keydown', handleMediaBuildAdvance, true);
+document.addEventListener('wheel', handleMediaBuildAdvance, {capture:true, passive:false});
 document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);

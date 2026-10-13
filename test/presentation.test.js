@@ -170,7 +170,7 @@ test('the real 40-slide deck has a deferred video animation on logical slide 21'
 test('video playback is suppressed until the slide internal step is triggered', () => {
   const script=read('public/js/presentation.js');
   assert.match(script,/mediaBuildSlide = await getTimedVideoSlide\(file\)/);
-  assert.match(script,/activeSlideIndex === mediaBuildSlide && !mediaBuildTriggered/);
+  assert.match(script,/activeSlideIndex === mediaBuildSlide && \(!mediaBuildTriggered \|\| videoPlaybackEnded\)/);
   assert.match(script,/mediaBuildTriggered = true;/);
   assert.match(script,/event\.stopImmediatePropagation\(\)/);
   assert.match(script,/document\.addEventListener\('wheel', handleMediaBuildAdvance/);

@@ -63,7 +63,7 @@ export function loadRemoteSettings(storage=globalThis.localStorage) {
       label:typeof data.label==='string'?data.label.slice(0,150):'',
       introUrl:typeof data.introUrl==='string'?data.introUrl.slice(0,1000):'',
       armed:data.armed===true};
-  } catch {return {signature:'',label:'',introUrl:''};}
+  } catch {return {signature:'',label:'',introUrl:'',armed:false};}
 }
 
 export function saveRemoteSettings(settings,storage=globalThis.localStorage) {

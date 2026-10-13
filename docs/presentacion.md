@@ -156,3 +156,9 @@ Si el archivo todavía no está en caché, falla la precarga, o está activado
 el modo de edición, sigue disponible el flujo convencional. La precarga
 nunca descarga PPTX faltantes, no reproduce videos, no solicita fullscreen
 y no cambia las funcionalidades de Salón.
+
+## Mantener encendida la pantalla durante la presentación
+
+Al iniciar la presentación en pantalla completa se solicita `navigator.wakeLock.request('screen')` mediante la Screen Wake Lock API. Se libera al salir con Escape, cerrar la sesión o abandonar la página. Si la aplicación pasa a segundo plano, el bloqueo puede revocarse; al regresar a una pestaña visible y a la presentación activa se intenta adquirir nuevamente. Fuera del modo presentación no se solicita bloqueo. No afecta al archivo PPTX, la caché, el video de Geraldine ni los controles de edición.
+
+Esta API exige un contexto seguro (HTTPS) y depende del navegador, el sistema operativo, las políticas de ahorro de energía y los permisos del dispositivo. Si no está soportada o se deniega, la presentación sigue funcionando, pero no es posible garantizar desde la web que la pantalla permanezca encendida.

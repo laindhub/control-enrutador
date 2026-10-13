@@ -9,6 +9,7 @@ on:
       - 'public/js/presentation-cache.js'
       - 'public/js/presentation-media.js'
       - 'public/js/presentation-loop.js'
+      - 'public/js/presentation-wake-lock.js'
       - 'public/js/presentation-timing.js'
       - 'public/css/presentation.css'
       - 'views/presentation.ejs'
@@ -36,6 +37,7 @@ jobs:
       - run: node --check public/js/presentation.js
       - run: node --check public/js/presentation-media.js
       - run: node --check public/js/presentation-loop.js
+      - run: node --check public/js/presentation-wake-lock.js
       - run: node --check public/js/presentation-timing.js
       - run: node --test test/presentation.test.js test/official-presentation.test.js
       - name: Verify pinned browser engine is available

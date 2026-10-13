@@ -7,6 +7,7 @@ on:
       - 'src/official-presentation.js'
       - 'src/server.js'
       - 'public/js/presentation.js'
+      - 'public/js/presentation-wake-lock.js'
       - 'public/js/presentation-source.js'
       - 'public/js/presentation-cache.js'
       - 'public/css/presentation.css'
@@ -77,6 +78,21 @@ jobs:
           const browser=await chromium.launch({headless:true});
           try {
             const page=await browser.newPage();
+            await page.addInitScript(() => {
+              window.__screenWakeLog={requests:0,releases:0};
+              Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{
+                request:async type=>{
+                  if(type!=='screen') throw Error('Unexpected wake type');
+                  window.__screenWakeLog.requests++;
+                  const sentinel=new EventTarget();
+                  sentinel.release=async()=>{
+                    window.__screenWakeLog.releases++;
+                    sentinel.dispatchEvent(new Event('release'));
+                  };
+                  return sentinel;
+                },
+              }});
+            });
             page.on('pageerror',error => console.error('Browser error:',error.message));
             let pageReady = false;
             for (let attempt=1; attempt<=8; attempt++) {
@@ -101,6 +117,9 @@ jobs:
             // physical slides. One advance plays Geraldine, the next leaves.
             await page.locator('#start').click();
             await page.waitForFunction(() => Boolean(document.fullscreenElement),null,{timeout:15000});
+            await page.waitForFunction(() => window.__screenWakeLog.requests===1,null,{timeout:15000});
+            assert.equal(await page.evaluate(()=>window.__screenWakeLog.releases),0,
+              'wake lock remains active during fullscreen');
             // Diagnostic: identify the viewer's fullscreen-only floating toolbar
             // without logging slide contents or user data.
             await page.mouse.move(700,700);
@@ -159,6 +178,9 @@ jobs:
             // Reload in the same browser profile, abort all network access to
             // the PPTX, and confirm Cache Storage alone opens the full deck.
             await page.keyboard.press('Escape');
+            await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:15000});
+            await page.waitForFunction(() => window.__screenWakeLog.releases===1,null,{timeout:15000});
+            console.log('Screen wake lock: acquired in fullscreen and released after Escape.');
             let networkDeckRequests=0;
             await page.route('**/assets/presentaciones/mas-duenos-liniers.pptx', route=>{
               networkDeckRequests++;

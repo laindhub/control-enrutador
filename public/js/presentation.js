@@ -1,5 +1,6 @@
 import {getTimedVideoSlide, isForwardInput, videoStepForHash} from './presentation-timing.js';
 import {enablePresentationLoop} from './presentation-loop.js';
+import {createPresentationWakeLock} from './presentation-wake-lock.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
 import {isOfficialDeckResponse, OFFICIAL_DECK_SHA256, OFFICIAL_DECK_SIZE} from './presentation-source.js';
 import {hasCachedOfficialDeck, loadOfficialDeck} from './presentation-cache.js';
@@ -18,6 +19,7 @@ let viewer = null;
 let currentFile = null;
 let loading = false;
 let presenting = false;
+const screenWakeLock = createPresentationWakeLock();
 let mediaObserver = null;
 let modulePromise = null;
 let warmPromise = null;
@@ -257,6 +259,7 @@ function cleanupViewer() {
   restorePresentationLoop?.();
   restorePresentationLoop = null;
   presenting = false;
+  void screenWakeLock.deactivate();
   mediaGeneration++;
   pausedPreviewSlides = new Set();
   activeSlideIndex = 0;
@@ -322,8 +325,11 @@ async function openPresentation(file, {background = false, verifiedOfficial = fa
       onSlideChange: slideChanged,
       onPresentationChange: (active) => {
         presenting = Boolean(active);
-        if (presenting) scheduleMedia();
-        else {
+        if (presenting) {
+          void screenWakeLock.activate();
+          scheduleMedia();
+        } else {
+          void screenWakeLock.deactivate();
           restorePresentationLoop?.();
           restorePresentationLoop = null;
         }
@@ -392,10 +398,14 @@ $('start').addEventListener('click', () => {
     return;
   }
   presenting = true;
+  // Activation is armed on the user gesture; the actual request waits until
+  // fullscreenchange confirms that the viewer entered fullscreen.
+  void screenWakeLock.activate();
   // No await antes de enterPresentation(): el permiso de fullscreen debe
   // solicitarse directamente desde el gesto del usuario.
   Promise.resolve(viewer.enterPresentation()).then(scheduleMedia).catch((error) => {
     presenting = false;
+    void screenWakeLock.deactivate();
     restorePresentationLoop?.();
     restorePresentationLoop = null;
     status('No se pudo abrir pantalla completa: ' + (error?.message || 'permiso denegado'), true, true);
@@ -443,6 +453,7 @@ dropzone.addEventListener('drop', (event) => { if (event.dataTransfer?.files?.[0
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement) {
     presenting = false;
+    void screenWakeLock.deactivate();
     mediaAttempted = new WeakSet();
   }
 });
@@ -527,7 +538,10 @@ document.addEventListener('click', handleMediaBuildAdvance, true);
 document.addEventListener('touchstart', handleMediaTouchStart, {capture:true, passive:true});
 document.addEventListener('touchend', handleMediaTouchEnd, {capture:true, passive:false});
 document.addEventListener('play', blockPreviewAutoplay, true);
-window.addEventListener('beforeunload', cleanupViewer);
+window.addEventListener('beforeunload', () => {
+  void screenWakeLock.dispose();
+  cleanupViewer();
+});
 // Preload the pinned ESM engine while the selection screen is visible.
 void ensureViewerModule().catch(() => {});
 void checkDefaultPresentation();

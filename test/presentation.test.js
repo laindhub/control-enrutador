@@ -351,3 +351,85 @@ test('corrupt cached files are discarded and downloaded again; storage failure i
   assert.equal(result.fromCache,false);
   assert.equal(result.blob.size,data.length);
 });
+
+test('screen wake lock controller follows fullscreen and visibility lifecycle', async () => {
+  const {createPresentationWakeLock} = await import('../public/js/presentation-wake-lock.js');
+  const doc = new EventTarget();
+  doc.fullscreenElement=null;
+  doc.visibilityState='visible';
+  let requested=0, released=0;
+  const locks=[];
+  const nav={wakeLock:{request: async type => {
+    assert.equal(type,'screen');
+    requested++;
+    const lock=new EventTarget();
+    lock.release=async()=>{released++;lock.dispatchEvent(new Event('release'));};
+    locks.push(lock);
+    return lock;
+  }}};
+  const controller=createPresentationWakeLock({doc,nav});
+  await controller.activate();
+  assert.equal(requested,0,'no wake lock outside fullscreen');
+  doc.fullscreenElement={};
+  doc.dispatchEvent(new Event('fullscreenchange'));
+  await controller.sync();
+  assert.equal(requested,1,'wake lock is requested on entering fullscreen');
+  await controller.sync();
+  assert.equal(requested,1,'duplicate events cannot stack requests');
+  doc.visibilityState='hidden';
+  doc.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(released,1,'hidden document releases lock');
+  doc.visibilityState='visible';
+  doc.dispatchEvent(new Event('visibilitychange'));
+  await controller.sync();
+  assert.equal(requested,2,'visible again: reacquire while still presenting');
+  doc.fullscreenElement=null;
+  doc.dispatchEvent(new Event('fullscreenchange'));
+  assert.equal(released,2,'Escape releases wake lock');
+  await controller.deactivate();
+  doc.fullscreenElement={};
+  doc.dispatchEvent(new Event('fullscreenchange'));
+  await controller.sync();
+  assert.equal(requested,2,'not active: do not reacquire');
+  await controller.dispose();
+});
+
+test('wake lock gracefully handles unsupported, denied and stale async requests', async () => {
+  const {createPresentationWakeLock} = await import('../public/js/presentation-wake-lock.js');
+  const doc = new EventTarget();
+  doc.fullscreenElement={};
+  doc.visibilityState='visible';
+  let errors=0;
+  const missing=createPresentationWakeLock({doc,nav:{}});
+  assert.equal(await missing.activate(),false);
+  await missing.dispose();
+
+  const rejected=createPresentationWakeLock({doc,nav:{wakeLock:{
+    request:()=>Promise.reject(new Error('NotAllowedError'))
+  }},onUnavailable:()=>{errors++;}});
+  assert.equal(await rejected.activate(),false);
+  assert.equal(errors,1);
+  await rejected.deactivate();
+  await rejected.dispose();
+
+  let finish, releaseCount=0;
+  const delayed=createPresentationWakeLock({doc,nav:{wakeLock:{
+    request:()=>new Promise(resolve=>{finish=resolve;})
+  }}});
+  const request=delayed.activate();
+  await Promise.resolve(); // Request has been scheduled.
+  assert.equal(typeof finish,'function');
+  await delayed.deactivate();
+  finish({release:async()=>{releaseCount++;}});
+  assert.equal(await request,false);
+  assert.equal(releaseCount,1,'late request is released after Escape');
+  await delayed.dispose();
+});
+
+test('screen wake lock is active only in fullscreen playback, not slide editing', () => {
+  const script=read('public/js/presentation.js');
+  assert.match(script,/createPresentationWakeLock\(\)/);
+  assert.match(script,/void screenWakeLock\.activate\(\)/);
+  assert.match(script,/void screenWakeLock\.deactivate\(\)/);
+  assert.match(script,/void screenWakeLock\.dispose\(\)/);
+});

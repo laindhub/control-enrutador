@@ -58,6 +58,21 @@ try {
   const address = 'http://127.0.0.1:' + server.address().port + '/presentacion';
   browser = await chromium.launch({headless:true});
   const page = await browser.newPage({acceptDownloads:true});
+  await page.addInitScript(() => {
+    window.__screenWakeLog={requests:0,releases:0};
+    Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{
+      request:async type=>{
+        if(type!=='screen') throw Error('Unexpected wake type');
+        window.__screenWakeLog.requests++;
+        const sentinel=new EventTarget();
+        sentinel.release=async()=>{
+          window.__screenWakeLog.releases++;
+          sentinel.dispatchEvent(new Event('release'));
+        };
+        return sentinel;
+      },
+    }});
+  });
   page.on('pageerror', error => console.error('Browser error:', error.message));
   const response = await page.goto(address, {waitUntil:'domcontentloaded'});
   assert.equal(response.status(), 200, 'presentation must render without a server error');
@@ -100,6 +115,9 @@ try {
   // slide back to the first while retaining fullscreen.
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
+  await page.waitForFunction(() => window.__screenWakeLog.requests===1,null,{timeout:10000});
+  assert.equal(await page.evaluate(()=>window.__screenWakeLog.releases),0,
+    'wake lock must remain held while the slideshow is fullscreen');
   const slideshowToolbar=page.locator('.pptxv.pptxv-presenting .pptxv-present-toolbar-wrap');
   await slideshowToolbar.waitFor({state:'attached',timeout:15000});
   await page.mouse.move(100,100);
@@ -117,6 +135,8 @@ try {
   // Esc must still exit the fullscreen presentation.
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.fullscreenElement, null, {timeout:10000});
+  await page.waitForFunction(() => window.__screenWakeLog.releases===1,null,{timeout:10000});
+  console.log('Screen wake lock acquired in fullscreen and released after Escape.');
   console.log('PPTX opened, wrapped continuously, and exited with Escape in Chromium.');
 } finally {
   await browser?.close();

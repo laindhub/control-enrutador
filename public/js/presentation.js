@@ -138,9 +138,7 @@ async function openDefaultPresentation() {
   } catch (error) {
     status(error?.message || 'No se pudo descargar la presentación.', true, true);
     button.dataset.available = 'false';
-    // Start fetching the ESM engine during landing rather than after clicking.
-void ensureViewerModule().catch(() => {});
-void checkDefaultPresentation();
+    void checkDefaultPresentation();
   } finally {
     button.disabled = button.dataset.available !== 'true';
   }
@@ -530,4 +528,6 @@ document.addEventListener('touchstart', handleMediaTouchStart, {capture:true, pa
 document.addEventListener('touchend', handleMediaTouchEnd, {capture:true, passive:false});
 document.addEventListener('play', blockPreviewAutoplay, true);
 window.addEventListener('beforeunload', cleanupViewer);
+// Preload the pinned ESM engine while the selection screen is visible.
+void ensureViewerModule().catch(() => {});
 void checkDefaultPresentation();

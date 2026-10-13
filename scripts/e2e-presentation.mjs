@@ -95,6 +95,14 @@ try {
   // slide back to the first while retaining fullscreen.
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
+  const slideshowToolbar=page.locator('.pptxv.pptxv-presenting .pptxv-present-toolbar-wrap');
+  await slideshowToolbar.waitFor({state:'attached',timeout:15000});
+  await page.mouse.move(100,100);
+  await page.mouse.move(600,720);
+  await page.waitForTimeout(650);
+  assert.equal(await slideshowToolbar.evaluate(node=>getComputedStyle(node).display),'none',
+    'moving the mouse in fullscreen must not reveal the toolbar');
+
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => document.getElementById('pptx-host')?.dataset.activeSlideIndex === '1', null, {timeout:15000});
   await page.keyboard.press('ArrowDown');

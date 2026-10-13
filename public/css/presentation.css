@@ -50,6 +50,13 @@ h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto
 /* El final del recorrido ya no ofrece salida táctil: Esc cierra la sesión. */
 .pptxv-presentation-touch-exit{display:none!important}
 
+/* During fullscreen shows, the pinned viewer reveals a floating action bar
+   when the pointer moves. Navigation is handled by the slide and keyboard,
+   so keep that bar completely hidden (including its hover state).
+   Outside presentation mode the regular editor toolbar stays untouched. */
+.pptxv.pptxv-presenting .pptxv-present-toolbar-wrap,
+.pptxv:fullscreen .pptxv-present-toolbar-wrap{display:none!important}
+
 
 /* Inicio de presentaciones · Salón Más Dueños */
 .landing-intro{text-align:center;max-width:720px;margin:0 auto 30px}

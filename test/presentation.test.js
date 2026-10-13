@@ -151,6 +151,14 @@ test('presentation uses the native continuous loop for keyboard, wheel and click
 });
 
 
+test('fullscreen pointer movement cannot reveal the presentation toolbar', () => {
+  const css=read('public/css/presentation.css');
+  const viewer=read('public/js/presentation.js');
+  assert.match(css, /\.pptxv\.pptxv-presenting \.pptxv-present-toolbar-wrap/);
+  assert.match(css, /\.pptxv:fullscreen \.pptxv-present-toolbar-wrap\{display:none!important\}/);
+  assert.match(viewer, /showToolbar: true/, 'editor controls remain enabled outside slideshow');
+});
+
 test('the real 40-slide deck has a deferred video animation on logical slide 21', async () => {
   const {videoStepForHash, isForwardInput} = await import('../public/js/presentation-timing.js');
   const sha='bdb35bfa366b7c2570a36a0d5b1172836765d50796a8e772345b5a5ccf6f25c7';

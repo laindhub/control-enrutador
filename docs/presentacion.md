@@ -132,3 +132,11 @@ Si Cache Storage no está disponible o no tiene cuota (por ejemplo, navegación
 privada), la descarga verificada sigue funcionando. El navegador puede limpiar
 la copia por presión de almacenamiento o al borrar los datos del sitio.
 La carga manual de otros PPTX no almacena archivos en esta caché.
+
+## Presentación limpia sin barra flotante
+
+Al iniciar la reproducción a pantalla completa, se oculta únicamente la
+barra flotante del motor `pptxv-present-toolbar-wrap`, incluso si el mouse
+se mueve hacia sus bordes. Los controles del editor, disponibles fuera de
+pantalla completa, no se alteran. Se mantiene la navegación con teclado,
+rueda, clic y gestos, además de la salida con Escape y el loop continuo.

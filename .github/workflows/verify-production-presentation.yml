@@ -9,6 +9,7 @@ on:
       - 'public/js/presentation.js'
       - 'public/js/presentation-source.js'
       - 'public/js/presentation-cache.js'
+      - 'public/css/presentation.css'
   workflow_dispatch:
 permissions:
   contents: read
@@ -125,6 +126,14 @@ jobs:
               };
             });
             console.log('Fullscreen presentation chrome diagnostic:',JSON.stringify(floatingChrome));
+            const presentationToolbar=page.locator('.pptxv.pptxv-presenting .pptxv-present-toolbar-wrap');
+            await presentationToolbar.waitFor({state:'attached',timeout:15000});
+            await page.mouse.move(800,700);
+            await page.mouse.move(800,20);
+            await page.waitForTimeout(650);
+            assert.equal(await presentationToolbar.evaluate(node=>getComputedStyle(node).display),'none',
+              'floating fullscreen toolbar must remain hidden on mouse movement');
+            console.log('Fullscreen controls: toolbar remains hidden after pointer movement.');
             for (let index=1;index<=20;index++) {
               await page.keyboard.press('ArrowDown');
               await page.waitForFunction(i => document.querySelector('#pptx-host')?.dataset.activeSlideIndex===String(i),

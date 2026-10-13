@@ -48,20 +48,42 @@ jobs:
           }
           assert.ok(ready, 'Production did not expose the verified PPTX within the retry window');
 
-          const response = await fetch(url, {signal:AbortSignal.timeout(120000), cache:'no-store'});
-          assert.equal(response.status,200,'GET must return the original PPTX');
-          const data = Buffer.from(await response.arrayBuffer());
-          assert.equal(data.length,bytes,'GET must return the complete original file');
-          assert.equal(createHash('sha256').update(data).digest('hex'),sha,'PPTX bytes differ from original');
+          // Deploys can momentarily serve the app's 200/HTML warming page, even after a valid HEAD.
+          let verified = false;
+          for (let attempt=1; attempt<=15; attempt++) {
+            try {
+              const response = await fetch(url, {signal:AbortSignal.timeout(120000), cache:'no-store'});
+              const mime = response.headers.get('content-type') || '';
+              const data = Buffer.from(await response.arrayBuffer());
+              console.log(`Production GET attempt ${attempt}: HTTP ${response.status}, ${mime}, ${data.length} bytes`);
+              if (response.ok && mime.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation') && data.length === bytes) {
+                assert.equal(createHash('sha256').update(data).digest('hex'),sha,'PPTX bytes differ from original');
+                verified = true;
+                break;
+              }
+            } catch (error) {
+              console.log(`Production GET attempt ${attempt}: ${error.message}`);
+            }
+            if (attempt<15) await new Promise(resolve => setTimeout(resolve,10000));
+          }
+          assert.ok(verified, 'Production GET never returned the complete original PPTX');
           console.log('Production GET: exact SHA-256, 40-slide PPTX source bytes verified.');
 
           const browser=await chromium.launch({headless:true});
           try {
             const page=await browser.newPage();
             page.on('pageerror',error => console.error('Browser error:',error.message));
-            const result=await page.goto(base+'/presentacion',{waitUntil:'domcontentloaded',timeout:60000});
-            assert.equal(result.status(),200);
-            assert.equal(await page.locator('#dropzone').isVisible(),true,'local upload card remains present');
+            let pageReady = false;
+            for (let attempt=1; attempt<=8; attempt++) {
+              const result=await page.goto(base+'/presentacion',{waitUntil:'domcontentloaded',timeout:60000});
+              if (result?.status()===200 && await page.locator('#dropzone').isVisible()) {
+                pageReady = true;
+                break;
+              }
+              console.log(`Presentation page not ready (attempt ${attempt})`);
+              if (attempt<8) await new Promise(resolve => setTimeout(resolve,10000));
+            }
+            assert.ok(pageReady,'presentation page must load after deployment');
             await page.waitForFunction(() => document.querySelector('#default-availability')?.textContent?.includes('Lista para abrir'),null,{timeout:60000});
             await page.locator('#open-default').click();
             await page.locator('#workspace').waitFor({state:'visible',timeout:120000});

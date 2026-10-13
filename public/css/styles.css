@@ -266,3 +266,12 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgb(
   .auth-content, .operator-card { padding: 30px 22px; }
   .brand-panel { min-height: 170px; padding: 28px 22px; }
 }
+
+
+/* Atajo a presentaciones desde las pantallas comerciales y de acceso. */
+.presentation-shortcut{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border-radius:9px;border:1px solid #444955;background:#22262e;color:#fff;text-decoration:none;font-size:13px;font-weight:700;white-space:nowrap}
+.presentation-shortcut:hover{border-color:#e75d60;background:#34343c}
+.presentation-shortcut:focus-visible,.presentation-login-link:focus-visible{outline:3px solid #e96a70;outline-offset:3px}
+.presentation-login-link{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:10px;color:#a71f2b;text-decoration:none;font-size:13px;font-weight:750;border:1px solid #e9dadd;border-radius:10px}
+.presentation-login-link:hover{background:#fff3f4}
+@media(max-width:620px){.topbar-inner{flex-wrap:wrap;row-gap:6px}.presentation-shortcut{order:3;flex:1 0 100%;font-size:12px}.topbar-inner .operator-pill{margin-left:auto}}

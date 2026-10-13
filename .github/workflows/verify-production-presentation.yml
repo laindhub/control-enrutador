@@ -94,6 +94,32 @@ jobs:
             assert.equal(await page.locator('#file-name').textContent(),'Nueva - Más dueños.pptx');
             assert.equal(await page.locator('#start').isVisible(),true);
             console.log('Browser: default card opens the 40-slide deck without file selection; upload card remains available.');
+
+            // Real-deck regression: slide 21 contains playFrom(0), not two
+            // physical slides. One advance plays Geraldine, the next leaves.
+            await page.locator('#start').click();
+            await page.waitForFunction(() => Boolean(document.fullscreenElement),null,{timeout:15000});
+            for (let index=1;index<=20;index++) {
+              await page.keyboard.press('ArrowDown');
+              await page.waitForFunction(i => document.querySelector('#pptx-host')?.dataset.activeSlideIndex===String(i),
+                index,{timeout:30000});
+            }
+            assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'20');
+            await page.keyboard.press('ArrowDown');
+            await page.waitForTimeout(1100);
+            assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'20',
+              'first advance on video slide must play without changing slides');
+            const videoCount = await page.locator('#pptx-host video').count();
+            console.log('Geraldine video elements on slide 21:',videoCount);
+            assert.ok(videoCount>0,'slide 21 must have its embedded video');
+            // A downward wheel event after starting playback must go directly
+            // to slide 22 and never execute the native media animation again.
+            const rect=await page.locator('#pptx-host').boundingBox();
+            await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2);
+            await page.mouse.wheel(0,580);
+            await page.waitForFunction(() => document.querySelector('#pptx-host')?.dataset.activeSlideIndex==='21',
+              null,{timeout:20000});
+            console.log('Real deck: video played once on slide 21; next down-scroll advanced to slide 22.');
           } finally {
             await browser.close();
           }

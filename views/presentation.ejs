@@ -22,17 +22,43 @@
     </header>
 
     <main>
+
       <section id="welcome" class="welcome">
-        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Elegir presentación PowerPoint">
-          <span class="file-symbol" aria-hidden="true">P</span>
-          <h1>Tu PowerPoint, directamente en el navegador.</h1>
-          <p>Abrí una presentación PPTX sin instalar programas. Presentá en pantalla completa, navegá las diapositivas y conservá los videos incrustados.</p>
-          <span class="file-select">Elegir archivo PPTX</span>
-          <p class="fine">También podés arrastrar tu archivo acá · PPTX, PPSX o PPTM · hasta 250 MB</p>
+        <div class="landing-intro">
+          <p class="eyebrow">HERRAMIENTAS DEL SALÓN · LINIERS</p>
+          <h1>¿Qué presentación querés abrir?</h1>
+          <p>Presentá en pantalla completa desde el navegador, con videos y diapositivas. Sin instalar PowerPoint.</p>
+        </div>
+        <div class="deck-grid">
+          <button id="open-default" class="deck-card deck-default" type="button" aria-describedby="default-availability">
+            <span class="deck-cover" aria-hidden="true">
+              <span class="deck-cover-kicker">PRESENTACIÓN COMERCIAL · LINIERS</span>
+              <img src="<%= assetUrl('assets/mas-duenos-logo.png') %>" alt="">
+              <span class="deck-cover-heading">Vos podés<br>ser <em>dueño</em></span>
+              <span class="deck-cover-footer">SPAZIOS · MÁS DUEÑOS</span>
+            </span>
+            <span class="deck-info">
+              <span class="deck-type">PRESENTACIÓN DEL SALÓN</span>
+              <strong>Nueva - Más Dueños</strong>
+              <span>40 diapositivas · incluye video</span>
+              <span class="deck-open">▶ Abrir presentación</span>
+              <span id="default-availability" class="deck-availability" role="status">Comprobando disponibilidad…</span>
+            </span>
+          </button>
+          <div id="dropzone" class="deck-card deck-upload" role="button" tabindex="0" aria-label="Subir otro archivo PowerPoint">
+            <div class="upload-visual" aria-hidden="true"><span class="file-symbol">P</span><span class="upload-plus">+</span></div>
+            <div class="deck-info">
+              <span class="deck-type">OTRA PRESENTACIÓN</span>
+              <strong>Subir otro PPTX</strong>
+              <span>Elegí un archivo de tu dispositivo o arrastralo acá.</span>
+              <span class="deck-open">Elegir archivo ↗</span>
+              <span class="deck-availability">PPTX, PPSX o PPTM · hasta 250 MB</span>
+            </div>
+          </div>
         </div>
         <label class="editor-option"><input id="edit-mode" type="checkbox"> Habilitar edición de diapositivas</label>
-        <p class="privacy">El archivo se abre en este dispositivo. No se carga a nuestros servidores ni se almacena en MySQL. Se requiere internet para cargar el motor de visualización.</p>
-        <p class="browser-note">Importante: para activar videos con sonido, iniciá la presentación desde el botón. El navegador puede impedir la reproducción automática con audio según sus políticas.</p>
+        <p class="privacy">Los archivos que elegís en tu dispositivo se procesan localmente, sin subirse al servidor. La presentación oficial, cuando está disponible, se descarga desde este sitio.</p>
+        <p class="browser-note">Para habilitar el sonido de los videos, iniciá la presentación con el botón «Iniciar presentación».</p>
       </section>
 
       <section id="workspace" class="workspace" hidden>

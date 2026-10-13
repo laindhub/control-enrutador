@@ -171,3 +171,25 @@ test('video playback is suppressed until the slide internal step is triggered', 
   assert.match(script,/event\.stopImmediatePropagation\(\)/);
   assert.match(script,/document\.addEventListener\('wheel', handleMediaBuildAdvance/);
 });
+
+
+test('salon menus include an accessible shortcut to presentations', () => {
+  for (const path of ['views/app.ejs', 'views/admin.ejs', 'views/login.ejs', 'views/operator.ejs']) {
+    assert.match(read(path), /href="\/presentacion"/, path);
+  }
+  assert.match(read('public/css/styles.css'), /\.presentation-shortcut/);
+});
+
+test('official presentation and local upload are separate cards', () => {
+  const view = read('views/presentation.ejs');
+  const script = read('public/js/presentation.js');
+  assert.match(view, /id="open-default"/);
+  assert.match(view, /id="dropzone"/);
+  assert.match(view, /id="default-availability"/);
+  assert.match(view, /40 diapositivas/);
+  assert.match(script, /\/assets\/presentaciones\/mas-duenos-liniers\.pptx/);
+  assert.match(script, /fetch\(DEFAULT_PPTX_URL, \{method:'HEAD'/);
+  assert.match(script, /new File\(\[data\], DEFAULT_PPTX_NAME/);
+  assert.match(script, /openPresentation\(file\)/);
+  assert.match(script, /Archivo pendiente de publicación/);
+});

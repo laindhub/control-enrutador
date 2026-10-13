@@ -116,11 +116,9 @@ try {
   assert.equal(await page.locator('#remote-enabled').isChecked(),true,
     'physical K01 Tab must work without onboarding');
   await page.keyboard.press('Tab');
-  await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
-  assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
-    '/assets/presentaciones/introduccion.mp4');
-  await page.locator('#intro-close').click();
-  await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:10000});
+  assert.equal(await page.locator('#intro-overlay').isVisible(),false,
+    'Tab must not launch the introduction before fullscreen starts');
+  assert.equal(await page.evaluate(()=>document.fullscreenElement),null);
 
   // Browser-local remote proof: capture one key event and a rapid pair, bind it
   // to the independent intro, and ensure settings persist across reload.
@@ -138,11 +136,8 @@ try {
   await page.locator('#remote-intro-url').fill('/assets/presentaciones/introduccion.mp4');
   await page.locator('#remote-save-url').click();
   await page.keyboard.press('Tab');
-  await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
-  assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
-    '/assets/presentaciones/introduccion.mp4');
-  await page.locator('#intro-close').click();
-  await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:10000});
+  assert.equal(await page.locator('#intro-overlay').isVisible(),false,
+    'Even mapped Tab must not open MP4 from the selection screen');
   await page.reload({waitUntil:'domcontentloaded'});
   assert.match(await page.locator('#remote-current').textContent(),/key::Tab/);
   assert.equal(await page.locator('#remote-intro-url').inputValue(),
@@ -180,6 +175,8 @@ try {
   // slide back to the first while retaining fullscreen.
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
+  // With a PPTX loaded but before fullscreen, Tab still must not launch the
+  // video. This protects both the editor and the file selection screen.
   // Same physical Tab may start the intro over slide 1. It must preserve
   // fullscreen and reveal physical slide 1 after the video has ended.
   await page.keyboard.press('Tab');
@@ -187,6 +184,13 @@ try {
   assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
     '/assets/presentaciones/introduccion.mp4');
   assert.equal(await page.evaluate(()=>Boolean(document.fullscreenElement)),true);
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.controls),false,
+    'native playback controls must never appear');
+  await page.mouse.move(300,100);
+  await page.mouse.move(650,370);
+  assert.equal(await page.locator('#intro-overlay').evaluate(el=>getComputedStyle(el).cursor),'none',
+    'moving the mouse must not reveal a cursor over the introduction');
+  assert.equal(await page.locator('#intro-video').evaluate(el=>getComputedStyle(el).cursor),'none');
   await page.locator('#intro-video').evaluate(video=>video.dispatchEvent(new Event('ended')));
   await page.locator('#intro-overlay').waitFor({state:'hidden',timeout:10000});
   assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0');

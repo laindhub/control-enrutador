@@ -537,16 +537,16 @@ function handleMediaTouchEnd(event) {
 // screen. Mapping does not affect slideshow navigation or Geraldine.
 const introOverlay=$('intro-overlay');
 const introVideo=$('intro-video');
-const introHint=$('intro-hint');
 const INTRO_VIDEO_URL='/assets/presentaciones/introduccion.mp4';
 let introRunning=false;
-let introFromSlideShow=false;
 const introOriginalParent=introOverlay.parentNode;
 const introOriginalNext=introOverlay.nextSibling;
 
-// Embed the intro inside the fullscreen slideshow when possible. This allows
-// the video to finish and reveal physical slide 1 without needing a second
-// browser fullscreen permission (which requires a new user gesture).
+function canStartIntro(){
+  // The remote must never launch video from the landing page or editor.
+  return !introRunning && presenting && Boolean(document.fullscreenElement) &&
+    activeSlideIndex===0;
+}
 function restoreIntroOverlay(){
   if(introOverlay.parentNode!==introOriginalParent){
     introOriginalParent.insertBefore(introOverlay,introOriginalNext);
@@ -554,67 +554,38 @@ function restoreIntroOverlay(){
 }
 function closeIntro({finished=false}={}){
   if(!introRunning)return;
-  const withinSlideShow=introFromSlideShow;
   introRunning=false;
   introVideo.pause();
   introVideo.removeAttribute('src');
   introVideo.load();
   introOverlay.hidden=true;
-  introHint.hidden=true;
   restoreIntroOverlay();
-  introFromSlideShow=false;
-  if(withinSlideShow){
-    if(finished) viewer?.goToSlide?.(0);
-  }else if(document.fullscreenElement===introOverlay){
-    void document.exitFullscreen().catch(()=>{});
-  }
-  if(finished&&!withinSlideShow){
-    // We cannot create a second fullscreen without a new physical gesture.
-    // Prepare and display the presentation, ready to start manually.
-    void (async()=>{
-      if(warmPromise) await warmPromise;
-      if(warmReady) activatePreparedPresentation();
-      if(!viewer) await openDefaultPresentation();
-      if(viewer){
-        viewer.goToSlide?.(0);
-        status('Introducción finalizada. Presioná «Iniciar presentación» para mostrar las diapositivas.',false,true);
-      }
-    })();
-  }
+  // The original fullscreen slideshow stays active behind the video.
+  if(finished && presenting && document.fullscreenElement) viewer?.goToSlide?.(0);
 }
 function openIntroFromRemote({url}={}){
-  if(introRunning)return;
-  const activeFullScreen=Boolean(presenting && document.fullscreenElement && activeSlideIndex===0);
-  introFromSlideShow=activeFullScreen;
+  if(!canStartIntro())return;
+  // Reuse the presentation's existing fullscreen element, not a second
+  // browser fullscreen that would require another user gesture.
+  document.fullscreenElement.append(introOverlay);
   introRunning=true;
-  if(activeFullScreen){
-    document.fullscreenElement.append(introOverlay);
-    introHint.hidden=true;
-  }else{
-    introHint.hidden=false;
-  }
   introOverlay.hidden=false;
   introVideo.src=url || INTRO_VIDEO_URL;
   introVideo.currentTime=0;
-  if(!activeFullScreen && typeof introOverlay.requestFullscreen==='function'){
-    // Request synchronously from the physical Tab key.
-    void introOverlay.requestFullscreen().catch(()=>{});
-  }
   void introVideo.play().catch(error=>{
     if(!introRunning)return;
     closeIntro();
-    status('No se pudo reproducir introduccion.mp4. Revisá si ya está cargado en Hostinger y su formato MP4.',true,true);
+    status('No se pudo reproducir introduccion.mp4. Verificá el archivo en Hostinger.',true,true);
     console.debug('Intro playback:',error?.name||error);
   });
 }
 const remoteControl=initRemoteControl({
-  // Tab works from the landing screen and also on physical slide 1 while
-  // fullscreen; it cannot interrupt later slides or an already-running intro.
-  isPresenting:()=>introRunning || (presenting && activeSlideIndex!==0),
+  // Tab/K01 is only active on physical slide 1, with the show already in
+  // fullscreen. Outside that state Tab keeps its normal browser behavior.
+  isPresenting:()=>!canStartIntro(),
   onIntro:openIntroFromRemote,
   onNotice:message=>status(message),
 });
-$('intro-close').addEventListener('click',()=>closeIntro());
 introVideo.addEventListener('ended',()=>closeIntro({finished:true}));
 introVideo.addEventListener('error',()=>{
   if(!introRunning)return;
@@ -624,6 +595,16 @@ introVideo.addEventListener('error',()=>{
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement && introRunning) closeIntro();
 });
+// Prevent a stray click or scroll over the full-bleed MP4 from advancing the
+// underlying PowerPoint. Escape retains its normal fullscreen exit behavior.
+for(const type of ['keydown','wheel','click','touchend']){
+  document.addEventListener(type,event=>{
+    if(!introRunning || (type==='keydown' && event.key==='Escape'))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  },{capture:true,passive:false});
+}
+introOverlay.addEventListener('contextmenu',event=>event.preventDefault());
 // The presenter hardware emits Tab. Beyond slide 1, ignore that shortcut
 // without allowing the browser to move focus out of the fullscreen viewer.
 document.addEventListener('keydown',event=>{

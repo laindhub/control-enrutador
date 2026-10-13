@@ -438,7 +438,7 @@ test('remote setup is isolated from slideshow and never requires raw USB access'
   const script=read('public/js/presentation.js');
   const page=read('views/presentation.ejs');
   assert.match(script,/initRemoteControl\(/);
-  assert.match(script,/isPresenting:\(\)=>introRunning \|\| \(presenting && activeSlideIndex!==0\)/);
+  assert.match(script,/isPresenting:\(\)=>!canStartIntro\(\)/);
   assert.match(page,/id="remote-listen"/);
   assert.match(page,/id="remote-events"/);
   assert.match(page,/id="intro-overlay"/);
@@ -451,6 +451,22 @@ test('fixed introduction is independent from Geraldine and gated to first slide'
   assert.match(s,/const INTRO_VIDEO_URL='\/assets\/presentaciones\/introduccion\.mp4'/);
   assert.match(s,/introVideo\.addEventListener\('ended'/);
   assert.match(s,/viewer\?\.goToSlide\?\.\(0\)/);
-  assert.match(s,/introFromSlideShow=activeFullScreen/);
+  assert.match(s,/function canStartIntro\(\)/);
+  assert.match(s,/!introRunning && presenting && Boolean\(document.fullscreenElement\)/);
+  assert.match(s,/isPresenting:\(\)=>!canStartIntro\(\)/);
   assert.match(page,/id="intro-video"/);
+});
+
+test('introduction remains exclusively fullscreen and cursorless',()=>{
+  const script=read('public/js/presentation.js');
+  const page=read('views/presentation.ejs');
+  const styles=read('public/css/presentation.css');
+  assert.match(script,/document\.fullscreenElement\.append\(introOverlay\)/);
+  assert.doesNotMatch(script,/introOverlay\.requestFullscreen\(/);
+  assert.match(script,/if\(!canStartIntro\(\)\)return/);
+  assert.match(script,/introVideo\.addEventListener\('ended',\(\)=>closeIntro\(\{finished:true\}\)\)/);
+  assert.doesNotMatch(page,/<video id="intro-video" controls/);
+  assert.doesNotMatch(page,/id="intro-close"/);
+  assert.match(styles,/\.intro-overlay\[hidden\]\{display:none!important\}/);
+  assert.match(styles,/\.intro-overlay:not\(\[hidden\]\) \* \{cursor:none!important\}/);
 });

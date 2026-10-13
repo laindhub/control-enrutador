@@ -99,9 +99,7 @@
       </section>
     </main>
     <section id="intro-overlay" class="intro-overlay" aria-label="Video introductorio" hidden>
-      <video id="intro-video" controls playsinline preload="none"></video>
-      <p id="intro-hint" class="intro-hint" hidden>Cuando termine el video, comenzará la presentación comercial.</p>
-      <button id="intro-close" class="intro-close" type="button">Cerrar introducción</button>
+      <video id="intro-video" playsinline preload="none" disablepictureinpicture disableremoteplayback aria-label="Introducción comercial"></video>
     </section>
     <input id="file-input" type="file" accept=".pptx,.ppsx,.pptm,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>

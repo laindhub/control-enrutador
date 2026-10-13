@@ -136,3 +136,14 @@ h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto
 .intro-overlay video{height:100%;width:100%;object-fit:contain;background:black}
 .intro-close{position:absolute;top:15px;right:18px;background:#1a1a1acc;z-index:2}
 .intro-overlay:fullscreen{background:#000}
+.intro-overlay[hidden]{display:none!important}
+/* No pointer, native video controls, or browser hover chrome during playback.
+   The K01 handles launching; slides stay fullscreen behind the overlay. */
+.pptxv.pptxv-presenting,
+.pptxv.pptxv-presenting *,
+.pptxv:fullscreen,
+.pptxv:fullscreen *,
+.intro-overlay:not([hidden]),
+.intro-overlay:not([hidden]) * {cursor:none!important}
+.intro-overlay video::-webkit-media-controls{display:none!important}
+.intro-overlay video::-webkit-media-controls-enclosure{display:none!important}

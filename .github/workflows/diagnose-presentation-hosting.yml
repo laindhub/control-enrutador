@@ -1,0 +1,31 @@
+name: Diagnose presentation hosting
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-presentation-hosting.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Probe public endpoint and hosting file-manager URL
+        run: |
+          node --input-type=module <<'JS'
+          const items=[
+            ['app-health','https://masduenos.laind.io/health'],
+            ['presentation-page','https://masduenos.laind.io/presentacion'],
+            ['presentation-asset','https://masduenos.laind.io/assets/presentaciones/mas-duenos-liniers.pptx'],
+            ['file-manager-raw','https://srv2039-files.hstgr.io/65040a028847dbcf/api/raw/masduenos/mas-duenos-liniers.pptx?inline=true'],
+            ['site-root-asset','https://masduenos.laind.io/mas-duenos-liniers.pptx']
+          ];
+          for (const [name,url] of items){
+            try {
+              const res=await fetch(url,{method:'HEAD',signal:AbortSignal.timeout(15000)});
+              console.log(JSON.stringify({name,status:res.status,finalUrl:res.url,contentType:res.headers.get('content-type'),contentLength:res.headers.get('content-length'),server:res.headers.get('server'),cache:res.headers.get('cache-control'),xRobots:res.headers.get('x-robots-tag'),csp:!!res.headers.get('content-security-policy'),location:res.headers.get('location')}));
+            } catch(e){console.log(JSON.stringify({name,error:e.message}));}
+          }
+          JS

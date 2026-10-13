@@ -572,8 +572,9 @@ function closeIntro({finished=false}={}){
     // We cannot create a second fullscreen without a new physical gesture.
     // Prepare and display the presentation, ready to start manually.
     void (async()=>{
+      if(warmPromise) await warmPromise;
+      if(warmReady) activatePreparedPresentation();
       if(!viewer) await openDefaultPresentation();
-      else if(warmReady) activatePreparedPresentation();
       if(viewer){
         viewer.goToSlide?.(0);
         status('Introducción finalizada. Presioná «Iniciar presentación» para mostrar las diapositivas.',false,true);
@@ -581,7 +582,7 @@ function closeIntro({finished=false}={}){
     })();
   }
 }
-function openIntroFromRemote(){
+function openIntroFromRemote({url}={}){
   if(introRunning)return;
   const activeFullScreen=Boolean(presenting && document.fullscreenElement && activeSlideIndex===0);
   introFromSlideShow=activeFullScreen;
@@ -593,7 +594,7 @@ function openIntroFromRemote(){
     introHint.hidden=false;
   }
   introOverlay.hidden=false;
-  introVideo.src=INTRO_VIDEO_URL;
+  introVideo.src=url || INTRO_VIDEO_URL;
   introVideo.currentTime=0;
   if(!activeFullScreen && typeof introOverlay.requestFullscreen==='function'){
     // Request synchronously from the physical Tab key.

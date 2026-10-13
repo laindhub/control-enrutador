@@ -59,6 +59,33 @@ try {
   browser = await chromium.launch({headless:true});
   const page = await browser.newPage({acceptDownloads:true});
   await page.addInitScript(() => {
+    // Mock only the absent introductory MP4. The slideshow video engine
+    // continues to use normal HTMLMediaElement behavior.
+    const nativeSrc=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'src');
+    const nativePlay=HTMLMediaElement.prototype.play;
+    const nativeLoad=HTMLMediaElement.prototype.load;
+    Object.defineProperty(HTMLMediaElement.prototype,'src',{
+      configurable:true,
+      set(value){
+        if(this.id==='intro-video'){
+          this.dataset.testIntroUrl=value;
+          return;
+        }
+        nativeSrc.set.call(this,value);
+      },
+      get(){
+        if(this.id==='intro-video')return this.dataset.testIntroUrl||'';
+        return nativeSrc.get.call(this);
+      },
+    });
+    HTMLMediaElement.prototype.play=function(){
+      if(this.id==='intro-video')return Promise.resolve();
+      return nativePlay.call(this);
+    };
+    HTMLMediaElement.prototype.load=function(){
+      if(this.id==='intro-video')return;
+      return nativeLoad.call(this);
+    };
     window.__screenWakeLog={requests:0,releases:0};
     Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{
       request:async type=>{
@@ -86,6 +113,15 @@ try {
   }, null, {timeout:15000});
 
   assert.equal(await page.title(), 'Presentación | Salón Más Dueños');
+  assert.equal(await page.locator('#remote-enabled').isChecked(),true,
+    'physical K01 Tab must work without onboarding');
+  await page.keyboard.press('Tab');
+  await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
+  assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
+    '/assets/presentaciones/introduccion.mp4');
+  await page.locator('#intro-close').click();
+  await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:10000});
+
   // Browser-local remote proof: capture one key event and a rapid pair, bind it
   // to the independent intro, and ensure settings persist across reload.
   await page.locator('#remote-settings summary').click();
@@ -103,7 +139,8 @@ try {
   await page.locator('#remote-save-url').click();
   await page.keyboard.press('Tab');
   await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
-  assert.equal(await page.locator('#intro-video').getAttribute('src'),'/assets/presentaciones/video-intro.mp4');
+  assert.equal(await page.locator('#intro-video').getAttribute('data-test-intro-url'),
+    '/assets/presentaciones/video-intro.mp4');
   await page.locator('#intro-close').click();
   await page.waitForFunction(() => !document.fullscreenElement,null,{timeout:10000});
   await page.reload({waitUntil:'domcontentloaded'});

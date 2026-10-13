@@ -24,7 +24,7 @@ test('MP4 route is public, fixed and precedes startup or CRM login',async()=>{
   const server=readFileSync(new URL('../src/server.js',import.meta.url),'utf8');
   const pos=server.indexOf("app.get('/assets/presentaciones/introduccion.mp4'");
   assert.ok(pos>0);
-  assert.ok(pos<server.indexOf("if (startupState === 'starting')"));
+  assert.ok(pos<server.indexOf("app.use((req, res, next) => {\n  if (startupState === 'starting')"));
   assert.ok(pos<server.indexOf('app.use(sessionMiddleware);'));
   assert.match(server,/res\.type\('video\/mp4'\)/);
   assert.match(server,/res\.sendFile\(filename/);

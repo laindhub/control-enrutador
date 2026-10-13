@@ -195,3 +195,11 @@ habilitación explícita del modo remoto en la pantalla de espera. La entrada
 se captura una vez por `keydown`, sin considerar `keyup`. Se respeta
 Shift+Tab como navegación, y no se intercepta Tab al editar campos o durante
 la presentación comercial. La opción puede desactivarse en cualquier momento.
+
+## Producción: introducción mediante botón K01 Tab
+
+El botón detectado en la notebook envía `Tab` (`keydown`, código 9). Por defecto, una pulsación activa `/assets/presentaciones/introduccion.mp4`, servido desde `masduenos/introduccion.mp4`, junto al PPTX oficial. El video es independiente de la presentación comercial. No es necesario subirlo a GitHub.
+
+Cuando la presentación ya está a pantalla completa sobre la primera diapositiva, Tab reproduce el video superpuesto y, al finalizar, deja visible la diapositiva 1 sin abandonar fullscreen. Antes de iniciar las diapositivas, Tab reproduce el video a pantalla completa; al terminar, se prepara la presentación y queda el botón de inicio visible. El navegador exige un nuevo gesto para entrar en una pantalla completa distinta si aún no estaba presentando.
+
+La configuración de Tab está habilitada por defecto, pero puede desactivarse en los ajustes de control remoto de la misma página. No intercepta la tecla mientras se editan campos de texto ni cambia la reproducción de Geraldine. Si el video aún no está cargado, se muestra un aviso y el PPTX funciona igual.

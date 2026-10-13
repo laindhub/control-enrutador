@@ -42,6 +42,7 @@ import { createAiDemoRouter } from './routes/ai-demo.js';
 import { PROJECT_CATALOG } from './ai-demo-knowledge.js';
 import { CRM_TEST_URL, cspForCrmIframe } from './iframe-probe.js';
 import { resolveOfficialPresentation } from './official-presentation.js';
+import { resolveIntroVideo } from './intro-video.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -128,6 +129,22 @@ app.get('/health', async (req, res, next) => {
       .then(({ status, body }) => res.status(status).json(body))
       .catch(next);
   });
+});
+
+// Independent MP4 intro, stored alongside the verified PPTX in Hostinger.
+// Register before the CRM startup guard, support HEAD and HTTP Range via sendFile.
+app.get('/assets/presentaciones/introduccion.mp4',async (_req,res,next)=>{
+  try{
+    const filename=await resolveIntroVideo({
+      projectRoot:root,
+      presentationPath:process.env.MAS_DUENOS_PRESENTATION_PATH||'',
+      configuredPath:process.env.MAS_DUENOS_INTRO_PATH||'',
+    });
+    res.setHeader('Cache-Control','public, max-age=120');
+    if(!filename)return res.status(404).end();
+    res.type('video/mp4');
+    return res.sendFile(filename,error=>{if(error)next(error);});
+  }catch(error){return next(error);}
 });
 
 // Serve the fixed, SHA-256-verified deck before the CRM startup readiness gate.

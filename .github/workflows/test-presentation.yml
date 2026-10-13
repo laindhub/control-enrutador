@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/server.js'
       - 'src/official-presentation.js'
+      - 'src/intro-video.js'
       - 'public/js/presentation.js'
       - 'public/js/presentation-source.js'
       - 'public/js/presentation-cache.js'
@@ -17,6 +18,7 @@ on:
       - 'test/presentation.test.js'
       - 'test/presentation-remote.test.js'
       - 'test/official-presentation.test.js'
+      - 'test/intro-video.test.js'
       - 'scripts/e2e-presentation.mjs'
       - 'docs/presentacion.md'
       - '.github/workflows/test-presentation.yml'
@@ -42,7 +44,7 @@ jobs:
       - run: node --check public/js/presentation-remote.js
       - run: node --check public/js/presentation-wake-lock.js
       - run: node --check public/js/presentation-timing.js
-      - run: node --test test/presentation.test.js test/presentation-remote.test.js test/official-presentation.test.js
+      - run: node --test test/presentation.test.js test/presentation-remote.test.js test/official-presentation.test.js test/intro-video.test.js
       - name: Verify pinned browser engine is available
         run: |
           node --input-type=module -e "

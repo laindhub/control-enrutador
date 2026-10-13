@@ -537,39 +537,91 @@ function handleMediaTouchEnd(event) {
 // screen. Mapping does not affect slideshow navigation or Geraldine.
 const introOverlay=$('intro-overlay');
 const introVideo=$('intro-video');
-function closeIntro(){
+const introHint=$('intro-hint');
+const INTRO_VIDEO_URL='/assets/presentaciones/introduccion.mp4';
+let introRunning=false;
+let introFromSlideShow=false;
+const introOriginalParent=introOverlay.parentNode;
+const introOriginalNext=introOverlay.nextSibling;
+
+// Embed the intro inside the fullscreen slideshow when possible. This allows
+// the video to finish and reveal physical slide 1 without needing a second
+// browser fullscreen permission (which requires a new user gesture).
+function restoreIntroOverlay(){
+  if(introOverlay.parentNode!==introOriginalParent){
+    introOriginalParent.insertBefore(introOverlay,introOriginalNext);
+  }
+}
+function closeIntro({finished=false}={}){
+  if(!introRunning)return;
+  const withinSlideShow=introFromSlideShow;
+  introRunning=false;
   introVideo.pause();
   introVideo.removeAttribute('src');
   introVideo.load();
-  if(document.fullscreenElement===introOverlay){
+  introOverlay.hidden=true;
+  introHint.hidden=true;
+  restoreIntroOverlay();
+  introFromSlideShow=false;
+  if(withinSlideShow){
+    if(finished) viewer?.goToSlide?.(0);
+  }else if(document.fullscreenElement===introOverlay){
     void document.exitFullscreen().catch(()=>{});
   }
-  introOverlay.hidden=true;
+  if(finished&&!withinSlideShow){
+    // We cannot create a second fullscreen without a new physical gesture.
+    // Prepare and display the presentation, ready to start manually.
+    void (async()=>{
+      if(!viewer) await openDefaultPresentation();
+      else if(warmReady) activatePreparedPresentation();
+      if(viewer){
+        viewer.goToSlide?.(0);
+        status('Introducción finalizada. Presioná «Iniciar presentación» para mostrar las diapositivas.',false,true);
+      }
+    })();
+  }
 }
-function openIntroFromRemote({url}){
-  if(!url){
-    status('Se detectó el botón asignado. Falta configurar o publicar el video introductorio.',true);
-    return;
+function openIntroFromRemote(){
+  if(introRunning)return;
+  const activeFullScreen=Boolean(presenting && document.fullscreenElement && activeSlideIndex===0);
+  introFromSlideShow=activeFullScreen;
+  introRunning=true;
+  if(activeFullScreen){
+    document.fullscreenElement.append(introOverlay);
+    introHint.hidden=true;
+  }else{
+    introHint.hidden=false;
   }
   introOverlay.hidden=false;
-  introVideo.src=url;
-  // Trigger fullscreen from the physical keyboard/mouse event when allowed.
-  if(typeof introOverlay.requestFullscreen==='function'){
+  introVideo.src=INTRO_VIDEO_URL;
+  introVideo.currentTime=0;
+  if(!activeFullScreen && typeof introOverlay.requestFullscreen==='function'){
+    // Request synchronously from the physical Tab key.
     void introOverlay.requestFullscreen().catch(()=>{});
   }
-  void introVideo.play().catch(()=>{
-    status('No se pudo iniciar el MP4. Verificá que esté publicado y hacé clic en reproducir.',true,true);
+  void introVideo.play().catch(error=>{
+    if(!introRunning)return;
+    closeIntro();
+    status('No se pudo reproducir introduccion.mp4. Revisá si ya está cargado en Hostinger y su formato MP4.',true,true);
+    console.debug('Intro playback:',error?.name||error);
   });
 }
 const remoteControl=initRemoteControl({
-  isPresenting:()=>presenting || Boolean(document.fullscreenElement) || !introOverlay.hidden,
+  // Tab works from the landing screen and also on physical slide 1 while
+  // fullscreen; it cannot interrupt later slides or an already-running intro.
+  isPresenting:()=>introRunning || (presenting && activeSlideIndex!==0),
   onIntro:openIntroFromRemote,
   onNotice:message=>status(message),
 });
-$('intro-close').addEventListener('click',closeIntro);
-introVideo.addEventListener('ended',closeIntro);
+$('intro-close').addEventListener('click',()=>closeIntro());
+introVideo.addEventListener('ended',()=>closeIntro({finished:true}));
+introVideo.addEventListener('error',()=>{
+  if(!introRunning)return;
+  closeIntro();
+  status('Video introductorio no disponible. Subí introduccion.mp4 a la carpeta masduenos de Hostinger.',true,true);
+});
 document.addEventListener('fullscreenchange',()=>{
-  if(!document.fullscreenElement && !introOverlay.hidden) closeIntro();
+  if(!document.fullscreenElement && introRunning) closeIntro();
 });
 document.addEventListener('keydown', handleMediaBuildAdvance, true);
 document.addEventListener('wheel', handleMediaBuildAdvance, {capture:true, passive:false});

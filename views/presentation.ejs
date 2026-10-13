@@ -57,8 +57,8 @@
           </div>
         </div>
         <details id="remote-settings" class="remote-settings">
-          <summary>Configurar control remoto (prueba)</summary>
-          <p>Conectá el receptor USB y probá una pulsación, luego dos. Las señales detectadas se muestran abajo. Esta prueba no cambia la navegación de las diapositivas.</p>
+          <summary>Control remoto · introducción</summary>
+          <p>El botón K01 ya está configurado como Tab para reproducir <strong>introduccion.mp4</strong>. Podés desactivar el modo o consultar las señales del control.</p>
           <div class="remote-actions">
             <button id="remote-listen" type="button">Detectar señales del control</button>
             <button id="remote-assign" type="button" disabled>Asignar última señal al video introductorio</button>
@@ -73,10 +73,10 @@
           <ol id="remote-events" class="remote-events" aria-label="Historial de señales"></ol>
           <label for="remote-intro-url">Ruta futura del video introductorio (opcional)</label>
           <div class="remote-url-row">
-            <input id="remote-intro-url" type="text" placeholder="/assets/presentaciones/video-intro.mp4" autocomplete="off" spellcheck="false">
+            <input id="remote-intro-url" type="text" placeholder="/assets/presentaciones/introduccion.mp4" autocomplete="off" spellcheck="false">
             <button id="remote-save-url" type="button">Guardar ruta</button>
           </div>
-          <p class="remote-warning">El control K01 envía Tab, igual que el teclado de la notebook. Mientras actives este modo, Tab reproducirá la introducción cuando la página esté en espera y el foco no esté sobre controles interactivos. Desactivá el modo para recuperar la navegación normal con Tab. No afecta a las diapositivas.</p>
+          <p class="remote-warning">Tab equivale al botón K01, incluida la tecla Tab de la notebook. El modo se puede desactivar desde acá. No modifica el PPTX ni el video de Geraldine.</p>
         </details>
         <label class="editor-option"><input id="edit-mode" type="checkbox"> Habilitar edición de diapositivas</label>
         <p class="privacy">Los archivos que elegís en tu dispositivo se procesan localmente, sin subirse al servidor. La presentación oficial se verifica y se guarda en la caché de este navegador después de la primera descarga, para que las próximas aperturas sean más rápidas. Si el navegador borra sus datos o está en modo privado, puede descargarse nuevamente.</p>
@@ -100,6 +100,7 @@
     </main>
     <section id="intro-overlay" class="intro-overlay" aria-label="Video introductorio" hidden>
       <video id="intro-video" controls playsinline preload="none"></video>
+      <p id="intro-hint" class="intro-hint" hidden>Cuando termine el video, comenzará la presentación comercial.</p>
       <button id="intro-close" class="intro-close" type="button">Cerrar introducción</button>
     </section>
     <input id="file-input" type="file" accept=".pptx,.ppsx,.pptm,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>

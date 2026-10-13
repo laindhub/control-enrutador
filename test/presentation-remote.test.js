@@ -49,7 +49,7 @@ test('mapping persists per browser and handles disabled private storage',()=>{
   assert.equal(JSON.parse(values.get(REMOTE_STORAGE_KEY)).version,1);
   assert.deepEqual(loadRemoteSettings(storage),data);
   assert.equal(saveRemoteSettings(data,{setItem(){throw Error('Quota exceeded');}}),false);
-  assert.deepEqual(loadRemoteSettings({getItem(){throw Error('Denied');}}),{signature:'',label:'',introUrl:'',armed:false});
+  assert.deepEqual(loadRemoteSettings({getItem(){throw Error('Denied');}}),{signature:'key::Tab',label:'Tab',introUrl:'/assets/presentaciones/introduccion.mp4',armed:true});
 });
 
 test('Tab remapping requires an explicit enabled mode, never global interception',()=>{
@@ -58,4 +58,10 @@ test('Tab remapping requires an explicit enabled mode, never global interception
   assert.match(source,/desc\.signature==='key::Tab'/);
   assert.match(source,/enabled\.addEventListener\('change',toggleEnabled\)/);
   assert.match(source,/enabled\.disabled=!settings\.signature/);
+});
+
+test('first-time notebook automatically binds physical Tab to introduction.mp4',()=>{
+  const defaults=loadRemoteSettings({getItem:()=>null});
+  assert.deepEqual(defaults,{signature:'key::Tab',label:'Tab',
+    introUrl:'/assets/presentaciones/introduccion.mp4',armed:true});
 });

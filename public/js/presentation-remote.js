@@ -58,12 +58,12 @@ export function safeIntroUrl(raw, origin) {
 export function loadRemoteSettings(storage=globalThis.localStorage) {
   try {
     const data=JSON.parse(storage?.getItem(REMOTE_STORAGE_KEY)||'null');
-    if (!data || data.version!==1) return {signature:'',label:'',introUrl:'',armed:false};
+    if (!data || data.version!==1) return {signature:'key::Tab',label:'Tab',introUrl:'/assets/presentaciones/introduccion.mp4',armed:true};
     return {signature:typeof data.signature==='string'?data.signature.slice(0,100):'',
       label:typeof data.label==='string'?data.label.slice(0,150):'',
       introUrl:typeof data.introUrl==='string'?data.introUrl.slice(0,1000):'',
       armed:data.armed===true};
-  } catch {return {signature:'',label:'',introUrl:'',armed:false};}
+  } catch {return {signature:'key::Tab',label:'Tab',introUrl:'/assets/presentaciones/introduccion.mp4',armed:true};}
 }
 
 export function saveRemoteSettings(settings,storage=globalThis.localStorage) {
@@ -89,6 +89,11 @@ export function initRemoteControl({
     return {dispose(){}};
   }
   let settings=loadRemoteSettings(storage);
+  // Existing development settings may point at video-intro.mp4; the
+  // production URL is the fixed introduction file beside the PPTX.
+  if(settings.introUrl==='/assets/presentaciones/video-intro.mp4'){
+    settings.introUrl='/assets/presentaciones/introduccion.mp4';
+  }
   introUrl.value=settings.introUrl;
   let listening=false, captured=null;
   const records=[];
@@ -139,7 +144,7 @@ export function initRemoteControl({
     if(!settings.armed || !settings.signature ||
        desc.signature!==settings.signature || isPresenting()) return;
     if(desc.signature==='key::Tab' &&
-       /^(A|BUTTON|INPUT|TEXTAREA|SELECT|SUMMARY)$/.test(event.target?.tagName||'')) return;
+       /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName||'')) return;
     // Don't intercept text editing, buttons, dialogs, or the event produced by
     // a conventional mouse primary click.
     if(event.type==='keydown' &&
@@ -159,7 +164,7 @@ export function initRemoteControl({
     onNotice('Se reconoció '+captured.label+'. Activá el modo control remoto para usarlo antes de presentar.');
   };
   const clearMap=()=>{
-    settings={...settings,signature:'',label:'',armed:false};
+    settings={...settings,signature:'key::Tab',label:'Tab',armed:false};
     persist();listen(false);onNotice('Asignación eliminada.');
   };
   const storeUrl=()=>{

@@ -438,9 +438,19 @@ test('remote setup is isolated from slideshow and never requires raw USB access'
   const script=read('public/js/presentation.js');
   const page=read('views/presentation.ejs');
   assert.match(script,/initRemoteControl\(/);
-  assert.match(script,/isPresenting:\(\)=>presenting \|\| Boolean\(document.fullscreenElement\)/);
+  assert.match(script,/isPresenting:\(\)=>introRunning \|\| \(presenting && activeSlideIndex!==0\)/);
   assert.match(page,/id="remote-listen"/);
   assert.match(page,/id="remote-events"/);
   assert.match(page,/id="intro-overlay"/);
   assert.doesNotMatch(script,/navigator\.hid\.requestDevice|WebUSB|window\.open/);
+});
+
+test('fixed introduction is independent from Geraldine and gated to first slide',()=>{
+  const s=read('public/js/presentation.js');
+  const page=read('views/presentation.ejs');
+  assert.match(s,/const INTRO_VIDEO_URL='\/assets\/presentaciones\/introduccion\.mp4'/);
+  assert.match(s,/introVideo\.addEventListener\('ended'/);
+  assert.match(s,/viewer\?\.goToSlide\?\.\(0\)/);
+  assert.match(s,/introFromSlideShow=activeFullScreen/);
+  assert.match(page,/id="intro-video"/);
 });

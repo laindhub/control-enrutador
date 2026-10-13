@@ -149,3 +149,25 @@ test('presentation uses the native continuous loop for keyboard, wheel and click
   assert.match(script,/onPresentationChange:/);
   assert.match(css,/\.pptxv-presentation-touch-exit\{display:none!important\}/);
 });
+
+
+test('the real 40-slide deck has a deferred video animation on logical slide 21', async () => {
+  const {videoStepForHash, isForwardInput} = await import('../public/js/presentation-timing.js');
+  const sha='bdb35bfa366b7c2570a36a0d5b1172836765d50796a8e772345b5a5ccf6f25c7';
+  assert.equal(videoStepForHash(34796967, sha),20);
+  assert.equal(videoStepForHash(34796966, sha),null);
+  assert.equal(videoStepForHash(34796967, 'not-original'),null);
+  assert.equal(isForwardInput({type:'wheel',deltaY:20,deltaX:0}),true);
+  assert.equal(isForwardInput({type:'wheel',deltaY:-20,deltaX:0}),false);
+  assert.equal(isForwardInput({type:'keydown',key:'ArrowDown'}),true);
+  assert.equal(isForwardInput({type:'keydown',key:'Escape'}),false);
+});
+
+test('video playback is suppressed until the slide internal step is triggered', () => {
+  const script=read('public/js/presentation.js');
+  assert.match(script,/mediaBuildSlide = await getTimedVideoSlide\(file\)/);
+  assert.match(script,/activeSlideIndex === mediaBuildSlide && !mediaBuildTriggered/);
+  assert.match(script,/mediaBuildTriggered = true;/);
+  assert.match(script,/event\.stopImmediatePropagation\(\)/);
+  assert.match(script,/document\.addEventListener\('wheel', handleMediaBuildAdvance/);
+});

@@ -677,11 +677,19 @@ introVideo.addEventListener('error',()=>{
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement && introRunning) closeIntro();
 });
-// Prevent a stray click or scroll over the full-bleed MP4 from advancing the
-// underlying PowerPoint. Escape retains its normal fullscreen exit behavior.
+// While the MP4 is visible, Tab (the K01 remote button) dismisses it and
+// restores slide 1 without leaving fullscreen. Ignore key auto-repeat so
+// holding the remote button cannot inadvertently close the introduction.
+// Other input stays blocked to prevent accidental slide navigation; Escape
+// still exits fullscreen using the browser's native behavior.
 for(const type of ['keydown','wheel','click','touchend']){
   document.addEventListener(type,event=>{
     if(!introRunning || (type==='keydown' && event.key==='Escape'))return;
+    if(type==='keydown' && event.code==='Tab' &&
+       !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey &&
+       !event.repeat){
+      closeIntro({finished:true});
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
   },{capture:true,passive:false});

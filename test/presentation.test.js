@@ -490,3 +490,15 @@ test('Liniers intro download indicator has live percent and real byte counts',()
   assert.match(script,/Math\.floor\(received\/total\*100\)/);
   assert.match(script,/phase:'error'/);
 });
+
+test('Tab dismisses active intro on slide one without losing fullscreen',()=>{
+  const script=read('public/js/presentation.js');
+  assert.match(script,/event\.code==='Tab'/);
+  assert.match(script,/!event\.repeat/);
+  assert.match(script,/closeIntro\(\{finished:true\}\)/);
+  assert.match(script,/type==='keydown' && event\.key==='Escape'/);
+  const e2e=read('scripts/e2e-presentation.mjs');
+  assert.match(e2e,/held remote key must not close introduction/);
+  assert.match(e2e,/skipping introduction with Tab must retain fullscreen/);
+  assert.match(e2e,/Tab must stop and reset the MP4/);
+});

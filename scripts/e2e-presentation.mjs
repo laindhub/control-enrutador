@@ -212,6 +212,28 @@ try {
   assert.equal(await page.locator('#intro-overlay').evaluate(el=>getComputedStyle(el).cursor),'none',
     'moving the mouse must not reveal a cursor over the introduction');
   assert.equal(await page.locator('#intro-video').evaluate(el=>getComputedStyle(el).cursor),'none');
+  // A held Tab should not close the MP4 merely because Windows repeats keydown.
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown',{
+    code:'Tab',key:'Tab',repeat:true,cancelable:true,bubbles:true,
+  })));
+  assert.equal(await page.locator('#intro-overlay').isVisible(),true,
+    'held remote key must not close introduction on auto-repeat');
+
+  // Press the physical Tab again: immediately skip the intro and return to
+  // slide 1, without exiting fullscreen or showing a mouse cursor.
+  await page.keyboard.press('Tab');
+  await page.locator('#intro-overlay').waitFor({state:'hidden',timeout:10000});
+  assert.equal(await page.evaluate(()=>Boolean(document.fullscreenElement)),true,
+    'skipping introduction with Tab must retain fullscreen');
+  assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.paused),true,
+    'Tab must stop and reset the MP4, not merely hide the overlay');
+  await assertFullscreenCursorHidden('slide 1 after Tab skips intro');
+
+  // A new press starts the introduction again. Natural playback completion
+  // continues to return to slide 1 as before.
+  await page.keyboard.press('Tab');
+  await page.locator('#intro-overlay').waitFor({state:'visible',timeout:10000});
   await page.locator('#intro-video').evaluate(video=>video.dispatchEvent(new Event('ended')));
   await page.locator('#intro-overlay').waitFor({state:'hidden',timeout:10000});
   assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0');

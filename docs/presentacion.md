@@ -239,3 +239,12 @@ Al entrar nuevamente muestra «Video disponible en caché» después de
 validar los datos locales y consultar los metadatos de Hostinger. Un 404,
 un error o la falta de cuota se muestran como estados diferentes. El
 indicador no aparece sobre las diapositivas a pantalla completa.
+
+## Tab vuelve a cerrar el video introductorio
+
+Mientras se reproduce `introduccion.mp4`, una segunda pulsación del botón
+K01 (señal `Tab`) lo detiene y vuelve directamente a la diapositiva 1
+**sin salir de pantalla completa**. Otra pulsación de Tab puede reiniciarlo.
+La repetición de tecla al dejarla presionada no cierra el video; solo
+se toma un `keydown` nuevo. Escape sigue cerrando la presentación completa.
+Los videos incrustados, como el de Geraldine, conservan su comportamiento.

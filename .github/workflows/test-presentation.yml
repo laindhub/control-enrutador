@@ -8,6 +8,8 @@ on:
       - 'public/js/presentation.js'
       - 'public/js/presentation-source.js'
       - 'public/js/presentation-cache.js'
+      - 'public/js/presentation-intro-cache.js'
+      - 'test/presentation-intro-cache.test.js'
       - 'public/js/presentation-media.js'
       - 'public/js/presentation-loop.js'
       - 'public/js/presentation-remote.js'
@@ -38,13 +40,14 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node --check public/js/presentation-source.js
       - run: node --check public/js/presentation-cache.js
+      - run: node --check public/js/presentation-intro-cache.js
       - run: node --check public/js/presentation.js
       - run: node --check public/js/presentation-media.js
       - run: node --check public/js/presentation-loop.js
       - run: node --check public/js/presentation-remote.js
       - run: node --check public/js/presentation-wake-lock.js
       - run: node --check public/js/presentation-timing.js
-      - run: node --test test/presentation.test.js test/presentation-remote.test.js test/official-presentation.test.js test/intro-video.test.js
+      - run: node --test test/presentation.test.js test/presentation-remote.test.js test/presentation-intro-cache.test.js test/official-presentation.test.js test/intro-video.test.js
       - name: Verify pinned browser engine is available
         run: |
           node --input-type=module -e "

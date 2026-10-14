@@ -203,3 +203,25 @@ El botón detectado en la notebook envía `Tab` (`keydown`, código 9). Por defe
 Tab únicamente reproduce el MP4 si el visor ya está iniciado **en pantalla completa sobre la diapositiva 1**. Fuera del modo de presentación (pantalla de selección y edición) Tab no lanza el video ni solicita fullscreen. El reproductor se incrusta dentro del fullscreen existente, sin controles visibles y con `cursor:none` incluso al mover el mouse. El clic y la rueda no pueden avanzar accidentalmente el PPTX mientras corre el video. Al finalizar vuelve a la primera diapositiva manteniendo fullscreen; Escape continúa permitiendo salir de la presentación. El video no puede iniciarse desde otras diapositivas.
 
 La configuración de Tab está habilitada por defecto, pero puede desactivarse en los ajustes de control remoto de la misma página. No intercepta la tecla mientras se editan campos de texto ni cambia la reproducción de Geraldine. Si el video aún no está cargado, se muestra un aviso y el PPTX funciona igual.
+
+## Caché persistente del MP4 introductorio
+
+Al hacer clic en «Nueva - Más Dueños» se inicia inmediatamente y en
+segundo plano la descarga de `/assets/presentaciones/introduccion.mp4`.
+Se comprueba el tipo MIME, la longitud total y la firma MP4 `ftyp`
+antes de guardar la copia completa en Cache Storage del navegador.
+No se espera al botón Tab/K01 ni se retrasa la preparación del PPTX.
+
+Las siguientes aperturas reutilizan esa copia local. Se realiza una
+comprobación HEAD de metadatos (ETag, fecha de modificación, tamaño) y
+se renueva la copia si Hostinger publica una versión distinta. Si Hostinger
+está temporalmente inaccesible, la copia válida existente sigue disponible.
+
+Al reproducir la introducción se utiliza una URL `blob:` de la copia
+cargada. El objeto se libera al finalizar el video. Si Tab se presiona
+antes de completarse la primera descarga, se permite el streaming normal
+para no bloquear la reproducción. Si no se ha subido aún el archivo, no
+se cachea ningún 404. Si falta espacio de almacenamiento, la introducción
+puede reproducirse desde la red sin interrumpir las 40 diapositivas.
+La caché del video es independiente de la caché PPTX y de los MP4
+incrustados como el de Geraldine.

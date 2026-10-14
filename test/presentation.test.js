@@ -470,3 +470,13 @@ test('introduction remains exclusively fullscreen and cursorless',()=>{
   assert.match(styles,/\.intro-overlay\[hidden\]\{display:none!important\}/);
   assert.match(styles,/\.intro-overlay:not\(\[hidden\]\) \* \{cursor:none!important\}/);
 });
+
+test('opening Liniers starts intro caching before the presentation is prepared',()=>{
+  const script=read('public/js/presentation.js');
+  const view=read('views/presentation.ejs');
+  assert.match(script,/async function openDefaultPresentation\(\) \{[\s\S]*?void prepareIntroCache\(\);[\s\S]*?const button/);
+  assert.match(script,/loadCachedIntroVideo\(\{url:INTRO_VIDEO_URL\}\)/);
+  assert.match(script,/URL\.createObjectURL\(introCachedBlob\)/);
+  assert.match(script,/URL\.revokeObjectURL\(introPlaybackObjectUrl\)/);
+  assert.match(view,/id="intro-cache-state"/);
+});

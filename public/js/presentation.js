@@ -5,6 +5,7 @@ import {initRemoteControl} from './presentation-remote.js';
 import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-media.js';
 import {isOfficialDeckResponse, OFFICIAL_DECK_SHA256, OFFICIAL_DECK_SIZE} from './presentation-source.js';
 import {hasCachedOfficialDeck, loadOfficialDeck} from './presentation-cache.js';
+import {INTRO_VIDEO_URL, loadCachedIntroVideo} from './presentation-intro-cache.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
 const VIEWER_MODULE = 'https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
@@ -119,6 +120,9 @@ function activatePreparedPresentation() {
 
 async function openDefaultPresentation() {
   if (loading && !warmPromise) return;
+  // Start the MP4 download the moment Liniers is selected; do not delay the
+  // PowerPoint engine or wait for the K01/Tab video playback button.
+  void prepareIntroCache();
   const button = $('open-default');
   button.disabled = true;
   status('Abriendo la presentación del salón…', false, true);
@@ -537,8 +541,34 @@ function handleMediaTouchEnd(event) {
 // screen. Mapping does not affect slideshow navigation or Geraldine.
 const introOverlay=$('intro-overlay');
 const introVideo=$('intro-video');
-const INTRO_VIDEO_URL='/assets/presentaciones/introduccion.mp4';
 let introRunning=false;
+let introCachedBlob=null;
+let introCachePromise=null;
+let introPlaybackObjectUrl=null;
+
+function prepareIntroCache(){
+  if(introCachePromise)return introCachePromise;
+  const note=$('intro-cache-state');
+  if(note)note.textContent='Guardando el video introductorio en este dispositivo…';
+  introCachePromise=loadCachedIntroVideo({url:INTRO_VIDEO_URL}).then(result=>{
+    if(result.blob)introCachedBlob=result.blob;
+    if(note){
+      note.textContent=result.status==='missing'?
+        'Video introductorio pendiente de subir a Hostinger.':
+        result.saved?
+          (result.fromCache?'Video introductorio disponible desde la caché local.':
+            'Video introductorio descargado y guardado en la caché local.'):
+          'Video descargado, pero el navegador no permitió guardarlo permanentemente.';
+    }
+    return result;
+  }).catch(error=>{
+    if(note)note.textContent='No se pudo guardar el video por ahora. Se podrá reproducir desde Hostinger.';
+    console.debug('Caché de introducción:',error?.message||error);
+    return {blob:null,status:'error',saved:false};
+  }).finally(()=>{introCachePromise=null;});
+  return introCachePromise;
+}
+
 const introOriginalParent=introOverlay.parentNode;
 const introOriginalNext=introOverlay.nextSibling;
 
@@ -558,6 +588,10 @@ function closeIntro({finished=false}={}){
   introVideo.pause();
   introVideo.removeAttribute('src');
   introVideo.load();
+  if(introPlaybackObjectUrl){
+    URL.revokeObjectURL(introPlaybackObjectUrl);
+    introPlaybackObjectUrl=null;
+  }
   introOverlay.hidden=true;
   restoreIntroOverlay();
   // The original fullscreen slideshow stays active behind the video.
@@ -570,7 +604,15 @@ function openIntroFromRemote({url}={}){
   document.fullscreenElement.append(introOverlay);
   introRunning=true;
   introOverlay.hidden=false;
-  introVideo.src=url || INTRO_VIDEO_URL;
+  // Use the completely saved MP4 when available. On the very first opening,
+  // before prefetch completes, direct streaming keeps Tab immediately usable.
+  const selectedUrl=url || INTRO_VIDEO_URL;
+  if(introCachedBlob && selectedUrl===INTRO_VIDEO_URL){
+    introPlaybackObjectUrl=URL.createObjectURL(introCachedBlob);
+    introVideo.src=introPlaybackObjectUrl;
+  }else{
+    introVideo.src=selectedUrl;
+  }
   introVideo.currentTime=0;
   void introVideo.play().catch(error=>{
     if(!introRunning)return;

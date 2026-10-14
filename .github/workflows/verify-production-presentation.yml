@@ -161,10 +161,10 @@ jobs:
             // page-level request interceptor. Cache Storage is authoritative.
             assert.ok(introDownloads<=1,
               'opening Liniers must not make duplicate video GET requests');
-            const firstOpenGetCount=introDownloads;
             await page.waitForFunction(() =>
               document.querySelector('#intro-cache-progress')?.dataset.state==='ready',
               null,{timeout:30000});
+            const firstOpenGetCount=introDownloads;
             assert.equal(await page.locator('#intro-cache-progress').getAttribute('data-state'),'ready',
               'visual indicator must show ready only after successful Cache Storage');
             assert.match(await page.locator('#intro-cache-stage').textContent(),/guardado y listo/);
@@ -261,13 +261,11 @@ jobs:
               null,{timeout:120000});
             assert.equal(networkDeckRequests,0,'cache reuse must not perform HEAD or GET requests');
             await page.waitForFunction(() =>
-              document.querySelector('#intro-cache-state')?.textContent?.includes('caché local'),
-              null,{timeout:30000});
-            assert.equal(introDownloads,firstOpenGetCount,
-              'second opening must not redownload MP4, even through its service worker');
-            await page.waitForFunction(() =>
               document.querySelector('#intro-cache-progress')?.dataset.state==='cached',
               null,{timeout:30000});
+            assert.match(await page.locator('#intro-cache-stage').textContent(),/disponible en caché/);
+            assert.equal(introDownloads,firstOpenGetCount,
+              'second opening must not redownload MP4, even through its service worker');
             assert.equal(await page.locator('#intro-cache-progress').getAttribute('data-state'),'cached',
               'indicator must recognize local storage on second opening');
             console.log('Introduction caching: second opening uses the saved MP4; no additional GET.');

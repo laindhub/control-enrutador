@@ -2,18 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {INTRO_SEEK_STEP_SECONDS,introSeekDirection,seekIntroVideo} from '../public/js/presentation-intro-seek.js';
 
-test('all four arrow keys seek five seconds in the expected direction',()=>{
+test('K01 PageUp / PageDown and arrow keys seek five seconds',()=>{
   assert.equal(INTRO_SEEK_STEP_SECONDS,5);
-  for(const code of ['ArrowLeft','ArrowUp']){
+  for(const code of ['ArrowLeft','ArrowUp','PageUp']){
     assert.equal(introSeekDirection({type:'keydown',code}),-1);
   }
-  for(const code of ['ArrowRight','ArrowDown']){
+  for(const code of ['ArrowRight','ArrowDown','PageDown']){
     assert.equal(introSeekDirection({type:'keydown',code}),1);
   }
-  for(const code of ['Escape','Tab','Space','Enter','PageDown']){
+  for(const code of ['Escape','Tab','Space','Enter']){
     assert.equal(introSeekDirection({type:'keydown',code}),0);
   }
   assert.equal(introSeekDirection({type:'keyup',code:'ArrowDown'}),0);
+  assert.equal(introSeekDirection({type:'keyup',code:'PageUp'}),0);
+  assert.equal(introSeekDirection({type:'keydown',code:'PageDown',repeat:true}),0);
+  assert.equal(introSeekDirection({type:'keydown',code:'PageUp',ctrlKey:true}),0);
   assert.equal(introSeekDirection({type:'keydown',code:'ArrowRight',repeat:true}),0);
   assert.equal(introSeekDirection({type:'keydown',code:'ArrowLeft',shiftKey:true}),0);
   assert.equal(introSeekDirection({type:'keydown',code:'ArrowDown',ctrlKey:true}),0);

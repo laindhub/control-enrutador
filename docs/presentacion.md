@@ -249,12 +249,12 @@ La repetición de tecla al dejarla presionada no cierra el video; solo
 se toma un `keydown` nuevo. Escape sigue cerrando la presentación completa.
 Los videos incrustados, como el de Geraldine, conservan su comportamiento.
 
-## Control de reproducción de la introducción con cuatro flechas
+## Control de reproducción de la introducción con K01 y flechas
 
 Mientras `introduccion.mp4` está reproduciéndose a pantalla completa,
-el control K01 y el teclado pueden adelantar/retroceder exactamente
-cinco segundos por pulsación: `←` y `↑` retroceden; `→` y `↓`
-adelantan. Los saltos se limitan al intervalo `0..duration`, sin
+la captura del receptor K01 confirma `PageUp` para retroceder 5 segundos
+y `PageDown` para adelantar 5 segundos. El teclado también puede utilizar
+`←` o `↑` para retroceder y `→` o `↓` para adelantar. Los saltos se limitan al intervalo `0..duration`, sin
 cambiar la diapositiva que está detrás del video. Se ignora la repetición
 automática por mantener una flecha presionada, para evitar saltos
 acumulados involuntarios. La tecla Tab continúa abriendo/cerrando

@@ -28,6 +28,8 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           ls -1 "$ANDROID_HOME/platforms" || true
           ls -1 "$ANDROID_HOME/build-tools" || true
+      - name: Verify Android navigation and branded error state
+        run: node --test test/android-navigation.test.js
       - name: Compile release without signing key
         working-directory: android
         run: gradle --no-daemon :app:assembleRelease

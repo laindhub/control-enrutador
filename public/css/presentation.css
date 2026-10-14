@@ -147,3 +147,9 @@ h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto
 .intro-overlay:not([hidden]) * {cursor:none!important}
 .intro-overlay video::-webkit-media-controls{display:none!important}
 .intro-overlay video::-webkit-media-controls-enclosure{display:none!important}
+/* Hide the pointer on every fullscreen slide layer, even outside pptxv nodes.
+   This stops hover controls from restoring the cursor during presentations. */
+:fullscreen,
+:fullscreen * {cursor:none!important}
+:fullscreen::backdrop {cursor:none!important}
+

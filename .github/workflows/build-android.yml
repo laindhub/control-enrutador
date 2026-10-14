@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'android/**'
+      - 'test/android-navigation.test.js'
       - '.github/workflows/build-android.yml'
   workflow_dispatch:
 permissions:

@@ -199,7 +199,7 @@ test('visits recalculates bottom navigation when React replaces its footer',()=>
 test('native connection screen follows Salon visual language and safe retry logic',()=>{
  const java=readFileSync(new URL('../android/app/src/main/java/io/laind/masduenos/salon/MainActivity.java',import.meta.url),'utf8');
  for(const needle of ['createConnectionScreen(frame)','R.drawable.app_icon','Salón','Más Dueños','errorTitle.setText','No pudimos conectar','Servicio temporalmente no disponible','Reintentaremos automáticamente','retryButton.setBackground(roundBackground(red'])assert.ok(java.includes(needle),needle);
- assert.match(java,/if\(!loadFailed\[index\]\) \{/);
+ assert.ok(java.includes('if (!loadFailed[index]) {'));
  assert.ok(java.includes('if(retrySafe[selected]) pages[selected].reload()'));
  assert.ok(java.includes('else pages[selected].loadUrl(selected==0?SALON_URL:PREPARE_URL)'));
  assert.ok(!java.includes('errorBox.addView(button("Reintentar"'));

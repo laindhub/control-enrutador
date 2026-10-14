@@ -161,6 +161,7 @@ jobs:
             // page-level request interceptor. Cache Storage is authoritative.
             assert.ok(introDownloads<=1,
               'opening Liniers must not make duplicate video GET requests');
+            const firstOpenGetCount=introDownloads;
             await page.waitForFunction(() =>
               document.querySelector('#intro-cache-progress')?.dataset.state==='ready',
               null,{timeout:30000});
@@ -262,8 +263,8 @@ jobs:
             await page.waitForFunction(() =>
               document.querySelector('#intro-cache-state')?.textContent?.includes('caché local'),
               null,{timeout:30000});
-            assert.ok(introDownloads<=1,
-              'second opening must not trigger repeated MP4 GET requests');
+            assert.equal(introDownloads,firstOpenGetCount,
+              'second opening must not redownload MP4, even through its service worker');
             await page.waitForFunction(() =>
               document.querySelector('#intro-cache-progress')?.dataset.state==='cached',
               null,{timeout:30000});

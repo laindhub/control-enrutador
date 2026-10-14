@@ -96,7 +96,10 @@ jobs:
 
           const browser=await chromium.launch({headless:true});
           try {
-            const page=await browser.newPage();
+            // Route interception does not see requests served by a site's
+            // service worker, leading to false zero-download assertions.
+            const context=await browser.newContext({serviceWorkers:'block'});
+            const page=await context.newPage();
             await page.addInitScript(() => {
               window.__screenWakeLog={requests:0,releases:0};
               Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{

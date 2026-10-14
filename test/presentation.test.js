@@ -448,7 +448,7 @@ test('remote setup is isolated from slideshow and never requires raw USB access'
 test('fixed introduction is independent from Geraldine and gated to first slide',()=>{
   const s=read('public/js/presentation.js');
   const page=read('views/presentation.ejs');
-  assert.match(s,/const INTRO_VIDEO_URL='\/assets\/presentaciones\/introduccion\.mp4'/);
+  assert.match(s,/import \{INTRO_VIDEO_URL, loadCachedIntroVideo\} from '\.\/presentation-intro-cache\.js'/);
   assert.match(s,/introVideo\.addEventListener\('ended'/);
   assert.match(s,/viewer\?\.goToSlide\?\.\(0\)/);
   assert.match(s,/function canStartIntro\(\)/);

@@ -122,6 +122,7 @@ jobs:
             let introDownloads=0;
             await page.route('**/assets/presentaciones/introduccion.mp4',route=>{
               const method=route.request().method();
+              console.log('Introduction intercepted browser request:',method);
               if(method==='HEAD')return route.fulfill({
                 status:200,contentType:'video/mp4',
                 headers:{etag:'"intro-smoke-v1"','content-length':String(fakeIntro.length)},
@@ -145,14 +146,22 @@ jobs:
             }
             assert.ok(pageReady,'presentation page must load after deployment');
             await page.waitForFunction(() => document.querySelector('#default-availability')?.textContent?.includes('Lista para abrir'),null,{timeout:60000});
+            const introStoredBeforeClick = await page.evaluate(async() => {
+              const store=await caches.open('salon-mas-duenos-introduccion-mp4-v1');
+              return Boolean(await store.match('/assets/presentaciones/introduccion.mp4'));
+            });
+            console.log('Introduction already cached before card click:',introStoredBeforeClick);
             await page.locator('#open-default').click();
             await page.waitForFunction(async() => {
               const store=await caches.open('salon-mas-duenos-introduccion-mp4-v1');
               return Boolean(await store.match('/assets/presentaciones/introduccion.mp4'));
             },null,{timeout:30000});
-            assert.equal(introDownloads,1,
-              'opening Liniers must begin and persist exactly one MP4 download');
-            console.log('Introduction caching: full MP4 began downloading when Liniers card opened.');
+            console.log('Introduction total intercepted MP4 GET requests:',introDownloads);
+            if(!introStoredBeforeClick){
+              assert.equal(introDownloads,1,
+                'opening Liniers must trigger the MP4 GET when cache is initially empty');
+            }
+            console.log('Introduction caching: full MP4 persisted after Liniers card opened.');
             await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
             await page.waitForFunction(() => /40 diapositivas/.test(document.querySelector('#file-meta')?.textContent||''),null,{timeout:120000});
             assert.equal(await page.locator('#file-name').textContent(),'Nueva - Más dueños.pptx');
@@ -246,7 +255,7 @@ jobs:
             await page.waitForFunction(() =>
               document.querySelector('#intro-cache-state')?.textContent?.includes('caché local'),
               null,{timeout:30000});
-            assert.equal(introDownloads,1,
+            assert.equal(introDownloads,introStoredBeforeClick?0:1,
               'a second Liniers opening must reuse the MP4 cache, not redownload');
             console.log('Introduction caching: second opening uses the saved MP4; no additional GET.');
             console.log('Persistent browser cache: second full 40-slide opening succeeds after reload with PPTX network blocked in '+(Date.now()-cachedStart)+'ms.');

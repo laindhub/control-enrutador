@@ -247,6 +247,14 @@ try {
   assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),5);
   await page.keyboard.press('ArrowDown');
   assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),10);
+  // Confirmed physical K01 buttons report PageDown / PageUp, not Arrow keys.
+  await page.keyboard.press('PageDown');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),15,
+    'PageDown from K01 should move five seconds forward');
+  await page.keyboard.press('PageUp');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),10,
+    'PageUp from K01 should move five seconds backward');
+  assert.equal(await page.locator('#intro-overlay').isVisible(),true);
   assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0',
     'arrow seek must not advance the presentation behind the video');
   await page.locator('#intro-video').evaluate(video=>{video.currentTime=58;});

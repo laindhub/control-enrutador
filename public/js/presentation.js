@@ -678,8 +678,8 @@ introVideo.addEventListener('error',()=>{
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement && introRunning) closeIntro();
 });
-// While the intro is playing, all arrow buttons seek the MP4 by five seconds
-// instead of changing slides: Left/Up rewind, Right/Down forward. Tab toggles
+// During the intro, K01 PageUp/PageDown and the notebook arrow keys seek
+// the MP4 by five seconds rather than changing slides. Tab toggles
 // the introduction off. Keep Escape native so it still exits fullscreen.
 // Capture before the PPTX viewer's own keyboard handlers.
 for(const type of ['keydown','wheel','click','touchend']){

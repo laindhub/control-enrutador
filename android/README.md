@@ -1,10 +1,10 @@
-# Más Dueños · Salón Android 1.2.5
+# Más Dueños · Salón Android 1.2.6
 
 Android 8.0 o posterior. Esta versión conserva el salón completo y su barra **Puestos / Hoy / Yo**. No hay una barra nativa superior ni se reemplaza **Yo** por otra pantalla.
 
 ## Uso
 
-1. Cuando esté disponible el instalador `masduenos-salon-1.2.5.apk` **firmado con la misma clave del 1.2.0**, instalalo sobre la versión anterior. Mantiene el mismo paquete y usa `versionCode=12`.
+1. Cuando esté disponible el instalador `masduenos-salon-1.2.5.apk` **firmado con la misma clave del 1.2.0**, instalalo sobre la versión anterior. Mantiene el mismo paquete y usa `versionCode=13`.
 2. Entrá al salón con tu cuenta habitual.
 3. **Yo** abre la página original `/floor/activity`, con sus pasos, derivaciones y conversiones. **Leads / Ventas** ahora permanece en una barra compacta de 44 px justo debajo del encabezado de Salón. El panel de métricas aparece antes del historial **«lo que hice»**, incluso cuando crecen las derivaciones.
 4. **Mis ventas y comisiones** aparece antes del historial original, con Ventas, Carpetas, Pagos y Gestión según el rol. Registrar y editar ventas, vincular visitas y registrar pagos utiliza las mismas APIs y permisos del panel web.
@@ -52,3 +52,7 @@ El ícono Android usa el archivo PNG **idéntico** a `public/assets/favicon.png`
 ## Navegación en Hoy · visitas (1.2.5)
 
 En `/floor/visits`, el script integrado busca la barra original **Puestos / Hoy / Yo** (sin sustituir enlaces ni manejadores del CRM), le aplica una posición fija con `z-index` superior a la lista y reserva espacio desplazable al final. Los estilos se eliminan al cambiar de ruta y se reponen si React reemplaza la barra durante el uso. Este ajuste está empaquetado en la APK, por lo que requiere actualización de la instalación Android.
+
+## Fallos de conexión (1.2.6)
+
+La pantalla nativa de errores ahora usa la identidad Salón: encabezado blanco, logo rojo, tarjeta redondeada, textos claros y botón rojo. Se distingue una pérdida de conexión de un error HTTP (incluido 503). La pantalla permanece visible durante los reintentos hasta completar una carga exitosa. Solo se reintentan automáticamente solicitudes GET; los formularios no se reenvían. El reintento manual de un envío fallido abre una página segura.

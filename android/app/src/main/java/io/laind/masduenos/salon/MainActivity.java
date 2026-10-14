@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.Uri;
@@ -27,6 +29,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -44,14 +47,20 @@ public final class MainActivity extends Activity {
     private static final String PREPARE_URL = "https://" + SALES_HOST + "/presentador/preparar?salon=1";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final boolean[] failed = {false, false};
+    private final boolean[] loadFailed = {false, false};
+    private final boolean[] temporaryErrors = {false, false};
     private final boolean[] retrySafe = {true, true};
     private final int[] attempts = {0, 0};
-    private final String[] errors = {"No pudimos conectar.", "No pudimos conectar."};
+    private final String[] errors = {"No se pudo cargar la página.", "No se pudo cargar la página."};
+    private final String[] errorTitles = {"No pudimos conectar", "No pudimos conectar"};
     private final Runnable[] retries = new Runnable[2];
     private final WebView[] pages = new WebView[2];
     private ProgressBar progress;
     private LinearLayout errorBox;
     private TextView errorText;
+    private TextView errorTitle;
+    private TextView errorHint;
+    private Button retryButton;
     private int selected = 0;
     private boolean resumed;
     private boolean salesPrepared;
@@ -90,17 +99,7 @@ public final class MainActivity extends Activity {
             pages[i] = makePage(i);
             frame.addView(pages[i], new FrameLayout.LayoutParams(-1, -1));
         }
-        errorBox = new LinearLayout(this);
-        errorBox.setOrientation(LinearLayout.VERTICAL);
-        errorBox.setGravity(Gravity.CENTER);
-        errorBox.setPadding(dp(24), dp(24), dp(24), dp(24));
-        errorBox.setBackgroundColor(Color.WHITE);
-        errorText = new TextView(this);
-        errorText.setTextSize(18);
-        errorText.setGravity(Gravity.CENTER);
-        errorBox.addView(errorText);
-        errorBox.addView(button("Reintentar", () -> { attempts[selected] = 0; pages[selected].reload(); }));
-        frame.addView(errorBox, new FrameLayout.LayoutParams(-1, -1));
+        createConnectionScreen(frame);
 
         for (int i = 0; i < pages.length; i++) {
             Bundle pageState = saved == null ? null : saved.getBundle("page" + i);
@@ -132,6 +131,127 @@ public final class MainActivity extends Activity {
                     WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS);
             }
         }
+    }
+
+    /** Branded native connection state; no network needed to display it. */
+    private void createConnectionScreen(FrameLayout frame) {
+        final int black=Color.rgb(22,22,22), muted=Color.rgb(105,105,105), red=Color.rgb(216,37,27);
+        errorBox = new LinearLayout(this);
+        errorBox.setOrientation(LinearLayout.VERTICAL);
+        errorBox.setBackgroundColor(Color.WHITE);
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setPadding(dp(20),dp(12),dp(20),dp(12));
+        TextView brand = new TextView(this);
+        brand.setText("Salón");
+        brand.setTextSize(22);
+        brand.setTextColor(black);
+        brand.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(brand,new LinearLayout.LayoutParams(0,dp(52),1));
+        TextView identity = new TextView(this);
+        identity.setText("Más Dueños");
+        identity.setTextSize(13);
+        identity.setTextColor(muted);
+        identity.setPadding(dp(14),dp(9),dp(14),dp(9));
+        identity.setBackground(roundBackground(Color.WHITE,dp(24),Color.rgb(229,229,229)));
+        heading.addView(identity);
+        errorBox.addView(heading,new LinearLayout.LayoutParams(-1,dp(76)));
+        View separator = new View(this);
+        separator.setBackgroundColor(Color.rgb(237,237,237));
+        errorBox.addView(separator,new LinearLayout.LayoutParams(-1,dp(1)));
+
+        LinearLayout center = new LinearLayout(this);
+        center.setGravity(Gravity.CENTER);
+        center.setOrientation(LinearLayout.VERTICAL);
+        center.setPadding(dp(20),dp(24),dp(20),dp(24));
+        errorBox.addView(center,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(24),dp(26),dp(24),dp(26));
+        card.setBackground(roundBackground(Color.WHITE,dp(22),Color.rgb(229,229,229)));
+        int screenWidth=getResources().getDisplayMetrics().widthPixels;
+        center.addView(card,new LinearLayout.LayoutParams(Math.min(dp(440),Math.max(dp(260),screenWidth-dp(40))),-2));
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.app_icon);
+        icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        icon.setBackground(roundBackground(Color.WHITE,dp(12),0));
+        icon.setClipToOutline(true);
+        card.addView(icon,new LinearLayout.LayoutParams(dp(58),dp(58)));
+
+        errorTitle = new TextView(this);
+        errorTitle.setTextColor(black);
+        errorTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        errorTitle.setTextSize(23);
+        LinearLayout.LayoutParams titleLayout=new LinearLayout.LayoutParams(-1,-2);
+        titleLayout.topMargin=dp(20);
+        card.addView(errorTitle,titleLayout);
+
+        errorText = new TextView(this);
+        errorText.setTextColor(muted);
+        errorText.setTextSize(15);
+        errorText.setLineSpacing(dp(4),1f);
+        LinearLayout.LayoutParams messageLayout=new LinearLayout.LayoutParams(-1,-2);
+        messageLayout.topMargin=dp(10);
+        card.addView(errorText,messageLayout);
+
+        retryButton=button("Reintentar",()->{
+            attempts[selected]=0;
+            cancelRetry(selected);
+            errorHint.setText("Reintentando conexión…");
+            // Never replay a failed POST or another unsafe request.
+            if(retrySafe[selected]) pages[selected].reload();
+            else pages[selected].loadUrl(selected==0?SALON_URL:PREPARE_URL);
+        });
+        retryButton.setTextColor(Color.WHITE);
+        retryButton.setTextSize(16);
+        retryButton.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        retryButton.setElevation(0);
+        retryButton.setBackground(roundBackground(red,dp(13),0));
+        LinearLayout.LayoutParams buttonLayout=new LinearLayout.LayoutParams(-1,dp(52));
+        buttonLayout.topMargin=dp(23);
+        card.addView(retryButton,buttonLayout);
+
+        errorHint = new TextView(this);
+        errorHint.setTextColor(muted);
+        errorHint.setTextSize(12);
+        errorHint.setLineSpacing(dp(3),1f);
+        LinearLayout.LayoutParams hintLayout=new LinearLayout.LayoutParams(-1,-2);
+        hintLayout.topMargin=dp(16);
+        card.addView(errorHint,hintLayout);
+
+        TextView reassurance=new TextView(this);
+        reassurance.setText("No necesitás cerrar sesión ni reinstalar la aplicación.");
+        reassurance.setTextSize(12);
+        reassurance.setTextColor(muted);
+        reassurance.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams reassuranceLayout=new LinearLayout.LayoutParams(-1,-2);
+        reassuranceLayout.topMargin=dp(18);
+        center.addView(reassurance,reassuranceLayout);
+
+        frame.addView(errorBox,new FrameLayout.LayoutParams(-1,-1));
+        errorBox.setVisibility(View.GONE);
+    }
+
+    private GradientDrawable roundBackground(int color,float radius,int stroke) {
+        GradientDrawable drawable=new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        if(stroke!=0)drawable.setStroke(dp(1),stroke);
+        return drawable;
+    }
+
+    private void showError(int index) {
+        errorTitle.setText(errorTitles[index]);
+        errorText.setText(errors[index]);
+        retryButton.setText(retrySafe[index]?"Reintentar":"Volver al inicio");
+        errorHint.setText(temporaryErrors[index]&&retrySafe[index]
+            ?"Reintentaremos automáticamente. Tus datos y tu sesión se conservan."
+            :"Tus datos y tu sesión se conservan. Podés volver a intentarlo.");
+        errorBox.setVisibility(View.VISIBLE);
+        progress.setVisibility(View.GONE);
     }
 
     private Button button(String label, Runnable action) {
@@ -175,13 +295,20 @@ public final class MainActivity extends Activity {
                 return true;
             }
             @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
-                failed[index] = false;
-                cancelRetry(index);
-                if (selected == index) { errorBox.setVisibility(View.GONE); progress.setVisibility(View.VISIBLE); }
+                loadFailed[index]=false;
+                if (selected == index && !failed[index]) {
+                    errorBox.setVisibility(View.GONE);
+                    progress.setVisibility(View.VISIBLE);
+                }
             }
             @Override public void onPageFinished(WebView view, String url) {
                 CookieManager.getInstance().flush();
-                if (!failed[index]) attempts[index] = 0;
+                if (!loadFailed[index]) {
+                    failed[index]=false;
+                    attempts[index]=0;
+                    cancelRetry(index);
+                    if(selected==index) errorBox.setVisibility(View.GONE);
+                }
                 Uri uri = Uri.parse(url);
                 if (!failed[index] && SALON_HOST.equals(uri.getHost()) && trusted(uri))
                     view.evaluateJavascript("window.__mdSalesPrepared=" + salesPrepared + ";" + navigationScript, null);
@@ -205,17 +332,22 @@ public final class MainActivity extends Activity {
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (!request.isForMainFrame()) return;
+                loadFailed[index]=true;
                 retrySafe[index] = "GET".equals(request.getMethod());
-                fail(index, "No pudimos conectar. Reintentaremos cuando vuelva la conexión.", true);
+                fail(index,"No pudimos conectar",
+                    "No logramos cargar Salón. Revisá tu conexión e intentá nuevamente.",true);
             }
             @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
                 if (!request.isForMainFrame()) return;
                 int status = response.getStatusCode();
                 if (index == 1 && status == 401 && "/login".equals(request.getUrl().getPath())) return;
-                retrySafe[index] = "GET".equals(request.getMethod());
-                if (status == 408 || status == 429 || status >= 500)
-                    fail(index, "El servicio está reconectando. Esperá unos segundos.", true);
-                else fail(index, "El sitio respondió con un error (" + status + "). Podés reintentar o volver al salón.", false);
+                loadFailed[index]=true;
+                retrySafe[index]="GET".equals(request.getMethod());
+                if(status==408||status==429||status>=500)
+                    fail(index,"Servicio temporalmente no disponible",
+                        "El servidor está ocupado o en mantenimiento ("+status+"). Intentá nuevamente en unos segundos.",true);
+                else fail(index,"No pudimos abrir esta página",
+                    "El sitio respondió con un error ("+status+"). Podés reintentar sin cerrar sesión.",false);
             }
         });
         page.setWebChromeClient(new WebChromeClient() {
@@ -242,16 +374,18 @@ public final class MainActivity extends Activity {
     private void select(int index) {
         selected = index == 1 ? 1 : 0;
         for (int i = 0; i < pages.length; i++) pages[i].setVisibility(i == selected ? View.VISIBLE : View.GONE);
-        errorBox.setVisibility(failed[selected] ? View.VISIBLE : View.GONE);
-        errorText.setText(errors[selected]);
+        if(failed[selected])showError(selected);
+        else errorBox.setVisibility(View.GONE);
         progress.setProgress(pages[selected].getProgress());
         progress.setVisibility(pages[selected].getProgress() < 100 && !failed[selected] ? View.VISIBLE : View.GONE);
     }
-    private void fail(int index, String message, boolean temporary) {
-        failed[index] = true;
-        errors[index] = message;
-        if (selected == index) { errorText.setText(message); errorBox.setVisibility(View.VISIBLE); progress.setVisibility(View.GONE); }
-        if (temporary) scheduleRetry(index, Math.min(30000, 2000L << Math.min(attempts[index]++, 4)));
+    private void fail(int index,String title,String message,boolean temporary) {
+        failed[index]=true;
+        errorTitles[index]=title;
+        errors[index]=message;
+        temporaryErrors[index]=temporary;
+        if(selected==index)showError(index);
+        if(temporary)scheduleRetry(index,Math.min(30000,2000L<<Math.min(attempts[index]++,4)));
     }
     private void cancelRetry(int index) { if (retries[index] != null) handler.removeCallbacks(retries[index]); }
     private void scheduleRetry(final int index, long delay) {

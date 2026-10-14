@@ -161,6 +161,9 @@ jobs:
               assert.equal(introDownloads,1,
                 'opening Liniers must trigger the MP4 GET when cache is initially empty');
             }
+            await page.waitForFunction(() =>
+              document.querySelector('#intro-cache-progress')?.dataset.state==='ready',
+              null,{timeout:30000});
             assert.equal(await page.locator('#intro-cache-progress').getAttribute('data-state'),'ready',
               'visual indicator must show ready only after successful Cache Storage');
             assert.match(await page.locator('#intro-cache-stage').textContent(),/guardado y listo/);
@@ -261,6 +264,9 @@ jobs:
               null,{timeout:30000});
             assert.equal(introDownloads,introStoredBeforeClick?0:1,
               'a second Liniers opening must reuse the MP4 cache, not redownload');
+            await page.waitForFunction(() =>
+              document.querySelector('#intro-cache-progress')?.dataset.state==='cached',
+              null,{timeout:30000});
             assert.equal(await page.locator('#intro-cache-progress').getAttribute('data-state'),'cached',
               'indicator must recognize local storage on second opening');
             console.log('Introduction caching: second opening uses the saved MP4; no additional GET.');

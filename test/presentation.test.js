@@ -502,3 +502,16 @@ test('Tab dismisses active intro on slide one without losing fullscreen',()=>{
   assert.match(e2e,/skipping introduction with Tab must retain fullscreen/);
   assert.match(e2e,/Tab must stop and reset the MP4/);
 });
+
+test('remote arrows seek the introductory MP4, not the PPTX, while it is active',()=>{
+  const script=read('public/js/presentation.js');
+  const e2e=read('scripts/e2e-presentation.mjs');
+  assert.match(script,/introSeekDirection\(event\)/);
+  assert.match(script,/seekIntroVideo\(introVideo,direction\)/);
+  assert.match(script,/event\.stopImmediatePropagation\(\)/);
+  assert.match(e2e,/await page\.keyboard\.press\('ArrowLeft'\)/);
+  assert.match(e2e,/await page\.keyboard\.press\('ArrowUp'\)/);
+  assert.match(e2e,/await page\.keyboard\.press\('ArrowRight'\)/);
+  assert.match(e2e,/await page\.keyboard\.press\('ArrowDown'\)/);
+  assert.match(e2e,/arrow seek must not advance the presentation behind the video/);
+});

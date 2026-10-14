@@ -6,6 +6,7 @@ import {duplicateVideoPreviewSlides, mayAutoPlayVideo} from './presentation-medi
 import {isOfficialDeckResponse, OFFICIAL_DECK_SHA256, OFFICIAL_DECK_SIZE} from './presentation-source.js';
 import {hasCachedOfficialDeck, loadOfficialDeck} from './presentation-cache.js';
 import {INTRO_VIDEO_URL, loadCachedIntroVideo} from './presentation-intro-cache.js';
+import {introSeekDirection,seekIntroVideo} from './presentation-intro-seek.js';
 // Los PPTX se procesan en el navegador, nunca se envían al servidor.
 // El motor se fija a una versión específica para evitar cambios inesperados.
 const VIEWER_MODULE = 'https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
@@ -677,19 +678,24 @@ introVideo.addEventListener('error',()=>{
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement && introRunning) closeIntro();
 });
-// While the MP4 is visible, Tab (the K01 remote button) dismisses it and
-// restores slide 1 without leaving fullscreen. Ignore key auto-repeat so
-// holding the remote button cannot inadvertently close the introduction.
-// Other input stays blocked to prevent accidental slide navigation; Escape
-// still exits fullscreen using the browser's native behavior.
+// While the intro is playing, all arrow buttons seek the MP4 by five seconds
+// instead of changing slides: Left/Up rewind, Right/Down forward. Tab toggles
+// the introduction off. Keep Escape native so it still exits fullscreen.
+// Capture before the PPTX viewer's own keyboard handlers.
 for(const type of ['keydown','wheel','click','touchend']){
   document.addEventListener(type,event=>{
     if(!introRunning || (type==='keydown' && event.key==='Escape'))return;
-    if(type==='keydown' && event.code==='Tab' &&
-       !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey &&
-       !event.repeat){
-      closeIntro({finished:true});
+    if(type==='keydown'){
+      const direction=introSeekDirection(event);
+      if(direction)seekIntroVideo(introVideo,direction);
+      if(event.code==='Tab' &&
+         !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey &&
+         !event.repeat){
+        closeIntro({finished:true});
+      }
     }
+    // Consume all other inputs while the MP4 overlay is active, including
+    // arrows rejected due to key auto-repeat and mouse wheel scrolling.
     event.preventDefault();
     event.stopImmediatePropagation();
   },{capture:true,passive:false});

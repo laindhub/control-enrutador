@@ -248,3 +248,15 @@ K01 (señal `Tab`) lo detiene y vuelve directamente a la diapositiva 1
 La repetición de tecla al dejarla presionada no cierra el video; solo
 se toma un `keydown` nuevo. Escape sigue cerrando la presentación completa.
 Los videos incrustados, como el de Geraldine, conservan su comportamiento.
+
+## Control de reproducción de la introducción con cuatro flechas
+
+Mientras `introduccion.mp4` está reproduciéndose a pantalla completa,
+el control K01 y el teclado pueden adelantar/retroceder exactamente
+cinco segundos por pulsación: `←` y `↑` retroceden; `→` y `↓`
+adelantan. Los saltos se limitan al intervalo `0..duration`, sin
+cambiar la diapositiva que está detrás del video. Se ignora la repetición
+automática por mantener una flecha presionada, para evitar saltos
+acumulados involuntarios. La tecla Tab continúa abriendo/cerrando
+la introducción. Fuera de ella, las flechas recuperan la navegación
+normal del PPTX y el video de Geraldine no se modifica.

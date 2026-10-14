@@ -78,6 +78,28 @@ try {
         return nativeSrc.get.call(this);
       },
     });
+    // Give the intro predictable playback time during tests without changing
+    // the real PPTX engine or relying on a video uploaded to Hostinger.
+    const nativeTime=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'currentTime');
+    const nativeDuration=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'duration');
+    Object.defineProperty(HTMLMediaElement.prototype,'currentTime',{
+      configurable:true,
+      get(){
+        if(this.id==='intro-video')return Number(this.dataset.mockIntroTime||0);
+        return nativeTime.get.call(this);
+      },
+      set(value){
+        if(this.id==='intro-video'){this.dataset.mockIntroTime=String(value);return;}
+        nativeTime.set.call(this,value);
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype,'duration',{
+      configurable:true,
+      get(){
+        if(this.id==='intro-video')return 60;
+        return nativeDuration.get.call(this);
+      },
+    });
     HTMLMediaElement.prototype.play=function(){
       if(this.id==='intro-video')return Promise.resolve();
       return nativePlay.call(this);
@@ -212,6 +234,26 @@ try {
   assert.equal(await page.locator('#intro-overlay').evaluate(el=>getComputedStyle(el).cursor),'none',
     'moving the mouse must not reveal a cursor over the introduction');
   assert.equal(await page.locator('#intro-video').evaluate(el=>getComputedStyle(el).cursor),'none');
+  // The four arrow buttons on K01/keyboard seek the intro, not the slide deck.
+  await page.locator('#intro-video').evaluate(video=>{video.currentTime=12;});
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),7);
+  await page.keyboard.press('ArrowUp');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),2);
+  await page.keyboard.press('ArrowUp');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),0,
+    'rewinding cannot go before zero');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),5);
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),10);
+  assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0',
+    'arrow seek must not advance the presentation behind the video');
+  await page.locator('#intro-video').evaluate(video=>{video.currentTime=58;});
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.locator('#intro-video').evaluate(video=>video.currentTime),60,
+    'forward cannot pass the end of the MP4');
+  assert.equal(await page.locator('#intro-overlay').isVisible(),true);
   // A held Tab should not close the MP4 merely because Windows repeats keydown.
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown',{
     code:'Tab',key:'Tab',repeat:true,cancelable:true,bubbles:true,

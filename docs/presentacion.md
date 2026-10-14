@@ -225,3 +225,17 @@ se cachea ningún 404. Si falta espacio de almacenamiento, la introducción
 puede reproducirse desde la red sin interrumpir las 40 diapositivas.
 La caché del video es independiente de la caché PPTX y de los MP4
 incrustados como el de Geraldine.
+
+## Indicador de descarga para el video introductorio
+
+La barra compacta de la cabecera aparece al abrir «Nueva - Más Dueños».
+Muestra el porcentaje y los megabytes recibidos (de `content-length`
+cuando está disponible). Se actualiza con los fragmentos reales del flujo
+`ReadableStream` del MP4, no mediante un temporizador simulado. Una vez
+recibidos todos los bytes indica «Guardando…» y solo confirma «Video
+guardado y listo» después de que Cache Storage acepte el archivo completo.
+
+Al entrar nuevamente muestra «Video disponible en caché» después de
+validar los datos locales y consultar los metadatos de Hostinger. Un 404,
+un error o la falta de cuota se muestran como estados diferentes. El
+indicador no aparece sobre las diapositivas a pantalla completa.

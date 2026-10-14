@@ -545,24 +545,64 @@ let introRunning=false;
 let introCachedBlob=null;
 let introCachePromise=null;
 let introPlaybackObjectUrl=null;
-
+let introProgressLastPaint=0;
+function renderIntroCacheProgress({phase,received=0,total=0}){
+  const panel=$('intro-cache-progress');
+  const state=$('intro-cache-stage');
+  const amount=$('intro-cache-amount');
+  const meter=$('intro-cache-meter');
+  const note=$('intro-cache-state');
+  if(!panel || !state || !amount || !meter)return;
+  panel.hidden=false;
+  panel.dataset.state=phase;
+  const mb=n=>(n/1024/1024).toLocaleString('es-AR',{maximumFractionDigits:1});
+  const knownTotal=Number.isFinite(total) && total>0;
+  const percent=knownTotal?Math.min(100,Math.floor(received/total*100)):null;
+  if(phase==='checking'){
+    state.textContent='Verificando video guardado…';
+    amount.textContent='Caché local';
+    meter.removeAttribute('value');
+  }else if(phase==='downloading'){
+    const now=performance.now();
+    if(received && knownTotal && percent!==100 && now-introProgressLastPaint<100)return;
+    introProgressLastPaint=now;
+    state.textContent=percent===null?'Descargando video introductorio…':
+      'Descargando introducción · '+percent+' %';
+    amount.textContent=mb(received)+' MB'+(knownTotal?' / '+mb(total)+' MB':' descargados');
+    if(knownTotal)meter.value=percent;
+    else meter.removeAttribute('value');
+  }else{
+    const messages={
+      saving:'Guardando el video en la notebook…',
+      cached:'Video disponible en caché',
+      ready:'Video guardado y listo',
+      'not-saved':'Video descargado, pero no se pudo guardar',
+      missing:'Video pendiente de subir a Hostinger',
+      error:'No se pudo descargar el video',
+    };
+    state.textContent=messages[phase]||'Video introductorio';
+    amount.textContent=knownTotal?mb(total)+' MB':phase==='missing'?'Archivo no disponible':'';
+    if(phase==='missing'||phase==='error')meter.value=0;
+    else meter.value=100;
+  }
+  if(note)note.textContent=state.textContent+(amount.textContent?' · '+amount.textContent:'');
+}
 function prepareIntroCache(){
   if(introCachePromise)return introCachePromise;
-  const note=$('intro-cache-state');
-  if(note)note.textContent='Guardando el video introductorio en este dispositivo…';
-  introCachePromise=loadCachedIntroVideo({url:INTRO_VIDEO_URL}).then(result=>{
+  renderIntroCacheProgress({phase:'checking'});
+  introCachePromise=loadCachedIntroVideo({
+    url:INTRO_VIDEO_URL,
+    onProgress:renderIntroCacheProgress,
+  }).then(result=>{
     if(result.blob)introCachedBlob=result.blob;
-    if(note){
-      note.textContent=result.status==='missing'?
-        'Video introductorio pendiente de subir a Hostinger.':
-        result.saved?
-          (result.fromCache?'Video introductorio disponible desde la caché local.':
-            'Video introductorio descargado y guardado en la caché local.'):
-          'Video descargado, pero el navegador no permitió guardarlo permanentemente.';
-    }
+    renderIntroCacheProgress({
+      phase:result.status==='missing'?'missing':
+        !result.saved?'not-saved':result.fromCache?'cached':'ready',
+      received:result.blob?.size||0,total:result.blob?.size||0,
+    });
     return result;
   }).catch(error=>{
-    if(note)note.textContent='No se pudo guardar el video por ahora. Se podrá reproducir desde Hostinger.';
+    renderIntroCacheProgress({phase:'error'});
     console.debug('Caché de introducción:',error?.message||error);
     return {blob:null,status:'error',saved:false};
   }).finally(()=>{introCachePromise=null;});

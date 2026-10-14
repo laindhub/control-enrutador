@@ -98,3 +98,52 @@ test('cache remains usable on network failure; full video plays if storage write
   assert.equal(fallback.saved,false);
   assert.equal(fallback.blob.size,data.length);
 });
+
+test('stream emits real byte progress and saving/ready only after Cache Storage put',async()=>{
+  const db=memoryCache();
+  const data=video();
+  const segments=[data.subarray(0,8),data.subarray(8,16),data.subarray(16)];
+  const events=[];
+  const response=new Response(new ReadableStream({
+    pull(controller){
+      if(!segments.length){controller.close();return;}
+      controller.enqueue(segments.shift());
+    },
+  }),{headers:sourceHeaders(data)});
+  const result=await loadCachedIntroVideo({
+    cacheStorage:db,fetcher:async()=>response,
+    onProgress:event=>events.push(event),
+  });
+  assert.equal(result.saved,true);
+  const readings=events.filter(x=>x.phase==='downloading');
+  assert.ok(readings.length>=3,'must report intermediate chunks, not only 100%');
+  assert.equal(readings[0].received,0);
+  assert.ok(readings.some(x=>x.received>0&&x.received<data.length));
+  assert.equal(readings.at(-1).received,data.length);
+  assert.deepEqual(events.slice(-2).map(x=>x.phase),['saving','ready']);
+  assert.ok(events.every(e=>e.total===data.length));
+});
+
+test('cache and failure status are distinguishable from successful permanent storage',async()=>{
+  const data=video(),db=memoryCache();
+  const first=[];
+  await loadCachedIntroVideo({cacheStorage:db,
+    fetcher:async()=>new Response(data,{headers:sourceHeaders(data)}),
+    onProgress:e=>first.push(e.phase)});
+  const reused=[];
+  await loadCachedIntroVideo({cacheStorage:db,
+    fetcher:async(_u,opts)=>{assert.equal(opts.method,'HEAD');return new Response(null,{headers:sourceHeaders(data)});},
+    onProgress:e=>reused.push(e.phase)});
+  assert.deepEqual(reused,['checking','cached']);
+  const missing=[];
+  await loadCachedIntroVideo({cacheStorage:memoryCache(),
+    fetcher:async()=>new Response(null,{status:404}),
+    onProgress:e=>missing.push(e.phase)});
+  assert.deepEqual(missing,['missing']);
+  const quota=[];
+  await loadCachedIntroVideo({
+    cacheStorage:{open:async()=>({match:async()=>null,put:async()=>{throw Error('quota');}})},
+    fetcher:async()=>new Response(data,{headers:sourceHeaders(data)}),
+    onProgress:e=>quota.push(e.phase)});
+  assert.equal(quota.at(-1),'not-saved');
+});

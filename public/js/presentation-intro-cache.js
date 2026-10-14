@@ -15,11 +15,33 @@ function mp4Response(response) {
     (response.headers.get('content-type') || '').split(';',1)[0].trim().toLowerCase() === 'video/mp4';
 }
 
-async function validatedVideo(response, maxBytes) {
+async function validatedVideo(response, maxBytes, onChunk = () => {}) {
   if (!mp4Response(response)) throw Error('El servidor todavía no entregó un video MP4.');
   const declared = Number(response.headers.get('content-length') || 0);
   if (declared > maxBytes) throw Error('El MP4 supera el límite de almacenamiento local.');
-  const blob = await response.blob();
+  let blob;
+  if (response.body?.getReader) {
+    const reader=response.body.getReader();
+    const chunks=[];
+    let received=0;
+    try {
+      while(true){
+        const {done,value}=await reader.read();
+        if(done)break;
+        received+=value.byteLength;
+        if(received>maxBytes || (declared && received>declared)){
+          await reader.cancel().catch(()=>{});
+          throw Error('La descarga supera el tamaño anunciado o permitido.');
+        }
+        chunks.push(value);
+        onChunk(received,declared);
+      }
+    }finally{reader.releaseLock();}
+    blob=new Blob(chunks,{type:'video/mp4'});
+  }else{
+    blob=await response.blob();
+    onChunk(blob.size,declared);
+  }
   if (blob.size < 12 || blob.size > maxBytes ||
       await blob.slice(4,8).text() !== 'ftyp') {
     throw Error('El archivo recibido no es un MP4 completo y válido.');
@@ -42,7 +64,9 @@ export async function loadCachedIntroVideo({
   fetcher = globalThis.fetch,
   cacheStorage = globalThis.caches,
   maxBytes = MAX_VIDEO_BYTES,
+  onProgress = () => {},
 } = {}) {
+  const report = (phase,received=0,total=0)=>onProgress({phase,received,total});
   let cache = null;
   try { cache = await cacheStorage?.open?.(INTRO_VIDEO_CACHE) || null; }
   catch { /* Storage disabled or insufficient. Network playback still works. */ }
@@ -51,6 +75,7 @@ export async function loadCachedIntroVideo({
     try {
       const stored = await cache.match(url);
       if (stored) {
+        report('checking');
         let blob;
         try { blob = await validatedVideo(stored.clone(), maxBytes); }
         catch { await cache.delete(url).catch(()=>{}); }
@@ -60,7 +85,10 @@ export async function loadCachedIntroVideo({
             const head = await fetcher(url,{method:'HEAD',cache:'no-store'});
             changed = hasChanged(head,stored);
           } catch { /* Offline or temporary Hostinger failure: reuse saved MP4. */ }
-          if (!changed) return {blob,fromCache:true,saved:true,status:'ready'};
+          if (!changed) {
+            report('cached',blob.size,blob.size);
+            return {blob,fromCache:true,saved:true,status:'ready'};
+          }
           await cache.delete(url).catch(()=>{});
         }
       }
@@ -69,9 +97,14 @@ export async function loadCachedIntroVideo({
 
   const response = await fetcher(url,{method:'GET',cache:'no-store'});
   if (response.status === 404) {
+    report('missing');
     return {blob:null,fromCache:false,saved:false,status:'missing'};
   }
-  const blob = await validatedVideo(response,maxBytes);
+  const declared=Number(response.headers.get('content-length')||0);
+  report('downloading',0,declared);
+  const blob=await validatedVideo(response,maxBytes,
+    (received,total)=>report('downloading',received,total));
+  report('saving',blob.size,blob.size);
   let saved=false;
   if (cache) {
     try {
@@ -84,5 +117,6 @@ export async function loadCachedIntroVideo({
       saved=true;
     } catch { /* Browser quota can reject large MP4s; playback still works. */ }
   }
+  report(saved?'ready':'not-saved',blob.size,blob.size);
   return {blob,fromCache:false,saved,status:'ready'};
 }

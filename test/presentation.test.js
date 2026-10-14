@@ -480,3 +480,13 @@ test('opening Liniers starts intro caching before the presentation is prepared',
   assert.match(script,/URL\.revokeObjectURL\(introPlaybackObjectUrl\)/);
   assert.match(view,/id="intro-cache-state"/);
 });
+
+test('Liniers intro download indicator has live percent and real byte counts',()=>{
+  const script=read('public/js/presentation.js');
+  const markup=read('views/presentation.ejs');
+  assert.match(markup,/id="intro-cache-progress"/);
+  assert.match(markup,/<progress id="intro-cache-meter" max="100"/);
+  assert.match(script,/onProgress:renderIntroCacheProgress/);
+  assert.match(script,/Math\.floor\(received\/total\*100\)/);
+  assert.match(script,/phase:'error'/);
+});

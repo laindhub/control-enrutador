@@ -153,3 +153,23 @@ h1{font-size:clamp(25px,4vw,39px);line-height:1.13;max-width:600px;margin:0 auto
 :fullscreen * {cursor:none!important}
 :fullscreen::backdrop {cursor:none!important}
 
+
+/* Compact, independently updated intro MP4 download state in the top bar.
+   Hidden during the real PPTX fullscreen; visible before pressing Start. */
+.intro-cache-progress{width:clamp(200px,24vw,320px);min-width:180px;margin-left:auto;
+  padding:9px 13px;background:#222329;border:1px solid #3a3a42;border-radius:10px}
+.intro-cache-progress[hidden]{display:none!important}
+.intro-cache-progress-line{display:flex;justify-content:space-between;align-items:center;
+  gap:8px;font-size:11px;line-height:1.4}
+.intro-cache-progress-line strong{font-weight:700;color:#f0f0f3}
+.intro-cache-progress-line span{color:#b3b3bd;white-space:nowrap;font-variant-numeric:tabular-nums}
+.intro-cache-progress progress{width:100%;height:5px;display:block;margin-top:7px;
+  border:0;border-radius:10px;overflow:hidden;background:#46474f}
+.intro-cache-progress progress::-webkit-progress-bar{background:#46474f}
+.intro-cache-progress progress::-webkit-progress-value{background:#d62d24;border-radius:10px}
+.intro-cache-progress progress::-moz-progress-bar{background:#d62d24}
+.intro-cache-progress[data-state="ready"] progress::-webkit-progress-value,
+.intro-cache-progress[data-state="cached"] progress::-webkit-progress-value{background:#6dc69a}
+.intro-cache-progress[data-state="ready"] progress::-moz-progress-bar,
+.intro-cache-progress[data-state="cached"] progress::-moz-progress-bar{background:#6dc69a}
+@media(max-width:850px){.intro-cache-progress{width:100%;order:3;flex-basis:100%;margin:0}}

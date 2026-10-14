@@ -161,6 +161,10 @@ jobs:
               assert.equal(introDownloads,1,
                 'opening Liniers must trigger the MP4 GET when cache is initially empty');
             }
+            assert.equal(await page.locator('#intro-cache-progress').getAttribute('data-state'),'ready',
+              'visual indicator must show ready only after successful Cache Storage');
+            assert.match(await page.locator('#intro-cache-stage').textContent(),/guardado y listo/);
+            assert.equal(await page.locator('#intro-cache-meter').getAttribute('value'),'100');
             console.log('Introduction caching: full MP4 persisted after Liniers card opened.');
             await page.locator('#workspace').waitFor({state:'visible',timeout:120000});
             await page.waitForFunction(() => /40 diapositivas/.test(document.querySelector('#file-meta')?.textContent||''),null,{timeout:120000});
@@ -257,6 +261,8 @@ jobs:
               null,{timeout:30000});
             assert.equal(introDownloads,introStoredBeforeClick?0:1,
               'a second Liniers opening must reuse the MP4 cache, not redownload');
+            assert.equal(await page.locator('#intro-cache-progress').getAttribute('data-state'),'cached',
+              'indicator must recognize local storage on second opening');
             console.log('Introduction caching: second opening uses the saved MP4; no additional GET.');
             console.log('Persistent browser cache: second full 40-slide opening succeeds after reload with PPTX network blocked in '+(Date.now()-cachedStart)+'ms.');
 

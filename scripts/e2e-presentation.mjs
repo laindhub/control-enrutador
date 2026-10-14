@@ -175,6 +175,27 @@ try {
   // slide back to the first while retaining fullscreen.
   await page.locator('#start').click();
   await page.waitForFunction(() => Boolean(document.fullscreenElement), null, {timeout:15000});
+  async function assertFullscreenCursorHidden(label) {
+    const sample=await page.evaluate(() => {
+      const fs=document.fullscreenElement;
+      const positions=[[Math.round(innerWidth/2),Math.round(innerHeight/2)],
+        [Math.round(innerWidth*.15),Math.round(innerHeight*.2)],
+        [Math.round(innerWidth*.85),Math.round(innerHeight*.8)]];
+      return {root:fs?getComputedStyle(fs).cursor:null,
+        hits:positions.map(([x,y])=>{
+          const el=document.elementFromPoint(x,y);
+          return {x,y,tag:el?.tagName,cursor:el?getComputedStyle(el).cursor:null};
+        })};
+    });
+    assert.equal(sample.root,'none',label+': fullscreen root cursor');
+    for(const hit of sample.hits){
+      assert.equal(hit.cursor,'none',label+': visible cursor on '+hit.tag+' at '+hit.x+','+hit.y);
+    }
+  }
+  await page.mouse.move(120,110);
+  await page.mouse.move(560,340);
+  await assertFullscreenCursorHidden('slide 1');
+
   // With a PPTX loaded but before fullscreen, Tab still must not launch the
   // video. This protects both the editor and the file selection screen.
   // Same physical Tab may start the intro over slide 1. It must preserve
@@ -194,6 +215,9 @@ try {
   await page.locator('#intro-video').evaluate(video=>video.dispatchEvent(new Event('ended')));
   await page.locator('#intro-overlay').waitFor({state:'hidden',timeout:10000});
   assert.equal(await page.locator('#pptx-host').getAttribute('data-active-slide-index'),'0');
+  await page.mouse.move(330,260);
+  await assertFullscreenCursorHidden('slide 1 after introduction');
+
   await page.waitForFunction(() => window.__screenWakeLog.requests===1,null,{timeout:10000});
   assert.equal(await page.evaluate(()=>window.__screenWakeLog.releases),0,
     'wake lock must remain held while the slideshow is fullscreen');
@@ -207,6 +231,9 @@ try {
 
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => document.getElementById('pptx-host')?.dataset.activeSlideIndex === '1', null, {timeout:15000});
+  await page.mouse.move(270,580);
+  await assertFullscreenCursorHidden('slide 2');
+
   await page.keyboard.press('Tab');
   assert.equal(await page.locator('#intro-overlay').isVisible(),false,
     'intro button must not interrupt slide 2 or later');
@@ -217,6 +244,9 @@ try {
   // Esc must still exit the fullscreen presentation.
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.fullscreenElement, null, {timeout:10000});
+  assert.notEqual(await page.evaluate(()=>getComputedStyle(document.body).cursor),'none',
+    'cursor must return after Escape');
+
   await page.waitForFunction(() => window.__screenWakeLog.releases===1,null,{timeout:10000});
   console.log('Screen wake lock acquired in fullscreen and released after Escape.');
   console.log('PPTX opened, wrapped continuously, and exited with Escape in Chromium.');

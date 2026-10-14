@@ -1,12 +1,13 @@
-// Remote K01 emits ordinary arrow keys. During the independent intro video,
+// The physical K01 emits PageUp / PageDown as confirmed by Windows event logs.
+// The notebook arrows also remain usable. During the intro video,
 // they seek within the MP4 rather than advancing the PowerPoint presentation.
 export const INTRO_SEEK_STEP_SECONDS = 5;
 
 export function introSeekDirection(event) {
   if (!event || event.type !== 'keydown' || event.repeat ||
       event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return 0;
-  if (event.code === 'ArrowLeft' || event.code === 'ArrowUp') return -1;
-  if (event.code === 'ArrowRight' || event.code === 'ArrowDown') return 1;
+  if (event.code === 'ArrowLeft' || event.code === 'ArrowUp' || event.code === 'PageUp') return -1;
+  if (event.code === 'ArrowRight' || event.code === 'ArrowDown' || event.code === 'PageDown') return 1;
   return 0;
 }
 

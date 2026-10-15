@@ -52,7 +52,7 @@ function removePresentationChrome(){
   // Older versions mount the 21 / 40 pill as an unclassified span. Hide only
   // a leaf counter inside presentation chrome, not actual PowerPoint text.
   for(const leaf of document.querySelectorAll('.pptxv span, .pptxv div')){
-    if(leaf.children.length!==0||!/^\\s*\\d+\\s*\\/\\s*\\d+\\s*$/.test(leaf.textContent||''))
+    if(leaf.children.length!==0||!/^\s*\d+\s*\/\s*\d+\s*$/.test(leaf.textContent||''))
       continue;
     if(leaf.closest('[class*="slide-content"],[class*="slide-canvas"],[class*="slide-stage"],[class*="slide-layer"]'))
       continue;

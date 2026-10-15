@@ -23,11 +23,14 @@ const HIDDEN_PRESENTER_CONTROLS=[
   '.pptxv-present-touch-prev','.pptxv-present-touch-next',
   '.pptxv-present-slide-counter','.pptxv-present-counter',
   '.pptxv-slide-counter','.pptxv-slide-indicator',
+  '.pptxv-present-position','.pptxv-slide-position',
+  '.pptxv-present-pagination',
   '.pptxv-present-footer','.pptxv-present-overlay-controls',
   '[class*="present-toolbar"]','[class*="present-nav"]',
   '[class*="present-control"]','[class*="touch-exit"]',
   '[class*="touch-nav"]','[class*="slide-counter"]',
-  '[class*="slide-indicator"]',
+  '[class*="slide-indicator"]','[class*="slide-count"]',
+  '[class*="present-position"]','[class*="present-pagination"]',
   // The generated toolbar buttons are not slide media.
   '.pptxv button','.pptxv [role="button"]',
 ];

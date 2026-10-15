@@ -204,10 +204,15 @@ function handle(key,repeat=false){
     return;
   }
   if(mode!=='slides')return;
+  // TV D-pad OK (Enter) also opens the intro on slide 1 so a standard
+  // Android TV remote, which has no Tab button, can operate the entire app.
+  // The K01 keyboard shortcut remains Tab, as on the website.
   if(key==='Tab'){
     if(slide===0)openIntro();
-  }else if(key==='Enter')next();
-  else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
+  }else if(key==='Enter'){
+    if(slide===0)openIntro();
+    else next();
+  }else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
     mode='ready';

@@ -122,10 +122,19 @@ try {
       let slide=0,properties={};
       const root=document.createElement('div');
       root.className='pptxv';
+      root.dataset.hiddenActions=JSON.stringify(opts.hiddenActions||[]);
       root.innerHTML='<div class="pptxv-present-toolbar-wrap" style="display:block">SLIDE CONTROLS</div>'+
         '<div class="pptxv-presentation-touch-exit" style="display:block">EXIT</div>'+
+        '<div class="pptxv-present-touch-prev" style="display:block"><button>BACK</button></div>'+
+        '<div class="pptxv-present-touch-next" style="display:block"><button>NEXT</button></div>'+
+        '<div class="pptxv-present-position" style="display:block"><span>21 / 40</span></div>'+
+        '<div class="pptxv-obscure-count"><span>21 / 40</span></div>'+
+        '<div class="pptxv-slide-stage"><span id="real-slide-text">21 / 40</span></div>'+
         '<div class="tv-mock-content"></div>';
       host.append(root);
+      window.__tvTouchClicks=0;
+      root.addEventListener('touchend',()=>window.__tvTouchClicks++);
+      root.addEventListener('click',()=>window.__tvTouchClicks++);
       const fake=()=>{
         const zone=root.querySelector('.tv-mock-content');
         zone.replaceChildren();
@@ -165,6 +174,36 @@ try {
   assert.match(await page.locator('#summary').textContent(),/40 diapositivas/);
   await page.keyboard.press('Enter');
   assert.equal(await page.locator('#ready').isVisible(),false);
+  // Most important Android TV acceptance test: never build navigation buttons,
+  // and forcibly hide any desktop/mobile chrome reintroduced by the viewer.
+  assert.ok(JSON.parse(await page.locator('.pptxv').getAttribute('data-hidden-actions'))
+    .includes('navigation'),'viewer must not create its own navigation controls');
+  for(const css of [
+    '.pptxv-present-toolbar-wrap','.pptxv-presentation-touch-exit',
+    '.pptxv-present-touch-prev','.pptxv-present-touch-next',
+    '.pptxv-present-position','.pptxv-obscure-count span'
+  ]){
+    await page.waitForFunction(css=>{
+      const el=document.querySelector(css);
+      return !!el&&getComputedStyle(el).display==='none';
+    },css);
+  }
+  assert.equal(await page.locator('#real-slide-text').evaluate(
+    el=>getComputedStyle(el).display),'inline',
+    'hide presenter counter only, not genuine slide text');
+  const wasPrevented=await page.evaluate(()=>{
+    const control=document.querySelector('.pptxv-present-touch-next');
+    const touch=new Event('touchend',{bubbles:true,cancelable:true});
+    control.dispatchEvent(touch);
+    return touch.defaultPrevented;
+  });
+  assert.equal(wasPrevented,true,'touch input should not invoke hidden viewer navigation');
+  assert.equal(await page.evaluate(()=>window.__tvTouchClicks),0,
+    'the PPTX viewer must never receive touch/click during TV presentation');
+  await page.mouse.move(140,180);
+  await page.waitForTimeout(120);
+  assert.equal(await page.locator('.pptxv-present-touch-next').evaluate(
+    el=>getComputedStyle(el).display),'none','moving a pointer must not reveal controls');
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1');
   await page.keyboard.press('PageUp');
@@ -243,6 +282,24 @@ try {
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'21',
     'second forward input must advance from the video to slide 22');
+  // Touch-only controls are also recreated on slide transitions:
+  // verify the observer removes them, including a new counter pill.
+  await page.evaluate(()=>{
+    const viewer=document.querySelector('.pptxv');
+    const extra=document.createElement('div');
+    extra.className='pptxv-present-touch-next';
+    extra.style.setProperty('display','flex','important');
+    extra.innerHTML='<button>Touch NEXT</button>';
+    viewer.appendChild(extra);
+    const pagination=document.createElement('div');
+    pagination.className='pptxv-present-pagination';
+    pagination.textContent='22 / 40';
+    viewer.appendChild(pagination);
+  });
+  await page.waitForFunction(()=>{
+    return [...document.querySelectorAll('.pptxv-present-touch-next,.pptxv-present-pagination')]
+      .every(el=>getComputedStyle(el).display==='none');
+  });
   // The engine can recreate its toolbar whenever slides change.
   await page.evaluate(()=>{
     const wrap=document.querySelector('.pptxv');

@@ -2,7 +2,10 @@ package io.laind.masduenos.tv;
 
 import android.app.Activity;
 import android.webkit.JavascriptInterface;
-import android.widget.VideoView;
+import android.view.TextureView;
+import android.graphics.SurfaceTexture;
+import android.graphics.Matrix;
+import android.view.Surface;
 import android.widget.Toast;
 import android.media.MediaPlayer;
 import org.json.JSONObject;
@@ -53,7 +56,11 @@ public final class TvActivity extends Activity {
     // Returning with Back keeps the native menu open until the user requests it.
     private boolean autoOpenAfterSync=true;
     private FrameLayout introLayer;
-    private VideoView introNativeVideo;
+    private TextureView introTexture;
+    private MediaPlayer introMedia;
+    private Surface introSurface;
+    private int introVideoWidth;
+    private int introVideoHeight;
     private boolean introNativeActive=false;
 
 
@@ -287,6 +294,16 @@ public final class TvActivity extends Activity {
         // Quotes are escaped for a JS string; the HTML player is trusted local code.
         player.evaluateJavascript("window.tvNativeIntroEnded?.("+JSONObject.quote(error)+")",null);
     }
+    /**
+     * Native video renderer attached to the actual Activity composition.
+     *
+     * VideoView is backed by a SurfaceView; on some phones and TV firmwares
+     * its video surface is composited behind WebView, yielding audio but a
+     * completely black video. TextureView instead participates in the same
+     * view hierarchy as the WebView and our overlay, so the video pixels are
+     * actually drawn above the slides. DO NOT give TextureView an opaque
+     * background; the surrounding FrameLayout supplies the black bars.
+     */
     private void startNativeIntroduction(){
         if(!inPlayer||introNativeActive)return;
         if(!files.has("introduction")){
@@ -294,53 +311,125 @@ public final class TvActivity extends Activity {
             return;
         }
         introNativeActive=true;
+        introVideoWidth=0;
+        introVideoHeight=0;
         introLayer=new FrameLayout(this);
         introLayer.setBackgroundColor(Color.BLACK);
         introLayer.setFocusable(true);
-        introNativeVideo=new VideoView(this);
-        introNativeVideo.setBackgroundColor(Color.BLACK);
-        introLayer.addView(introNativeVideo,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));
+        final TextureView texture=new TextureView(this);
+        introTexture=texture;
+        // A fullscreen TextureView scales the original video to fit without
+        // cropping. Keeping the background ONLY on introLayer is essential.
+        introLayer.addView(texture,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));
         frame.addView(introLayer,new FrameLayout.LayoutParams(-1,-1));
         introLayer.bringToFront();
-        // Native VideoView does not have a MediaController: no play button,
-        // seek bar, cursor or PowerPoint toolbar can appear over the MP4.
-        final VideoView video=introNativeVideo;
-        video.setOnPreparedListener(mp->{
-            if(video==introNativeVideo&&introNativeActive){
-                mp.setScreenOnWhilePlaying(true);
-                video.start();
+        introLayer.requestFocus();
+        texture.setSurfaceTextureListener(new TextureView.SurfaceTextureListener(){
+            @Override public void onSurfaceTextureAvailable(SurfaceTexture surface,int width,int height){
+                if(introNativeActive&&texture==introTexture)
+                    prepareNativeIntroduction(surface);
             }
+            @Override public void onSurfaceTextureSizeChanged(SurfaceTexture surface,int width,int height){
+                fitNativeIntroToScreen();
+            }
+            @Override public boolean onSurfaceTextureDestroyed(SurfaceTexture surface){
+                if(introNativeActive&&texture==introTexture)
+                    stopNativeIntroduction(true,"Se perdió la superficie de video; volvé a iniciar la introducción.");
+                return true;
+            }
+            @Override public void onSurfaceTextureUpdated(SurfaceTexture surface){}
         });
-        video.setOnCompletionListener(mp->stopNativeIntroduction(true,null));
-        video.setOnErrorListener((mp,what,extra)->{
-            Log.e("MasDuenosTV","Error de introduccion nativa: "+what+", "+extra);
-            stopNativeIntroduction(true,
-                "No se pudo reproducir introduccion.mp4 en este dispositivo (código "+what+").");
-            return true;
-        });
-        try{
-            video.setVideoPath(files.file("introduction").getAbsolutePath());
-        }catch(Exception e){
-            Log.e("MasDuenosTV","No se pudo preparar introduccion.mp4",e);
-            stopNativeIntroduction(true,"No se pudo abrir el video introductorio.");
+    }
+    private void prepareNativeIntroduction(SurfaceTexture surfaceTexture){
+        MediaPlayer engine=null;
+        Surface surface=null;
+        try {
+            surface=new Surface(surfaceTexture);
+            engine=new MediaPlayer();
+            introMedia=engine;
+            introSurface=surface;
+            final MediaPlayer current=engine;
+            engine.setSurface(surface);
+            engine.setAudioStreamType(android.media.AudioManager.STREAM_MUSIC);
+            engine.setOnPreparedListener(mp->{
+                if(introNativeActive&&introMedia==mp){
+                    introVideoWidth=mp.getVideoWidth();
+                    introVideoHeight=mp.getVideoHeight();
+                    fitNativeIntroToScreen();
+                    mp.start();
+                    Log.i("MasDuenosTV","Intro preparada: video "+introVideoWidth+
+                        "x"+introVideoHeight+", textura="+(introTexture!=null));
+                }
+            });
+            engine.setOnVideoSizeChangedListener((mp,w,h)->{
+                if(introNativeActive&&introMedia==mp){
+                    introVideoWidth=w;
+                    introVideoHeight=h;
+                    fitNativeIntroToScreen();
+                }
+            });
+            engine.setOnInfoListener((mp,what,extra)->{
+                if(what==MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START)
+                    Log.i("MasDuenosTV","Primer cuadro de introducción renderizado en TextureView");
+                return false;
+            });
+            engine.setOnCompletionListener(mp->{
+                if(introMedia==mp)stopNativeIntroduction(true,null);
+            });
+            engine.setOnErrorListener((mp,what,extra)->{
+                Log.e("MasDuenosTV","Error de introduccion nativa: "+what+", "+extra);
+                if(introMedia==mp)stopNativeIntroduction(true,
+                    "No se pudo decodificar el video introductorio (código "+what+", "+extra+").");
+                return true;
+            });
+            // Only the file already downloaded and verified by TvAssetStore.
+            engine.setDataSource(files.file("introduction").getAbsolutePath());
+            engine.prepareAsync();
+        }catch(Exception error){
+            Log.e("MasDuenosTV","No se pudo preparar el video para TextureView",error);
+            stopNativeIntroduction(true,"No se pudo abrir la imagen del video introductorio.");
         }
+    }
+    private void fitNativeIntroToScreen(){
+        TextureView texture=introTexture;
+        if(texture==null||introVideoWidth<=0||introVideoHeight<=0)return;
+        float w=texture.getWidth(),h=texture.getHeight();
+        if(w<=0||h<=0)return;
+        float videoRatio=(float)introVideoWidth/introVideoHeight;
+        float frameRatio=w/h;
+        float scaleX=1f,scaleY=1f;
+        if(videoRatio>frameRatio)scaleY=frameRatio/videoRatio;
+        else scaleX=videoRatio/frameRatio;
+        Matrix transform=new Matrix();
+        transform.setScale(scaleX,scaleY,w/2f,h/2f);
+        texture.setTransform(transform);
     }
     private void stopNativeIntroduction(boolean notifyWeb,String error){
         introNativeActive=false;
-        VideoView video=introNativeVideo;
-        introNativeVideo=null;
-        if(video!=null){
-            video.setOnPreparedListener(null);
-            video.setOnCompletionListener(null);
-            video.setOnErrorListener(null);
-            try{video.stopPlayback();}catch(Exception e){
-                Log.w("MasDuenosTV","Error al cerrar el video",e);
+        MediaPlayer engine=introMedia;
+        introMedia=null;
+        if(engine!=null){
+            engine.setOnPreparedListener(null);
+            engine.setOnCompletionListener(null);
+            engine.setOnErrorListener(null);
+            engine.setOnVideoSizeChangedListener(null);
+            engine.setOnInfoListener(null);
+            try{engine.release();}catch(Exception e){
+                Log.w("MasDuenosTV","Error al liberar el decodificador de video",e);
             }
         }
+        Surface surface=introSurface;
+        introSurface=null;
+        if(surface!=null)surface.release();
+        TextureView texture=introTexture;
+        introTexture=null;
+        if(texture!=null)texture.setSurfaceTextureListener(null);
         if(introLayer!=null){
             frame.removeView(introLayer);
             introLayer=null;
         }
+        introVideoWidth=0;
+        introVideoHeight=0;
         if(inPlayer&&player!=null)player.requestFocus();
         if(notifyWeb){
             if(error!=null)Toast.makeText(this,error,Toast.LENGTH_LONG).show();
@@ -348,12 +437,17 @@ public final class TvActivity extends Activity {
         }
     }
     private void seekNativeIntroduction(int seconds){
-        if(introNativeVideo==null||!introNativeActive)return;
-        int now=Math.max(0,introNativeVideo.getCurrentPosition());
-        int duration=introNativeVideo.getDuration();
-        long seek=Math.max(0L,(long)now+seconds*1000L);
-        if(duration>0)seek=Math.min(seek,duration);
-        introNativeVideo.seekTo((int)Math.min(Integer.MAX_VALUE,seek));
+        MediaPlayer video=introMedia;
+        if(video==null||!introNativeActive)return;
+        try {
+            int now=Math.max(0,video.getCurrentPosition());
+            int duration=video.getDuration();
+            long target=Math.max(0L,(long)now+seconds*1000L);
+            if(duration>0)target=Math.min(target,duration);
+            video.seekTo((int)Math.min(Integer.MAX_VALUE,target));
+        }catch(IllegalStateException e){
+            Log.w("MasDuenosTV","La introducción todavía se está preparando",e);
+        }
     }
     private boolean handleNativeIntroKey(KeyEvent event){
         if(!introNativeActive)return false;

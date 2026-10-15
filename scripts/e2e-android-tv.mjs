@@ -5,6 +5,20 @@ import http from 'node:http';
 import {chromium} from 'playwright';
 
 const dir=path.resolve('android-tv/app/src/main/assets');
+const nativeRouter=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvActivity.java','utf8');
+const htmlEntry=readFileSync(path.join(dir,'index.html'),'utf8');
+const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
+// Browser tests must not serve an import that Android's real WebView rejects.
+// This previously caused production to freeze on the static loading screen
+// even though a permissive Chromium mock passed all presentation tests.
+const required=['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js'];
+for(const name of required){
+  assert.ok(nativeRouter.includes('"/tv/'+name+'"'),
+    'Android WebView must explicitly intercept '+name);
+  assert.ok(readFileSync(path.join(dir,name)).length>0);
+}
+assert.match(htmlEntry,/window\.__tvBooted=false/);
+assert.match(tvScript,/window\.__tvBooted=true/);
 const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css'};
 const server=http.createServer((req,res)=>{
   const pathName=new URL(req.url,'http://localhost').pathname;
@@ -174,6 +188,19 @@ try {
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
   await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='true');
   console.log('Android TV: controls hidden; Geraldine preview paused; one-click playback; no replay; PageUp/PageDown OK');
+  // Failed module requests must show a usable retry action, not an endless
+  // "Preparando presentación" spinner like Android TV 1.1.0.
+  const broken=await browser.newPage();
+  await broken.addInitScript(()=>{window.__tvBootTimeoutMs=350;});
+  await broken.route('**/tv/presentation-media.js',route=>route.fulfill({
+    status:404,body:'',contentType:'text/plain',
+  }));
+  await broken.goto('http://127.0.0.1:'+server.address().port+'/tv/index.html');
+  await broken.locator('#retry-start').waitFor({state:'visible',timeout:5000});
+  assert.match(await broken.locator('#loading h1').textContent(),/No se pudo iniciar/);
+  assert.equal(await broken.locator('.spinner').isVisible(),false);
+  await broken.close();
+  console.log('Android TV: missing module now shows actionable error and Retry button');
 }finally{
   await browser?.close();
   await new Promise(resolve=>server.close(resolve));

@@ -35,8 +35,13 @@ desde `esm.sh` (requiere internet cuando aún no esté en la caché WebView).
 - Diapositiva 1: OK/Enter o Tab abre `introduccion.mp4`.
 - Video introductorio: OK/Enter o Tab lo detienen; izquierda/arriba/PageUp
   retroceden 5 segundos; derecha/abajo/PageDown avanzan 5 segundos.
+- En la diapositiva de Geraldine, la primera pulsación de avance reproduce
+  el video desde su fotograma de espera. La siguiente pulsación avanza a
+  la diapositiva posterior. El video no se reproduce al entrar ni se reinicia
+  al actualizarse el visor.
 - Atrás del control Android TV regresa al menú nativo; teclado Esc sale del
-  modo presentación. El cursor permanece oculto durante la exposición.
+  modo presentación. Ni el cursor ni la barra de herramientas flotante
+  aparecen durante la exposición.
 
 Los archivos multimedia se sirven al WebView directamente desde el
 almacenamiento privado, con soporte de solicitudes HTTP Range para MP4.

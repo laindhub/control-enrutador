@@ -10,6 +10,42 @@ let viewer=null,slide=0,total=0,mode='loading';
 let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
 let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),pausedPreviewSlides=new Set();
 let mediaObserver=null,mediaGeneration=0;
+let chromeObserver=null;
+const HIDDEN_PRESENTER_CONTROLS=[
+  '.pptxv-present-toolbar-wrap','.pptxv-present-toolbar',
+  '.pptxv-presentation-touch-exit','.pptxv-toolbar',
+  '.pptxv-statusbar','.pptxv-present-controls',
+  '.pptxv-presentation-controls','[class*="present-toolbar"]',
+];
+function removePresentationChrome(){
+  if(mode!=='slides'&&mode!=='intro')return;
+  for(const root of [document, document.fullscreenElement].filter(Boolean)){
+    for(const target of root.querySelectorAll(HIDDEN_PRESENTER_CONTROLS.join(','))){
+      if(target.style.getPropertyValue('display')!=='none' ||
+         target.style.getPropertyPriority('display')!=='important')
+        target.style.setProperty('display','none','important');
+      target.setAttribute('aria-hidden','true');
+      target.tabIndex=-1;
+    }
+  }
+  for(const video of document.querySelectorAll('video')){
+    if(video.id==='intro-video')continue;
+    if(video.controls)video.controls=false;
+    if(video.hasAttribute('controls'))video.removeAttribute('controls');
+    video.setAttribute('controlsList','nodownload noplaybackrate nofullscreen');
+    video.style.pointerEvents='none';
+  }
+}
+// The viewer injects its own CSS and may recreate toolbar DOM during every
+// slide transition or when entering real fullscreen. Hide it again in DOM,
+// not just with a selector that depends on the browser's fullscreen element.
+function keepPresenterChromeHidden(){
+  removePresentationChrome();
+  chromeObserver?.disconnect();
+  chromeObserver=new MutationObserver(()=>removePresentationChrome());
+  chromeObserver.observe(document.body,{childList:true,subtree:true});
+}
+
 const host=$('slides');
 
 function message(value){$('message').textContent=value;}
@@ -41,13 +77,30 @@ function visibleMedia(){
       r.top<innerHeight&&r.bottom>0&&!v.closest('#intro')&&!v.closest('[aria-hidden="true"]');
   });
 }
+function hasVideoModel(element){
+  if(!element||typeof element!=='object')return false;
+  const mime=String(element.mimeType||element.mediaType||element.mime||'').toLowerCase();
+  const type=String(element.type||element.kind||'').toLowerCase();
+  return type.includes('video')||mime.includes('video')||
+    ['elements','children'].some(key=>Array.isArray(element[key])&&element[key].some(hasVideoModel));
+}
+function locateGeraldineBuild(slides,known){
+  if(Number.isInteger(known))return known;
+  // Existing 40-slide Liniers decks may be replaced in Hostinger; a hash
+  // mismatch must not disable the click-triggered Geraldine slide altogether.
+  if(total===40&&Array.isArray(slides)&&(
+    hasVideoModel(slides[20])||
+    (hasVideoModel(slides[19])&&hasVideoModel(slides[20]))
+  ))return 20;
+  return null;
+}
 function allowedToPlayVideo(){
   if(slide===mediaBuildSlide&&(!mediaBuildTriggered||mediaPlaybackEnded))return false;
   return mayAutoPlayVideo(slide,pausedPreviewSlides);
 }
 function pausePreview(video){
-  video.autoplay=false;
-  video.removeAttribute('autoplay');
+  if(video.autoplay)video.autoplay=false;
+  if(video.hasAttribute('autoplay'))video.removeAttribute('autoplay');
   if(!video.paused)video.pause();
   try{if(Number.isFinite(video.currentTime)&&video.currentTime>0)video.currentTime=0;}catch{}
 }
@@ -63,6 +116,7 @@ function blockPreviewAutoplay(event){
 }
 function playVisibleMedia(){
   if(mode!=='slides')return;
+  removePresentationChrome();
   for(const video of visibleMedia()){
     if(video.tagName==='VIDEO'){
       if(slide===mediaBuildSlide&&mediaPlaybackEnded){
@@ -154,9 +208,11 @@ async function prepare(){
     if(total<1)throw Error('No hay diapositivas reconocibles.');
     // Same SHA-256-based click-build detection as the web presentation.
     message('Verificando las animaciones y el video de Geraldine…');
-    mediaBuildSlide=await deadline(getTimedVideoSlide(file),
+    const slides=viewer.getSlides?.()||[];
+    const timedIndex=await deadline(getTimedVideoSlide(file),
       'verificar las animaciones',90000);
-    pausedPreviewSlides=duplicateVideoPreviewSlides(viewer.getSlides?.()||[]);
+    mediaBuildSlide=locateGeraldineBuild(slides,timedIndex);
+    pausedPreviewSlides=duplicateVideoPreviewSlides(slides);
     mediaObserver?.disconnect();
     mediaObserver=new MutationObserver(()=>{if(mode==='slides')scheduleMedia();});
     mediaObserver.observe(host,{childList:true,subtree:true});
@@ -174,6 +230,7 @@ function start(){
     console.warn('Fullscreen WebView fallback:',e);
   });}catch(e){console.warn('Fullscreen native fallback:',e);}
   document.body.classList.add('tv-presenting');
+  keepPresenterChromeHidden();
   slideChanged(viewer.getCurrentSlide?.()??0);
   scheduleMedia();
 }
@@ -240,6 +297,7 @@ function handle(key,repeat=false){
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
     mode='ready';
+    chromeObserver?.disconnect();
     document.body.classList.remove('tv-presenting');
     if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
     $('ready').hidden=false;$('start').focus();
@@ -257,5 +315,8 @@ document.addEventListener('keydown',event=>{
 window.tvRemoteKey=key=>handle(key,false);
 $('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
-window.addEventListener('beforeunload',()=>mediaObserver?.disconnect());
+window.addEventListener('beforeunload',()=>{
+  mediaObserver?.disconnect();
+  chromeObserver?.disconnect();
+});
 void prepare();

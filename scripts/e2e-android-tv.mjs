@@ -206,6 +206,14 @@ try {
     return all.length>=2 && all.every(el=>getComputedStyle(el).display==='none' &&
       el.getAttribute('aria-hidden')==='true');
   });
+  // The PPTX engine can also force the existing bar back via an inline style.
+  await page.evaluate(()=>{
+    const bar=document.querySelector('.pptxv-present-toolbar-wrap');
+    bar.style.setProperty('display','block','important');
+  });
+  await page.waitForFunction(()=>[...document.querySelectorAll('.pptxv-present-toolbar-wrap')]
+    .every(el=>getComputedStyle(el).display==='none'));
+
   await page.keyboard.press('PageUp');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
   await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='true');

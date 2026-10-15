@@ -1,6 +1,11 @@
 package io.laind.masduenos.tv;
 
 import android.app.Activity;
+import android.webkit.JavascriptInterface;
+import android.widget.VideoView;
+import android.widget.Toast;
+import android.media.MediaPlayer;
+import org.json.JSONObject;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -47,6 +52,10 @@ public final class TvActivity extends Activity {
     // Launch the locally stored deck as soon as BOTH media sync attempts finish.
     // Returning with Back keeps the native menu open until the user requests it.
     private boolean autoOpenAfterSync=true;
+    private FrameLayout introLayer;
+    private VideoView introNativeVideo;
+    private boolean introNativeActive=false;
+
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
     private TextView text(String content,int size,int color,boolean bold){
@@ -84,6 +93,9 @@ public final class TvActivity extends Activity {
         web.setCacheMode(WebSettings.LOAD_DEFAULT);
         player.setOverScrollMode(View.OVER_SCROLL_NEVER);
         player.setWebViewClient(new LocalClient());
+        // Native playback avoids WebView's virtual-URL streaming and user-gesture
+        // limitations for the locally downloaded 280 MB introduction video.
+        player.addJavascriptInterface(new IntroBridge(),"AndroidTv");
         player.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onConsoleMessage(ConsoleMessage info){
                 Log.w("MasDuenosTV",info.message()+" ["+info.sourceId()+":"+info.lineNumber()+"]");
@@ -263,6 +275,116 @@ public final class TvActivity extends Activity {
             }
         });
     }
+    // JS-to-native bridge. The interface contains no file paths or arbitrary URLs.
+    // Only the fixed, SHA-256-verified introduction in private app storage plays.
+    private final class IntroBridge {
+        @JavascriptInterface public void playIntroduction(){
+            runOnUiThread(()->startNativeIntroduction());
+        }
+    }
+    private void sendIntroResult(String error){
+        if(!inPlayer||player==null)return;
+        // Quotes are escaped for a JS string; the HTML player is trusted local code.
+        player.evaluateJavascript("window.tvNativeIntroEnded?.("+JSONObject.quote(error)+")",null);
+    }
+    private void startNativeIntroduction(){
+        if(!inPlayer||introNativeActive)return;
+        if(!files.has("introduction")){
+            sendIntroResult("El video introductorio no está guardado. Volvé al menú y buscá actualizaciones.");
+            return;
+        }
+        introNativeActive=true;
+        introLayer=new FrameLayout(this);
+        introLayer.setBackgroundColor(Color.BLACK);
+        introLayer.setFocusable(true);
+        introNativeVideo=new VideoView(this);
+        introNativeVideo.setBackgroundColor(Color.BLACK);
+        introLayer.addView(introNativeVideo,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER));
+        frame.addView(introLayer,new FrameLayout.LayoutParams(-1,-1));
+        introLayer.bringToFront();
+        // Native VideoView does not have a MediaController: no play button,
+        // seek bar, cursor or PowerPoint toolbar can appear over the MP4.
+        final VideoView video=introNativeVideo;
+        video.setOnPreparedListener(mp->{
+            if(video==introNativeVideo&&introNativeActive){
+                mp.setScreenOnWhilePlaying(true);
+                video.start();
+            }
+        });
+        video.setOnCompletionListener(mp->stopNativeIntroduction(true,null));
+        video.setOnErrorListener((mp,what,extra)->{
+            Log.e("MasDuenosTV","Error de introduccion nativa: "+what+", "+extra);
+            stopNativeIntroduction(true,
+                "No se pudo reproducir introduccion.mp4 en este dispositivo (código "+what+").");
+            return true;
+        });
+        try{
+            video.setVideoPath(files.file("introduction").getAbsolutePath());
+        }catch(Exception e){
+            Log.e("MasDuenosTV","No se pudo preparar introduccion.mp4",e);
+            stopNativeIntroduction(true,"No se pudo abrir el video introductorio.");
+        }
+    }
+    private void stopNativeIntroduction(boolean notifyWeb,String error){
+        introNativeActive=false;
+        VideoView video=introNativeVideo;
+        introNativeVideo=null;
+        if(video!=null){
+            video.setOnPreparedListener(null);
+            video.setOnCompletionListener(null);
+            video.setOnErrorListener(null);
+            try{video.stopPlayback();}catch(Exception e){
+                Log.w("MasDuenosTV","Error al cerrar el video",e);
+            }
+        }
+        if(introLayer!=null){
+            frame.removeView(introLayer);
+            introLayer=null;
+        }
+        if(inPlayer&&player!=null)player.requestFocus();
+        if(notifyWeb){
+            if(error!=null)Toast.makeText(this,error,Toast.LENGTH_LONG).show();
+            sendIntroResult(error==null?"":error);
+        }
+    }
+    private void seekNativeIntroduction(int seconds){
+        if(introNativeVideo==null||!introNativeActive)return;
+        int now=Math.max(0,introNativeVideo.getCurrentPosition());
+        int duration=introNativeVideo.getDuration();
+        long seek=Math.max(0L,(long)now+seconds*1000L);
+        if(duration>0)seek=Math.min(seek,duration);
+        introNativeVideo.seekTo((int)Math.min(Integer.MAX_VALUE,seek));
+    }
+    private boolean handleNativeIntroKey(KeyEvent event){
+        if(!introNativeActive)return false;
+        int code=event.getKeyCode();
+        if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0){
+            switch(code){
+                case KeyEvent.KEYCODE_TAB:
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                case KeyEvent.KEYCODE_BUTTON_A:
+                case KeyEvent.KEYCODE_ESCAPE:
+                case KeyEvent.KEYCODE_BACK:
+                    stopNativeIntroduction(true,null);
+                    break;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_PAGE_UP:
+                    seekNativeIntroduction(-5);
+                    break;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                case KeyEvent.KEYCODE_PAGE_DOWN:
+                    seekNativeIntroduction(5);
+                    break;
+                default:break;
+            }
+        }
+        // Never forward a remote command to the PPTX while intro is active.
+        return true;
+    }
     private void openPlayer(){
         if(inPlayer||!files.has("presentation"))return;
         autoOpenAfterSync=false;
@@ -273,6 +395,7 @@ public final class TvActivity extends Activity {
         player.requestFocus();
     }
     private void returnMenu(){
+        if(introNativeActive)stopNativeIntroduction(false,null);
         autoOpenAfterSync=false;
         hideCustom();
         inPlayer=false;
@@ -286,8 +409,16 @@ public final class TvActivity extends Activity {
         else super.onBackPressed();
     }
     @Override public boolean dispatchKeyEvent(KeyEvent event){
+        if(introNativeActive)return handleNativeIntroKey(event);
         if(inPlayer){
             int code=event.getKeyCode();
+            if(code==KeyEvent.KEYCODE_TAB){
+                // On several Android TV WebViews, Tab moves focus instead of
+                // dispatching DOM keydown. Invoke the exact JS mapping directly.
+                if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)
+                    player.evaluateJavascript("window.tvRemoteTab?.()",null);
+                return true;
+            }
             if(code==KeyEvent.KEYCODE_BACK){
                 if(event.getAction()==KeyEvent.ACTION_UP)returnMenu();
                 return true;
@@ -308,6 +439,7 @@ public final class TvActivity extends Activity {
         return super.dispatchKeyEvent(event);
     }
     @Override protected void onDestroy(){
+        if(introNativeActive)stopNativeIntroduction(false,null);
         hideCustom();
         player.destroy();
         super.onDestroy();

@@ -253,6 +253,18 @@ function openIntro(){
   mode='intro';
   const root=document.fullscreenElement||host;
   if($('intro').parentElement!==root)root.append($('intro'));
+  // Android TV uses the platform MediaPlayer on the verified file in private
+  // storage. WebView can receive Tab but fail to decode the virtual MP4 URL.
+  // A native overlay also prevents hidden HTML media controls from appearing.
+  if(typeof window.AndroidTv?.playIntroduction==='function'){
+    try{window.AndroidTv.playIntroduction();}
+    catch(e){
+      mode='slides';
+      hint('No se pudo abrir el reproductor nativo de introducción.');
+      console.warn('Reproductor nativo:',e);
+    }
+    return;
+  }
   const video=$('intro-video');
   $('intro').hidden=false;video.src=INTRO;video.currentTime=0;
   video.play().catch(e=>{
@@ -320,6 +332,13 @@ document.addEventListener('keydown',event=>{
   handle(key,event.repeat);
 },true);
 window.tvRemoteKey=key=>handle(key,false);
+window.tvRemoteTab=()=>handle('Tab',false);
+// Called by the Activity after native playback completes, fails, or is stopped.
+window.tvNativeIntroEnded=detail=>{
+  if(mode!=='intro')return;
+  closeIntro();
+  if(detail)hint(detail);
+};
 $('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
 window.addEventListener('beforeunload',()=>{

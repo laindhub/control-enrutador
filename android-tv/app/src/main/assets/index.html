@@ -5,6 +5,41 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Más Dueños TV</title>
 <link rel="stylesheet" href="./tv.css">
+<script>
+/* The entry ES module cannot execute if a local import returns 404. Show an
+   actionable TV-friendly error instead of an eternal loading spinner. */
+(function(){
+  window.__tvBooted=false;
+  function startupFailure(details){
+    if(window.__tvBooted)return;
+    const loading=document.getElementById('loading');
+    const title=loading?.querySelector('h1');
+    const message=document.getElementById('message');
+    const retry=document.getElementById('retry-start');
+    if(!loading||!title||!message)return;
+    title.textContent='No se pudo iniciar el visor';
+    message.textContent=details||'No se pudieron cargar los componentes de la app.';
+    const spinner=loading.querySelector('.spinner');
+    if(spinner)spinner.hidden=true;
+    if(retry){retry.hidden=false;retry.focus();}
+  }
+  window.addEventListener('error',event=>{
+    if(window.__tvBooted)return;
+    if(event.target?.tagName==='SCRIPT')startupFailure('Falta un archivo del visor. Reinstalá o actualizá la aplicación.');
+    else startupFailure('Fallo al cargar el visor: '+(event.message||'error de JavaScript'));
+  },true);
+  window.addEventListener('unhandledrejection',event=>{
+    if(!window.__tvBooted)startupFailure('No se pudieron inicializar los módulos del visor.');
+  });
+  window.addEventListener('DOMContentLoaded',()=>{
+    const timeout=Number(window.__tvBootTimeoutMs)||12000;
+    setTimeout(()=>{if(!window.__tvBooted)
+      startupFailure('La aplicación no pudo iniciar sus módulos. Usá Reintentar o instalá la versión actualizada.');
+    },timeout);
+  });
+  window.retryTvStartup=()=>location.reload();
+})();
+</script>
 <script type="module" src="./tv.js"></script>
 </head>
 <body>
@@ -15,6 +50,7 @@
     <h1>Preparando presentación</h1>
     <p id="message" role="status">Abriendo PowerPoint desde la copia guardada…</p>
     <div class="spinner" aria-hidden="true"></div>
+    <button id="retry-start" type="button" hidden onclick="retryTvStartup()">Reintentar</button>
   </section>
   <section id="ready" class="screen" hidden>
     <div class="eyebrow">PRESENTACIÓN COMERCIAL · ANDROID TV</div>

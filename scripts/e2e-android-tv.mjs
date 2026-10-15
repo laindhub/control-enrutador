@@ -27,6 +27,13 @@ assert.match(nativeRouter,/files\.file\("introduction"\)\.getAbsolutePath\(\)/);
 assert.match(nativeRouter,/KEYCODE_TAB/);
 assert.match(nativeRouter,/seekNativeIntroduction\(-5\)/);
 assert.match(nativeRouter,/seekNativeIntroduction\(5\)/);
+// Physical PageUp/PageDown must be handled directly by the Activity after the
+// native video removes its overlay, without depending on WebView focus.
+assert.ok(nativeRouter.includes('code==KeyEvent.KEYCODE_PAGE_UP||code==KeyEvent.KEYCODE_PAGE_DOWN'));
+assert.ok(nativeRouter.includes('dispatchSlideNavigation(code==KeyEvent.KEYCODE_PAGE_DOWN?"PageDown":"PageUp")'));
+assert.ok(nativeRouter.includes('window.tvNativeIntroEnded?.'));
+assert.ok(nativeRouter.includes('window.tvRemoteKey?.'));
+assert.ok(nativeRouter.includes('event.getRepeatCount()==0'));
 
 const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
 // Browser tests must not serve an import that Android's real WebView rejects.
@@ -189,7 +196,17 @@ try {
     'native playback must not show the WebView video overlay');
   assert.equal(await page.locator('#intro-video').getAttribute('src'),null,
     'native playback must not request the virtual MP4 from WebView');
-  await page.evaluate(()=>window.tvNativeIntroEnded(''));
+  // Mirrors the exact JS batch delivered from Android's physical
+  // PageDown key after the TextureView overlay loses keyboard focus.
+  await page.evaluate(()=>{
+    window.tvNativeIntroEnded('');
+    window.tvRemoteKey('PageDown');
+  });
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1',
+    'PageDown must navigate immediately after native video, even without DOM keydown');
+  await page.evaluate(()=>window.tvRemoteKey('PageUp'));
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'0',
+    'PageUp must navigate immediately after native video without focus');
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1');
   // The viewer's floating controls must be hidden even when its own markup

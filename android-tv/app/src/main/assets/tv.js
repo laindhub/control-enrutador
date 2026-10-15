@@ -1,5 +1,7 @@
 import {duplicateVideoPreviewSlides,mayAutoPlayVideo} from './presentation-media.js';
 import {getTimedVideoSlide} from './presentation-timing.js';
+// Reaching this line confirms that every local ES module resolved correctly.
+window.__tvBooted=true;
 const $=id=>document.getElementById(id);
 const DECK='/tv/cache/presentation.pptx';
 const INTRO='/tv/cache/introduccion.mp4';
@@ -11,10 +13,25 @@ let mediaObserver=null,mediaGeneration=0;
 const host=$('slides');
 
 function message(value){$('message').textContent=value;}
+async function deadline(promise,stage,ms=90000){
+  let timeoutId;
+  try{
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise((_,reject)=>{timeoutId=setTimeout(()=>
+        reject(new Error('Tiempo agotado al '+stage+'. Probá con Reintentar o reiniciá el televisor.')),ms);}),
+    ]);
+  }finally{clearTimeout(timeoutId);}
+}
 function error(value){
   mode='error';$('loading').hidden=false;$('ready').hidden=true;
   $('loading').querySelector('h1').textContent='No se pudo abrir la presentación';
-  message(value?.message||String(value));console.error('Android TV:',value);
+  message(value?.message||String(value));
+  const spinner=$('loading').querySelector('.spinner');
+  if(spinner)spinner.hidden=true;
+  const retry=$('retry-start');
+  if(retry){retry.hidden=false;retry.focus();}
+  console.error('Android TV:',value);
 }
 function visibleMedia(){
   const root=document.fullscreenElement||host;
@@ -100,16 +117,20 @@ function enableLoop(){
 async function prepare(){
   try{
     message('Abriendo el PPTX guardado en Android TV…');
-    const response=await fetch(DECK,{cache:'no-store'});
+    const response=await deadline(fetch(DECK,{cache:'no-store'}),
+      'abrir el PowerPoint guardado');
     if(!response.ok)throw Error('No hay PPTX guardado. Volvé al menú y buscá actualizaciones.');
     if(!response.headers.get('content-type')?.includes('presentationml'))
       throw Error('El archivo descargado no es PowerPoint.');
-    const blob=await response.blob();
+    message('Leyendo PowerPoint guardado ('+
+      (Number(response.headers.get('content-length')||0)/1048576).toFixed(1)+' MB)…');
+    const blob=await deadline(response.blob(),'leer el PowerPoint guardado');
     const head=new Uint8Array(await blob.slice(0,4).arrayBuffer());
     if(head[0]!==80||head[1]!==75||head[2]!==3||head[3]!==4)
       throw Error('El archivo guardado no tiene formato PPTX.');
     message('Preparando diapositivas…');
-    const {createPptxViewer}=await import(MODULE);
+    const {createPptxViewer}=await deadline(import(MODULE),
+      'cargar el motor PowerPoint');
     if(typeof createPptxViewer!=='function')throw Error('No se pudo cargar el visor de PowerPoint.');
     viewer=createPptxViewer(host,{
       editable:false,autosave:false,locale:'es',showToolbar:false,
@@ -128,10 +149,13 @@ async function prepare(){
     const file=new File([blob],'mas-duenos-liniers.pptx',{
       type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     });
-    await viewer.loadFile(file);
+    message('Interpretando las diapositivas. Puede tardar en algunos televisores…');
+    await deadline(viewer.loadFile(file),'interpretar las diapositivas',120000);
     if(total<1)throw Error('No hay diapositivas reconocibles.');
     // Same SHA-256-based click-build detection as the web presentation.
-    mediaBuildSlide=await getTimedVideoSlide(file);
+    message('Verificando las animaciones y el video de Geraldine…');
+    mediaBuildSlide=await deadline(getTimedVideoSlide(file),
+      'verificar las animaciones',90000);
     pausedPreviewSlides=duplicateVideoPreviewSlides(viewer.getSlides?.()||[]);
     mediaObserver?.disconnect();
     mediaObserver=new MutationObserver(()=>{if(mode==='slides')scheduleMedia();});

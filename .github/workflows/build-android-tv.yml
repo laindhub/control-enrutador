@@ -5,6 +5,7 @@ on:
       - 'android-tv/**'
       - 'src/tv-media.js'
       - 'test/tv-media.test.js'
+      - 'scripts/e2e-android-tv.mjs'
       - '.github/workflows/build-android-tv.yml'
   workflow_dispatch:
 permissions:
@@ -23,6 +24,12 @@ jobs:
         with:
           gradle-version: '8.12'
       - run: node --test test/tv-media.test.js
+      - name: Install browser simulation dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify complete keyboard navigation in Chromium
+        run: node scripts/e2e-android-tv.mjs
       - name: Build installable Android TV debug APK
         working-directory: android-tv
         run: gradle --no-daemon :app:assembleDebug

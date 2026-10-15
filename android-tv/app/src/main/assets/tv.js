@@ -82,9 +82,13 @@ function visibleMedia(){
 }
 function hasVideoModel(element){
   if(!element||typeof element!=='object')return false;
-  const mime=String(element.mimeType||element.mediaType||element.mime||'').toLowerCase();
-  const type=String(element.type||element.kind||'').toLowerCase();
+  const mime=String(element.mimeType||element.mediaType||element.mime||
+    element.media?.mimeType||element.video?.mimeType||'').toLowerCase();
+  const type=String(element.type||element.kind||element.media?.type||'').toLowerCase();
+  const source=String(element.src||element.fileName||element.media?.src||
+    element.media?.fileName||element.video?.src||'');
   return type.includes('video')||mime.includes('video')||
+    /\\.(mp4|webm)([?#]|$)/i.test(source)||
     ['elements','children'].some(key=>Array.isArray(element[key])&&element[key].some(hasVideoModel));
 }
 function locateGeraldineBuild(slides,known){

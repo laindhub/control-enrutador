@@ -33,3 +33,21 @@ button:focus,button:focus-visible{outline:5px solid #fff;outline-offset:7px;tran
 /* The bundled player never exposes its own media playback toolbar. */
 #intro-video::-webkit-media-controls-enclosure,
 #intro-video::-webkit-media-controls-panel{display:none!important}
+
+/* WebView can supply native media controls independently of PPTX chrome. */
+body.tv-presenting #slides video::-webkit-media-controls,
+body.tv-presenting #slides video::-webkit-media-controls-enclosure,
+body.tv-presenting #slides video::-webkit-media-controls-panel,
+body.tv-presenting #slides video::-webkit-media-controls-play-button,
+body.tv-presenting #slides video::-webkit-media-controls-timeline {
+  display:none!important;opacity:0!important;visibility:hidden!important;
+}
+body.tv-presenting #slides video{pointer-events:none!important}
+body.tv-presenting .pptxv-present-controls,
+body.tv-presenting .pptxv-presentation-controls,
+body.tv-presenting .pptxv-statusbar,
+body.tv-presenting .pptxv-slide-toolbar,
+body.tv-presenting [class*="presenter-toolbar"],
+body.tv-presenting [class*="presenter-controls"]{
+  display:none!important;visibility:hidden!important;pointer-events:none!important
+}

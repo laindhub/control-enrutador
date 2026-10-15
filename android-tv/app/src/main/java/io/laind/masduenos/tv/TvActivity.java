@@ -10,6 +10,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
+import android.webkit.ConsoleMessage;
+import android.util.Log;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -76,6 +78,10 @@ public final class TvActivity extends Activity {
         player.setOverScrollMode(View.OVER_SCROLL_NEVER);
         player.setWebViewClient(new LocalClient());
         player.setWebChromeClient(new WebChromeClient(){
+            @Override public boolean onConsoleMessage(ConsoleMessage info){
+                Log.w("MasDuenosTV",info.message()+" ["+info.sourceId()+":"+info.lineNumber()+"]");
+                return true;
+            }
             @Override public void onShowCustomView(View view,CustomViewCallback callback){
                 if(customView!=null){callback.onCustomViewHidden();return;}
                 customView=view;customCallback=callback;

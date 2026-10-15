@@ -1,0 +1,20 @@
+*{box-sizing:border-box}
+html,body,#app{width:100%;height:100%;margin:0;overflow:hidden;background:#090a0c;color:#fff;font-family:Roboto,Arial,sans-serif;cursor:none!important}
+[hidden]{display:none!important}
+#slides{position:absolute;inset:0;overflow:hidden;background:#050506}
+#slides .pptxv{height:100%!important;width:100%!important}
+#slides .pptxv-present-toolbar-wrap,#slides .pptxv-present-toolbar{display:none!important}
+:fullscreen,:fullscreen *,#intro,#intro *,#slides,#slides *{cursor:none!important}
+.screen{position:absolute;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;background:linear-gradient(140deg,#161719,#090a0c);padding:5vw;text-align:center}
+.eyebrow{color:#df5550;font-size:clamp(18px,2.2vw,28px);letter-spacing:.22em;font-weight:700}
+h1{font-size:clamp(44px,5vw,80px);font-weight:780;margin:20px 0}
+p{font-size:clamp(18px,1.65vw,28px);color:#c2c2ca;max-width:980px;line-height:1.5}
+button{padding:20px 42px;background:#c72c28;border:2px solid #f06861;border-radius:16px;color:white;font-size:clamp(24px,2vw,32px);font-weight:bold;margin:26px 0}
+button:focus,button:focus-visible{outline:5px solid #fff;outline-offset:7px;transform:scale(1.025)}
+.tip{font-size:clamp(16px,1.4vw,23px);color:#aaa}
+.spinner{width:54px;height:54px;border:6px solid #353539;border-top-color:#c82d29;border-radius:50%;animation:spin .8s linear infinite;margin:32px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#intro{position:fixed;inset:0;z-index:5000;background:black}
+#intro-video{width:100%;height:100%;object-fit:contain;background:#000}
+#intro-video::-webkit-media-controls{display:none!important}
+#hint{position:absolute;bottom:32px;right:32px;z-index:8000;background:#19191cd9;padding:15px 24px;border-radius:12px;font-size:20px}

@@ -21,6 +21,9 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.graphics.drawable.GradientDrawable;
+import android.content.res.Configuration;
 import android.widget.TextView;
 import java.io.*;
 import java.util.HashMap;
@@ -33,6 +36,7 @@ public final class TvActivity extends Activity {
     private TvAssetStore files;
     private FrameLayout frame;
     private LinearLayout menu;
+    private ScrollView menuSurface;
     private TextView pptxStatus,videoStatus,notice;
     private ProgressBar pptxProgress,videoProgress;
     private Button open,retry;
@@ -101,48 +105,114 @@ public final class TvActivity extends Activity {
         if(customCallback!=null){customCallback.onCustomViewHidden();customCallback=null;}
         player.requestFocus();
     }
+    private GradientDrawable panelBackground(int color,int stroke,int radius){
+        GradientDrawable bg=new GradientDrawable();
+        bg.setColor(color);
+        bg.setCornerRadius(dp(radius));
+        if(stroke!=0)bg.setStroke(dp(1),stroke);
+        return bg;
+    }
     private void createMenu(){
-        menu=vertical();menu.setGravity(Gravity.CENTER);
-        menu.setPadding(dp(42),dp(28),dp(42),dp(28));
-        frame.addView(menu,new FrameLayout.LayoutParams(-1,-1));
-        TextView kicker=text("MÁS DUEÑOS  /  LINIERS",19,Color.rgb(230,81,70),true);
+        // TV-safe viewport: never center a content column taller than the screen.
+        // A ScrollView keeps both buttons reachable on short/overscanned TVs.
+        int widthDp=getResources().getConfiguration().screenWidthDp;
+        int heightDp=getResources().getConfiguration().screenHeightDp;
+        boolean shortTV=heightDp<620;
+        int edge=dp(shortTV?22:32);
+        int gap=dp(shortTV?12:18);
+        menuSurface=new ScrollView(this);
+        menuSurface.setFillViewport(true);
+        menuSurface.setVerticalScrollBarEnabled(false);
+        menuSurface.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        menuSurface.setClipToPadding(false);
+        frame.addView(menuSurface,new FrameLayout.LayoutParams(-1,-1));
+
+        LinearLayout viewport=vertical();
+        viewport.setGravity(Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+        viewport.setPadding(edge,edge,edge,edge);
+        menuSurface.addView(viewport,new ScrollView.LayoutParams(-1,-2));
+        menu=vertical();
+        menu.setGravity(Gravity.TOP);
+        menu.setPadding(dp(shortTV?20:30),dp(shortTV?18:28),
+            dp(shortTV?20:30),dp(shortTV?18:28));
+        menu.setBackground(panelBackground(Color.rgb(26,27,32),Color.rgb(50,51,58),18));
+        LinearLayout.LayoutParams container=new LinearLayout.LayoutParams(-1,-2);
+        // Cap content width, but never exceed the available viewport.
+        int desired=dp(widthDp<950?680:900);
+        container.width=Math.min(desired,Math.max(dp(300),getResources().getDisplayMetrics().widthPixels-2*edge));
+        viewport.addView(menu,container);
+
+        TextView kicker=text("MÁS DUEÑOS  /  LINIERS",shortTV?15:17,Color.rgb(235,95,86),true);
+        kicker.setLetterSpacing(.12f);
         menu.addView(kicker);
-        TextView heading=text("Presentación comercial",35,Color.WHITE,true);
-        heading.setPadding(0,dp(15),0,dp(26));
+        TextView heading=text("Presentación comercial",shortTV?30:39,Color.WHITE,true);
+        heading.setPadding(0,gap,0,gap);
         menu.addView(heading);
-        TextView info=text("Archivos guardados en este televisor. Se actualizan desde Hostinger.",18,
-            Color.rgb(198,198,205),false);
+        TextView info=text("Presentaciones listas para usar, incluso sin conexión.",
+            shortTV?15:17,Color.rgb(186,188,197),false);
         menu.addView(info);
-        pptxStatus=text("PowerPoint · comprobando...",17,Color.WHITE,false);
-        pptxStatus.setPadding(0,dp(23),0,dp(6));menu.addView(pptxStatus);
+
+        TextView filesTitle=text("ARCHIVOS EN EL TELEVISOR",shortTV?12:14,
+            Color.rgb(160,162,172),true);
+        filesTitle.setLetterSpacing(.08f);
+        filesTitle.setPadding(0,dp(shortTV?17:25),0,dp(5));
+        menu.addView(filesTitle);
+        pptxStatus=text("PowerPoint · comprobando…",shortTV?15:17,Color.WHITE,false);
+        pptxStatus.setPadding(0,dp(7),0,dp(7));menu.addView(pptxStatus);
         pptxProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
-        pptxProgress.setMax(100);menu.addView(pptxProgress,new LinearLayout.LayoutParams(dp(560),dp(7)));
-        videoStatus=text("Introducción · comprobando...",17,Color.WHITE,false);
-        videoStatus.setPadding(0,dp(23),0,dp(6));menu.addView(videoStatus);
+        pptxProgress.setMax(100);
+        menu.addView(pptxProgress,new LinearLayout.LayoutParams(-1,dp(6)));
+        videoStatus=text("Introducción MP4 · comprobando…",shortTV?15:17,Color.WHITE,false);
+        videoStatus.setPadding(0,dp(14),0,dp(7));menu.addView(videoStatus);
         videoProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
-        videoProgress.setMax(100);menu.addView(videoProgress,new LinearLayout.LayoutParams(dp(560),dp(7)));
-        notice=text("Preparando archivos…",15,Color.rgb(188,188,195),false);
-        notice.setPadding(0,dp(18),0,dp(8));menu.addView(notice);
-        LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER);
+        videoProgress.setMax(100);
+        menu.addView(videoProgress,new LinearLayout.LayoutParams(-1,dp(6)));
+
+        notice=text("Preparando archivos…",shortTV?13:15,Color.rgb(173,178,190),false);
+        notice.setPadding(0,dp(13),0,dp(5));menu.addView(notice);
+
+        LinearLayout actions=vertical();
+        LinearLayout.LayoutParams actionsLayout=new LinearLayout.LayoutParams(-1,-2);
+        actionsLayout.topMargin=dp(shortTV?10:16);
+        menu.addView(actions,actionsLayout);
         open=new Button(this);
         open.setText("▶  Abrir presentación");
-        open.setTextSize(19);
-        open.setMinWidth(dp(280));
+        open.setTextSize(shortTV?17:20);
+        open.setAllCaps(false);
+        open.setMinHeight(dp(shortTV?48:58));
         open.setOnClickListener(v->openPlayer());
-        actions.addView(open,new LinearLayout.LayoutParams(-2,dp(60)));
+        actions.addView(open,new LinearLayout.LayoutParams(-1,-2));
         retry=new Button(this);
         retry.setText("Buscar actualizaciones");
-        retry.setTextSize(17);
+        retry.setTextSize(shortTV?16:18);
+        retry.setAllCaps(false);
+        retry.setMinHeight(dp(shortTV?46:54));
         retry.setOnClickListener(v->refresh());
-        LinearLayout.LayoutParams gap=new LinearLayout.LayoutParams(-2,dp(60));
-        gap.leftMargin=dp(18);actions.addView(retry,gap);
-        LinearLayout.LayoutParams actionLayout=new LinearLayout.LayoutParams(-2,-2);
-        actionLayout.topMargin=dp(22);
-        menu.addView(actions,actionLayout);
-        TextView tips=text("Usá las flechas y OK del control o un teclado USB/Bluetooth. Atrás vuelve al menú.",15,
-            Color.rgb(167,167,180),false);
-        tips.setPadding(0,dp(25),0,0);menu.addView(tips);
-        menu.setFocusable(false);
+        LinearLayout.LayoutParams retryLayout=new LinearLayout.LayoutParams(-1,-2);
+        retryLayout.topMargin=dp(8);
+        actions.addView(retry,retryLayout);
+        View.OnFocusChangeListener focus=(v,hasFocus)->{
+            v.animate().scaleX(hasFocus?1.018f:1f).scaleY(hasFocus?1.018f:1f)
+                .setDuration(120).start();
+            v.setAlpha(hasFocus?1f:.92f);
+            if(hasFocus)menuSurface.post(()->{
+                android.graphics.Rect rect=new android.graphics.Rect();
+                v.getDrawingRect(rect);
+                menuSurface.offsetDescendantRectToMyCoords((View)v,rect);
+                menuSurface.smoothScrollTo(0,Math.max(0,rect.bottom-menuSurface.getHeight()+dp(35)));
+            });
+        };
+        open.setOnFocusChangeListener(focus);
+        retry.setOnFocusChangeListener(focus);
+        open.setId(View.generateViewId());
+        retry.setId(View.generateViewId());
+        open.setNextFocusDownId(retry.getId());
+        retry.setNextFocusUpId(open.getId());
+
+        TextView tips=text("Flechas: navegar   •   OK: seleccionar   •   Atrás: volver",
+            shortTV?12:14,Color.rgb(161,162,170),false);
+        tips.setPadding(0,dp(13),0,0);
+        menu.addView(tips);
     }
     private void refresh(){
         retry.setEnabled(false);
@@ -181,7 +251,7 @@ public final class TvActivity extends Activity {
     private void openPlayer(){
         if(!files.has("presentation"))return;
         inPlayer=true;
-        menu.setVisibility(View.GONE);
+        menuSurface.setVisibility(View.GONE);
         player.setVisibility(View.VISIBLE);
         player.loadUrl(LOCAL+"index.html");
         player.requestFocus();
@@ -191,7 +261,7 @@ public final class TvActivity extends Activity {
         inPlayer=false;
         player.loadUrl("about:blank");
         player.setVisibility(View.GONE);
-        menu.setVisibility(View.VISIBLE);
+        menuSurface.setVisibility(View.VISIBLE);
         open.requestFocus();
     }
     @Override public void onBackPressed(){

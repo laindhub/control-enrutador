@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" type="image/svg+xml" href="<%= assetUrl('assets/favicon-red.svg') %>">
+  <title>Impresión Más Dueños · Extensión</title>
+  <style>
+    :root{color-scheme:light;font-family:Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:#151515;background:#f5f5f5}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100dvh}
+    a{color:inherit}
+    header{background:#fff;border-bottom:1px solid #e7e7e7;padding:17px max(18px,env(safe-area-inset-left));display:flex;align-items:center;justify-content:space-between;gap:16px}
+    header strong{font-size:18px;letter-spacing:-.025em}
+    header a{color:#666;font-size:13px;text-decoration:none}
+    main{max-width:920px;margin:0 auto;padding:32px 18px 72px}
+    .intro{border:1px solid #e5e5e5;background:white;border-radius:28px;padding:clamp(24px,6vw,46px)}
+    .tag{display:inline-flex;align-items:center;gap:8px;color:#b0211b;background:#fff1f0;border-radius:99px;padding:7px 12px;font-size:12px;font-weight:700}
+    .tag::before{content:'';width:7px;height:7px;border-radius:50%;background:#d8251b}
+    h1{font-size:clamp(31px,6vw,50px);letter-spacing:-.048em;line-height:1.05;margin:20px 0}
+    p{line-height:1.6;color:#5a5a5a;font-size:15px}
+    .lead{max-width:620px;margin-bottom:24px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:13px 22px;background:#d8251b;color:#fff;text-decoration:none;font-weight:700;border-radius:14px;border:0;font-size:15px}
+    .disabled{background:#ccc;color:#333;cursor:not-allowed}
+    .hint{font-size:13px;margin:12px 0 0}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
+    .card{background:#fff;border:1px solid #e5e5e5;border-radius:22px;padding:25px}
+    h2{font-size:18px;margin:0 0 12px;letter-spacing:-.02em}
+    ol{padding-left:21px;margin:10px 0 0}
+    li{margin:0 0 14px;line-height:1.55;color:#4a4a4a;font-size:14px}
+    li:last-child{margin-bottom:0}
+    code{font-size:.92em;background:#f4f4f4;padding:2px 4px;border-radius:5px}
+    .note{margin-top:20px;color:#777;font-size:13px}
+    .mono{font-variant-numeric:tabular-nums}
+    @media(max-width:650px){main{padding-top:20px}.grid{grid-template-columns:1fr}.card{padding:22px}}
+  </style>
+</head>
+<body>
+<header><strong>Salón Más Dueños</strong><a href="/">Volver a la webapp ↗</a></header>
+<main>
+  <section class="intro">
+    <span class="tag">Extensión para Edge y Chrome · v2.3.1</span>
+    <h1>Impresión Más Dueños</h1>
+    <p class="lead">Imprimí los Full-Test de Liniers de forma más simple: dos páginas en cada A4 vertical y dos copias idénticas, preparadas localmente en tu navegador.</p>
+    <% if(downloadable){ %>
+      <a class="btn" href="/impresion/descargar" download>↓ Descargar extensión 2.3.1</a>
+      <p class="hint">Archivo ZIP completo. Descargalo desde tu PC y extraelo antes de instalarlo.</p>
+    <% }else{ %>
+      <span class="btn disabled" aria-disabled="true">Preparando descarga</span>
+      <p class="hint">La página está disponible. El paquete todavía se está publicando en el servidor.</p>
+    <% } %>
+  </section>
+  <section class="grid">
+    <div class="card">
+      <h2>Cómo instalarla</h2>
+      <ol>
+        <li>Descargá el ZIP y extraé la carpeta <code>Impresion_Mas_Duenos_2.3.1</code> en un lugar fijo.</li>
+        <li>Abrí <code>edge://extensions</code> o <code>chrome://extensions</code> en la barra de direcciones.</li>
+        <li>Activá <strong>Modo de desarrollador</strong>, elegí <strong>Cargar desempaquetada</strong> y seleccioná la carpeta que contiene <code>manifest.json</code>.</li>
+        <li>Desactivá versiones anteriores y recargá la pestaña de Liniers.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>Cómo imprimir</h2>
+      <ol>
+        <li>Entrá al Full-Test y tocá <strong>Imprimir el Full-Test</strong>.</li>
+        <li>La extensión detecta el botón con un indicador verde animado y prepara el documento.</li>
+        <li>En la ventana de impresión seleccioná A4, orientación vertical, una cara, 1 página por hoja y 1 copia.</li>
+        <li>Confirmá la impresión. Las dos copias idénticas ya vienen dentro del documento.</li>
+      </ol>
+    </div>
+  </section>
+  <p class="note">Compatible con navegadores Chromium versión 119 o posterior. La extensión solicita acceso al sitio de Liniers y permiso de depuración para capturar el test; los archivos se procesan localmente. No imprime sin la confirmación final del navegador.</p>
+</main>
+</body>
+</html>

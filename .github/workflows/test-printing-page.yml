@@ -1,0 +1,24 @@
+name: Test printing extension page
+on:
+  push:
+    paths:
+      - 'src/server.js'
+      - 'views/impression.ejs'
+      - 'test/printing-page.test.js'
+      - '.github/workflows/test-printing-page.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --check src/server.js
+      - run: node --test test/printing-page.test.js

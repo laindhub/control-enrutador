@@ -5,7 +5,7 @@ process.once('SIGTERM', () => { stopLeadSync().finally(() => process.exit(0)); }
 process.once('SIGINT', () => { stopLeadSync().finally(() => process.exit(0)); });
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import { createHash, randomBytes } from 'node:crypto';
@@ -102,6 +102,18 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+
+// Public installation/download page. Independent from CRM/database startup.
+const impressionZip = path.join(publicRoot,'assets','impresion','Impresion_Mas_Duenos_2.3.1.zip');
+app.get('/impresion', (_req,res) => {
+  res.setHeader('Cache-Control','no-store');
+  res.render('impression', { downloadable:existsSync(impressionZip) });
+});
+app.get('/impresion/descargar', (_req,res,next) => {
+  if (!existsSync(impressionZip)) return res.status(503).type('text/plain').send('La extensión todavía no está publicada.');
+  res.setHeader('Cache-Control','no-store');
+  res.download(impressionZip,'Impresion_Mas_Duenos_2.3.1.zip',next);
+});
 
 app.get('/health', async (req, res, next) => {
   if (startupState === 'starting') {

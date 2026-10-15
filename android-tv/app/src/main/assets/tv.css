@@ -51,3 +51,40 @@ body.tv-presenting [class*="presenter-toolbar"],
 body.tv-presenting [class*="presenter-controls"]{
   display:none!important;visibility:hidden!important;pointer-events:none!important
 }
+
+/* Strict TV kiosk mode: only the slide's rendered content/media may be seen.
+   Navigation is handled by our remote/keyboard controller, never viewer UI. */
+body.tv-presenting #slides,
+body.tv-presenting #slides * {
+  -webkit-tap-highlight-color:transparent!important;
+}
+body.tv-presenting #slides{touch-action:none!important}
+body.tv-presenting .pptxv :is(button,[role="button"]),
+body.tv-presenting .pptxv-present-toolbar,
+body.tv-presenting .pptxv-present-toolbar-wrap,
+body.tv-presenting .pptxv-presentation-touch-exit,
+body.tv-presenting .pptxv-present-nav,
+body.tv-presenting .pptxv-present-navigation,
+body.tv-presenting .pptxv-present-prev,
+body.tv-presenting .pptxv-present-next,
+body.tv-presenting .pptxv-present-touch-prev,
+body.tv-presenting .pptxv-present-touch-next,
+body.tv-presenting .pptxv-present-counter,
+body.tv-presenting .pptxv-present-slide-counter,
+body.tv-presenting .pptxv-slide-counter,
+body.tv-presenting .pptxv-slide-indicator,
+body.tv-presenting .pptxv-present-footer,
+body.tv-presenting .pptxv-present-overlay-controls,
+body.tv-presenting [class*="present-toolbar"],
+body.tv-presenting [class*="present-nav"],
+body.tv-presenting [class*="present-control"],
+body.tv-presenting [class*="touch-nav"],
+body.tv-presenting [class*="touch-exit"],
+body.tv-presenting [class*="slide-counter"],
+body.tv-presenting [class*="slide-indicator"],
+body.tv-presenting #hint {
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}

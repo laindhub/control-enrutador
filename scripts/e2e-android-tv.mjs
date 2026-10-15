@@ -8,7 +8,7 @@ const dir=path.resolve('android-tv/app/src/main/assets');
 const nativeRouter=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvActivity.java','utf8');
 const htmlEntry=readFileSync(path.join(dir,'index.html'),'utf8');
 assert.match(nativeRouter,/autoOpenAfterSync/);
-assert.match(nativeRouter,/void refresh\(\)/);
+assert.match(nativeRouter,/if\(playable && autoOpenAfterSync && !inPlayer\)/);
 assert.match(nativeRouter,/openPlayer\(\)/);
 const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
 // Browser tests must not serve an import that Android's real WebView rejects.

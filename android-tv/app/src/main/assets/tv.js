@@ -33,7 +33,7 @@ function removePresentationChrome(){
     if(video.controls)video.controls=false;
     if(video.hasAttribute('controls'))video.removeAttribute('controls');
     video.setAttribute('controlsList','nodownload noplaybackrate nofullscreen');
-    video.style.pointerEvents='none';
+    if(video.style.pointerEvents!=='none')video.style.pointerEvents='none';
   }
 }
 // The viewer injects its own CSS and may recreate toolbar DOM during every
@@ -43,7 +43,10 @@ function keepPresenterChromeHidden(){
   removePresentationChrome();
   chromeObserver?.disconnect();
   chromeObserver=new MutationObserver(()=>removePresentationChrome());
-  chromeObserver.observe(document.body,{childList:true,subtree:true});
+  chromeObserver.observe(document.body,{
+    childList:true,subtree:true,attributes:true,
+    attributeFilter:['style','class'],
+  });
 }
 
 const host=$('slides');

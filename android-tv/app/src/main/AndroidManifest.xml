@@ -1,0 +1,23 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-feature android:name="android.software.leanback" android:required="false"/>
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+    <application android:label="Más Dueños TV" android:theme="@android:style/Theme.Material.NoActionBar"
+        android:usesCleartextTraffic="false" android:allowBackup="false"
+        android:supportsRtl="true" android:banner="@drawable/tv_banner"
+        android:icon="@drawable/tv_icon">
+        <activity android:name=".TvActivity" android:exported="true"
+            android:screenOrientation="landscape" android:configChanges="screenSize|orientation"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

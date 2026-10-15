@@ -10,6 +10,13 @@ const htmlEntry=readFileSync(path.join(dir,'index.html'),'utf8');
 assert.match(nativeRouter,/autoOpenAfterSync/);
 assert.match(nativeRouter,/if\(playable && autoOpenAfterSync && !inPlayer\)/);
 assert.match(nativeRouter,/openPlayer\(\)/);
+assert.match(nativeRouter,/new IntroBridge\(\)/);
+assert.match(nativeRouter,/new VideoView\(this\)/);
+assert.match(nativeRouter,/files\.file\("introduction"\)\.getAbsolutePath\(\)/);
+assert.match(nativeRouter,/KEYCODE_TAB/);
+assert.match(nativeRouter,/seekNativeIntroduction\(-5\)/);
+assert.match(nativeRouter,/seekNativeIntroduction\(5\)/);
+
 const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
 // Browser tests must not serve an import that Android's real WebView rejects.
 // This previously caused production to freeze on the static loading screen
@@ -158,6 +165,20 @@ try {
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'0');
   await page.keyboard.press('Tab');
   await page.locator('#intro').waitFor({state:'hidden'});
+  // Simulate Android's JS bridge: the physical Tab must request NATIVE
+  // playback instead of starting the WebView's virtual MP4 URL.
+  await page.evaluate(()=>{
+    window.__nativeIntroStarts=0;
+    window.AndroidTv={playIntroduction(){window.__nativeIntroStarts++;}};
+  });
+  await page.evaluate(()=>window.tvRemoteTab());
+  assert.equal(await page.evaluate(()=>window.__nativeIntroStarts),1,
+    'native Tab must invoke the Android player exactly once');
+  assert.equal(await page.locator('#intro').isVisible(),false,
+    'native playback must not show the WebView video overlay');
+  assert.equal(await page.locator('#intro-video').getAttribute('src'),null,
+    'native playback must not request the virtual MP4 from WebView');
+  await page.evaluate(()=>window.tvNativeIntroEnded(''));
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1');
   // The viewer's floating controls must be hidden even when its own markup

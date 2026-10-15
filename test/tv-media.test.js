@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {createTvMediaStore} from '../src/tv-media.js';
+
+test('TV manifest hashes files directly from Hostinger and tracks updated versions',async t=>{
+  const dir=await mkdtemp(path.join(tmpdir(),'masduenos-tv-'));
+  t.after(()=>rm(dir,{recursive:true,force:true}));
+  const folder=path.join(dir,'public','presentaciones');
+  await mkdir(folder,{recursive:true});
+  const pptx=path.join(folder,'mas-duenos-liniers.pptx');
+  const mp4=path.join(folder,'introduccion.mp4');
+  await writeFile(pptx,Buffer.concat([Buffer.from([0x50,0x4b,0x03,0x04]),Buffer.alloc(32,1)]));
+  await writeFile(mp4,Buffer.concat([Buffer.from([0,0,0,28]),Buffer.from('ftypisom'),Buffer.alloc(20,2)]));
+  const store=createTvMediaStore({projectRoot:dir,homeDir:path.join(dir,'home')});
+  const original=await store.manifest();
+  assert.equal(original.presentation.size,36);
+  assert.equal(original.introduction.size,32);
+  assert.equal(original.presentation.sha256.length,64);
+  assert.equal(original.introduction.url,'/tv/media/introduccion.mp4');
+  assert.deepEqual(await store.manifest(),original);
+  await writeFile(pptx,Buffer.concat([Buffer.from([0x50,0x4b,0x03,0x04]),Buffer.alloc(43,3)]));
+  await writeFile(mp4,Buffer.concat([Buffer.from([0,0,0,33]),Buffer.from('ftypisom'),Buffer.alloc(28,5)]));
+  const modified=await store.manifest();
+  assert.notEqual(original.presentation.sha256,modified.presentation.sha256);
+  assert.notEqual(original.introduction.sha256,modified.introduction.sha256);
+  assert.equal(modified.presentation.size,47);
+  assert.equal(modified.introduction.size,40);
+});
+test('TV manifest excludes missing or disguised content',async t=>{
+  const dir=await mkdtemp(path.join(tmpdir(),'masduenos-tv-'));
+  t.after(()=>rm(dir,{recursive:true,force:true}));
+  const folder=path.join(dir,'public','presentaciones');
+  await mkdir(folder,{recursive:true});
+  const store=createTvMediaStore({projectRoot:dir});
+  assert.deepEqual(await store.manifest(),{version:1,presentation:null,introduction:null});
+  await writeFile(path.join(folder,'mas-duenos-liniers.pptx'),Buffer.from('<html>conectando</html>'));
+  await writeFile(path.join(folder,'introduccion.mp4'),Buffer.from('<html>conectando</html>'));
+  assert.equal((await store.manifest()).presentation,null);
+  assert.equal((await store.manifest()).introduction,null);
+});

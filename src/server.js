@@ -43,6 +43,7 @@ import { PROJECT_CATALOG } from './ai-demo-knowledge.js';
 import { CRM_TEST_URL, cspForCrmIframe } from './iframe-probe.js';
 import { resolveOfficialPresentation } from './official-presentation.js';
 import { resolveIntroVideo } from './intro-video.js';
+import { createTvMediaStore } from './tv-media.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -130,6 +131,42 @@ app.get('/health', async (req, res, next) => {
       .catch(next);
   });
 });
+
+// Android TV uses a separate versioned download API. This intentionally does
+// not change the desktop presentation's fixed SHA-256 verification contract.
+const tvMedia=createTvMediaStore({
+  projectRoot:root,
+  presentationPath:process.env.MAS_DUENOS_PRESENTATION_PATH||'',
+  introductionPath:process.env.MAS_DUENOS_INTRO_PATH||'',
+});
+app.get('/tv/manifest.json',async(_req,res,next)=>{
+  try{
+    const manifest=await tvMedia.manifest();
+    res.setHeader('Cache-Control','no-store');
+    if(!manifest.presentation)return res.status(503).json({error:'PPTX no disponible',version:1});
+    return res.json({
+      version:1,
+      presentation:((x)=>({url:x.url,size:x.size,sha256:x.sha256,modified:x.modified}))(manifest.presentation),
+      introduction:manifest.introduction?
+        ((x)=>({url:x.url,size:x.size,sha256:x.sha256,modified:x.modified}))(manifest.introduction):null,
+    });
+  }catch(e){return next(e);}
+});
+for(const [route,kind] of [
+  ['/tv/media/presentation.pptx','presentation'],
+  ['/tv/media/introduccion.mp4','introduction'],
+]){
+  app.get(route,async(_req,res,next)=>{
+    try{
+      const asset=await tvMedia.inspect(kind);
+      res.setHeader('Cache-Control','no-store');
+      if(!asset)return res.status(404).end();
+      res.type(asset.mime);
+      res.setHeader('X-Content-Type-Options','nosniff');
+      return res.sendFile(asset.filename,error=>{if(error)next(error);});
+    }catch(e){return next(e);}
+  });
+}
 
 // Independent MP4 intro, stored alongside the verified PPTX in Hostinger.
 // Register before the CRM startup guard, support HEAD and HTTP Range via sendFile.

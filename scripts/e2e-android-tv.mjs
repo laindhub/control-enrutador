@@ -116,7 +116,9 @@ try {
         }
       };
       const slides=Array.from({length:40},(_,i)=>({
-        elements:(i===19||i===20)?[{type:'video',src:'geraldine.mp4',x:1,y:1,width:10,height:10}]:[]
+        elements:i===19?[{type:'video',src:'geraldine.mp4',x:1,y:1,width:10,height:10}]:
+          i===20?[{type:'media',media:{mimeType:'video/mp4',src:'geraldine.mp4'},
+            x:1,y:1,width:10,height:10}]:[]
       }));
       return {
         store:{get:()=>({presentationProperties:properties}),set:v=>{properties=v.presentationProperties||properties;}},

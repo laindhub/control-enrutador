@@ -502,10 +502,31 @@ public final class TvActivity extends Activity {
         if(inPlayer)returnMenu();
         else super.onBackPressed();
     }
+    /**
+     * When the native introduction goes away the WebView may still lack input
+     * focus, especially with a USB presentation remote. Dispatch PageUp/Down
+     * directly to our trusted local JS controller rather than relying on
+     * WebView.dispatchKeyEvent(), which can silently swallow them.
+     *
+     * Flush the native-intro-ended callback in the SAME JS turn as navigation
+     * so even a slow/lost asynchronous callback cannot leave mode='intro'.
+     */
+    private void dispatchSlideNavigation(String key){
+        if(!inPlayer||player==null)return;
+        player.evaluateJavascript(
+            "window.tvNativeIntroEnded?.('');window.tvRemoteKey?.("+JSONObject.quote(key)+");",
+            null);
+    }
     @Override public boolean dispatchKeyEvent(KeyEvent event){
         if(introNativeActive)return handleNativeIntroKey(event);
         if(inPlayer){
             int code=event.getKeyCode();
+            if(code==KeyEvent.KEYCODE_PAGE_UP||code==KeyEvent.KEYCODE_PAGE_DOWN){
+                if(event.getAction()==KeyEvent.ACTION_DOWN && event.getRepeatCount()==0)
+                    dispatchSlideNavigation(code==KeyEvent.KEYCODE_PAGE_DOWN?"PageDown":"PageUp");
+                // Consume both DOWN and UP to avoid double navigation.
+                return true;
+            }
             if(code==KeyEvent.KEYCODE_TAB){
                 // On several Android TV WebViews, Tab moves focus instead of
                 // dispatching DOM keydown. Invoke the exact JS mapping directly.

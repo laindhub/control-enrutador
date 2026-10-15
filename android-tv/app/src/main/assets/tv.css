@@ -3,7 +3,19 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden;background:#090a0
 [hidden]{display:none!important}
 #slides{position:absolute;inset:0;overflow:hidden;background:#050506}
 #slides .pptxv{height:100%!important;width:100%!important}
-#slides .pptxv-present-toolbar-wrap,#slides .pptxv-present-toolbar{display:none!important}
+/* Exact floating-controls selector from the working web presenter. */
+.pptxv.pptxv-presenting .pptxv-present-toolbar-wrap,
+.pptxv:fullscreen .pptxv-present-toolbar-wrap,
+.pptxv-present-toolbar-wrap,
+.pptxv-present-toolbar,
+.pptxv-presentation-touch-exit,
+body.tv-presenting .pptxv-toolbar,
+body.tv-presenting .pptxv-sidebar,
+body.tv-presenting .pptxv-thumbnails,
+body.tv-presenting [class*="presentation-controls"],
+body.tv-presenting [class*="present-toolbar"] {display:none!important}
+/* TV slide navigation is exclusively remote-controlled, including on hover. */
+.pptxv.pptxv-presenting *,body.tv-presenting *{cursor:none!important}
 :fullscreen,:fullscreen *,#intro,#intro *,#slides,#slides *{cursor:none!important}
 .screen{position:absolute;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;background:linear-gradient(140deg,#161719,#090a0c);padding:5vw;text-align:center}
 .eyebrow{color:#df5550;font-size:clamp(18px,2.2vw,28px);letter-spacing:.22em;font-weight:700}
@@ -18,3 +30,6 @@ button:focus,button:focus-visible{outline:5px solid #fff;outline-offset:7px;tran
 #intro-video{width:100%;height:100%;object-fit:contain;background:#000}
 #intro-video::-webkit-media-controls{display:none!important}
 #hint{position:absolute;bottom:32px;right:32px;z-index:8000;background:#19191cd9;padding:15px 24px;border-radius:12px;font-size:20px}
+/* The bundled player never exposes its own media playback toolbar. */
+#intro-video::-webkit-media-controls-enclosure,
+#intro-video::-webkit-media-controls-panel{display:none!important}

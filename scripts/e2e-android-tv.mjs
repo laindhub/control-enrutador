@@ -11,18 +11,18 @@ assert.match(nativeRouter,/autoOpenAfterSync/);
 assert.match(nativeRouter,/if\(playable && autoOpenAfterSync && !inPlayer\)/);
 assert.match(nativeRouter,/openPlayer\(\)/);
 assert.match(nativeRouter,/new IntroBridge\(\)/);
-assert.match(nativeRouter,/new TextureView\\(this\\)/);
-assert.match(nativeRouter,/new Surface\\(surfaceTexture\\)/);
-assert.match(nativeRouter,/engine\\.setSurface\\(surface\\)/);
-assert.match(nativeRouter,/transform\\.setScale\\(scaleX,scaleY,w\\/2f,h\\/2f\\)/);
-assert.match(nativeRouter,/introLayer\\.bringToFront\\(\\)/);
-assert.match(nativeRouter,/MEDIA_INFO_VIDEO_RENDERING_START/);
-// VideoView uses a SurfaceView that can render behind the WebView. Its
-// opaque background previously concealed decoded video on actual phones.
-assert.doesNotMatch(nativeRouter,/new VideoView\\(this\\)/);
-assert.doesNotMatch(nativeRouter,/introTexture\\.setBackgroundColor\\(/);
-assert.match(nativeRouter,/engine\\.release\\(\\)/);
-assert.match(nativeRouter,/surface\\.release\\(\\)/);
+assert.ok(nativeRouter.includes('new TextureView(this)'));
+assert.ok(nativeRouter.includes('new Surface(surfaceTexture)'));
+assert.ok(nativeRouter.includes('engine.setSurface(surface)'));
+assert.ok(nativeRouter.includes('transform.setScale(scaleX,scaleY,w/2f,h/2f)'));
+assert.ok(nativeRouter.includes('introLayer.bringToFront()'));
+assert.ok(nativeRouter.includes('MEDIA_INFO_VIDEO_RENDERING_START'));
+// SurfaceView layering and the old opaque VideoView background caused
+// sound-only playback while the composited image stayed black.
+assert.ok(!nativeRouter.includes('new VideoView(this)'));
+assert.ok(!nativeRouter.includes('introTexture.setBackgroundColor('));
+assert.ok(nativeRouter.includes('engine.release()'));
+assert.ok(nativeRouter.includes('surface.release()'));
 assert.match(nativeRouter,/files\.file\("introduction"\)\.getAbsolutePath\(\)/);
 assert.match(nativeRouter,/KEYCODE_TAB/);
 assert.match(nativeRouter,/seekNativeIntroduction\(-5\)/);

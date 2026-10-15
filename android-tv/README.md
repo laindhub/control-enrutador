@@ -94,3 +94,21 @@ la caché, la navegación con control remoto ni la presentación web. Para
 pasar de APK debug 1.1.0 a 1.2.0 podría ser necesario desinstalar si
 las firmas de ambas compilaciones difieren. Al desinstalar se borran las
 copias locales y se tendrán que descargar nuevamente.
+
+## Versión 1.4.0 · inicio automático y Geraldine
+
+Al iniciar la aplicación se verifican y actualizan primero **ambos** archivos.
+Cuando el proceso termina y hay un PPTX válido, se abre automáticamente
+la pantalla `Preparando presentación`, sin pasar por el botón «Abrir
+presentación». El usuario pulsa OK para iniciar la exposición. Atrás
+vuelve al menú y **no** vuelve a abrir el visor por su cuenta. El
+botón «Buscar actualizaciones» también regresa al visor cuando concluye.
+
+El reproductor identifica la animación de Geraldine por SHA-256 cuando
+se trata del PPTX original y, para versiones actualizadas con la misma
+disposición comercial de 40 diapositivas, detecta la presencia de video
+en la diapositiva 21. Se detiene el autoplay del visor hasta la primera
+orden de avance en esa diapositiva, y el siguiente avance continúa a
+la diapositiva posterior. Los controles HTML de video y los controles
+flotantes del visor se suprimen también si aparecen al cambiar de
+diapositiva o al actualizar estilos.

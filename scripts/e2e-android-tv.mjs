@@ -113,7 +113,7 @@ try {
           return Promise.resolve();
         },
       };
-    }`,,
+    }`,
   }));
   await page.goto('http://127.0.0.1:'+server.address().port+'/tv/index.html');
   await page.locator('#start').waitFor({state:'visible',timeout:25000});

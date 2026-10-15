@@ -11,28 +11,56 @@ let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
 let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),pausedPreviewSlides=new Set();
 let mediaObserver=null,mediaGeneration=0;
 let chromeObserver=null;
+// Presentation-only TV mode: disable the viewer's own navigation at creation
+// and suppress every fallback control, including touch-only overlays. Never
+// select slide content using broad "present*" selectors.
 const HIDDEN_PRESENTER_CONTROLS=[
   '.pptxv-present-toolbar-wrap','.pptxv-present-toolbar',
   '.pptxv-presentation-touch-exit','.pptxv-toolbar',
   '.pptxv-statusbar','.pptxv-present-controls',
-  '.pptxv-presentation-controls','[class*="present-toolbar"]',
+  '.pptxv-presentation-controls','.pptxv-present-navigation',
+  '.pptxv-present-nav','.pptxv-present-prev','.pptxv-present-next',
+  '.pptxv-present-touch-prev','.pptxv-present-touch-next',
+  '.pptxv-present-slide-counter','.pptxv-present-counter',
+  '.pptxv-slide-counter','.pptxv-slide-indicator',
+  '.pptxv-present-footer','.pptxv-present-overlay-controls',
+  '[class*="present-toolbar"]','[class*="present-nav"]',
+  '[class*="present-control"]','[class*="touch-exit"]',
+  '[class*="touch-nav"]','[class*="slide-counter"]',
+  '[class*="slide-indicator"]',
+  // The generated toolbar buttons are not slide media.
+  '.pptxv button','.pptxv [role="button"]',
 ];
+function hidePresenterControl(target){
+  if(target.style.getPropertyValue('display')!=='none'||
+     target.style.getPropertyPriority('display')!=='important')
+    target.style.setProperty('display','none','important');
+  if(target.getAttribute('aria-hidden')!=='true')
+    target.setAttribute('aria-hidden','true');
+  if(target.tabIndex!==-1)target.tabIndex=-1;
+  if(target.style.pointerEvents!=='none')target.style.pointerEvents='none';
+}
 function removePresentationChrome(){
   if(mode!=='slides'&&mode!=='intro')return;
-  for(const root of [document, document.fullscreenElement].filter(Boolean)){
-    for(const target of root.querySelectorAll(HIDDEN_PRESENTER_CONTROLS.join(','))){
-      if(target.style.getPropertyValue('display')!=='none' ||
-         target.style.getPropertyPriority('display')!=='important')
-        target.style.setProperty('display','none','important');
-      target.setAttribute('aria-hidden','true');
-      target.tabIndex=-1;
-    }
+  // The viewer may mount its presentation overlay inside a Fullscreen API
+  // element rather than below #slides; search the whole document.
+  for(const target of document.querySelectorAll(HIDDEN_PRESENTER_CONTROLS.join(',')))
+    hidePresenterControl(target);
+  // Older versions mount the 21 / 40 pill as an unclassified span. Hide only
+  // a leaf counter inside presentation chrome, not actual PowerPoint text.
+  for(const leaf of document.querySelectorAll('.pptxv span, .pptxv div')){
+    if(leaf.children.length!==0||!/^\\s*\\d+\\s*\\/\\s*\\d+\\s*$/.test(leaf.textContent||''))
+      continue;
+    if(leaf.closest('[class*="slide-content"],[class*="slide-canvas"],[class*="slide-stage"],[class*="slide-layer"]'))
+      continue;
+    hidePresenterControl(leaf);
   }
   for(const video of document.querySelectorAll('video')){
     if(video.id==='intro-video')continue;
     if(video.controls)video.controls=false;
     if(video.hasAttribute('controls'))video.removeAttribute('controls');
-    video.setAttribute('controlsList','nodownload noplaybackrate nofullscreen');
+    if(video.getAttribute('controlsList')!=='nodownload noplaybackrate nofullscreen')
+      video.setAttribute('controlsList','nodownload noplaybackrate nofullscreen');
     if(video.style.pointerEvents!=='none')video.style.pointerEvents='none';
   }
 }
@@ -43,10 +71,22 @@ function keepPresenterChromeHidden(){
   removePresentationChrome();
   chromeObserver?.disconnect();
   chromeObserver=new MutationObserver(()=>removePresentationChrome());
-  chromeObserver.observe(document.body,{
+  chromeObserver.observe(document.documentElement,{
     childList:true,subtree:true,attributes:true,
     attributeFilter:['style','class'],
   });
+}
+// Touch input must never reveal the viewer's mobile arrows, counter, exit,
+// toolbar or media controls. Navigation is exclusively the K01/TV remote or
+// physical keyboard; native Android intro remains outside this WebView.
+function suppressPresenterPointer(event){
+  if(mode!=='slides')return;
+  if(event.cancelable)event.preventDefault();
+  event.stopImmediatePropagation();
+}
+for(const type of ['touchstart','touchmove','touchend','pointerdown','pointerup','click']){
+  document.addEventListener(type,suppressPresenterPointer,
+    {capture:true,passive:false});
 }
 
 const host=$('slides');
@@ -196,6 +236,7 @@ async function prepare(){
     viewer=createPptxViewer(host,{
       editable:false,autosave:false,locale:'es',showToolbar:false,
       showThumbnails:false,showCompatibilityToasts:false,
+      hiddenActions:['navigation','fullscreen','zoom','notes'],
       fileName:'mas-duenos-liniers.pptx',
       onLoad:({slideCount})=>{total=slideCount;},
       onSlideChange:slideChanged,

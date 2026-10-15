@@ -1,0 +1,22 @@
+name: Verify Android TV media in production
+on:
+  push:
+    paths:
+      - 'src/tv-media.js'
+      - 'src/server.js'
+      - 'scripts/verify-tv-production.mjs'
+      - '.github/workflows/verify-android-tv.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test/tv-media.test.js
+      - run: node scripts/verify-tv-production.mjs

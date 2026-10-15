@@ -1,8 +1,13 @@
+import {duplicateVideoPreviewSlides,mayAutoPlayVideo} from './presentation-media.js';
+import {getTimedVideoSlide} from './presentation-timing.js';
 const $=id=>document.getElementById(id);
 const DECK='/tv/cache/presentation.pptx';
 const INTRO='/tv/cache/introduccion.mp4';
 const MODULE='https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
-let viewer=null,slide=0,total=0,mode='loading',geraldineTriggered=false,geraldineVideo=null;
+let viewer=null,slide=0,total=0,mode='loading';
+let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
+let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),pausedPreviewSlides=new Set();
+let mediaObserver=null,mediaGeneration=0;
 const host=$('slides');
 
 function message(value){$('message').textContent=value;}
@@ -13,15 +18,78 @@ function error(value){
 }
 function visibleMedia(){
   const root=document.fullscreenElement||host;
-  return [...root.querySelectorAll('video')].filter(v=>{
+  return [...root.querySelectorAll('video, audio')].filter(v=>{
     const r=v.getBoundingClientRect();
-    return r.width>20&&r.height>20&&!v.closest('#intro');
+    return r.width>1&&r.height>1&&r.left<innerWidth&&r.right>0&&
+      r.top<innerHeight&&r.bottom>0&&!v.closest('#intro')&&!v.closest('[aria-hidden="true"]');
   });
+}
+function allowedToPlayVideo(){
+  if(slide===mediaBuildSlide&&(!mediaBuildTriggered||mediaPlaybackEnded))return false;
+  return mayAutoPlayVideo(slide,pausedPreviewSlides);
+}
+function pausePreview(video){
+  video.autoplay=false;
+  video.removeAttribute('autoplay');
+  if(!video.paused)video.pause();
+  try{if(Number.isFinite(video.currentTime)&&video.currentTime>0)video.currentTime=0;}catch{}
+}
+function blockPreviewAutoplay(event){
+  const video=event.target;
+  if(mode!=='slides'||video?.tagName!=='VIDEO')return;
+  if(!(document.fullscreenElement||host).contains(video)||video.closest('#intro'))return;
+  if(slide===mediaBuildSlide&&mediaPlaybackEnded ||
+     !allowedToPlayVideo() ||
+     slide===mediaBuildSlide&&mediaPlaybackNode&&mediaPlaybackNode!==video){
+    pausePreview(video);
+  }
+}
+function playVisibleMedia(){
+  if(mode!=='slides')return;
+  for(const video of visibleMedia()){
+    if(video.tagName==='VIDEO'){
+      if(slide===mediaBuildSlide&&mediaPlaybackEnded){
+        video.pause();
+        continue;
+      }
+      if(!allowedToPlayVideo() ||
+         slide===mediaBuildSlide&&mediaPlaybackNode&&mediaPlaybackNode!==video){
+        pausePreview(video);continue;
+      }
+      if(slide===mediaBuildSlide&&!mediaPlaybackNode){
+        mediaPlaybackNode=video;
+        video.addEventListener('ended',()=>{
+          if(mediaPlaybackNode===video&&slide===mediaBuildSlide){
+            mediaPlaybackEnded=true;
+            video.pause();
+          }
+        },{once:true});
+      }
+    }
+    if(mediaAttempted.has(video))continue;
+    mediaAttempted.add(video);
+    video.autoplay=true;
+    if(video.tagName==='VIDEO')video.playsInline=true;
+    video.play()?.catch?.(err=>console.warn('Video integrado:',err));
+  }
+}
+function scheduleMedia(){
+  const generation=++mediaGeneration;
+  const refresh=()=>{if(generation===mediaGeneration)playVisibleMedia();};
+  refresh();
+  setTimeout(refresh,100);setTimeout(refresh,350);
 }
 function slideChanged(index){
   if(!Number.isInteger(index)||index<0)return;
-  if(slide!==index){geraldineTriggered=false;geraldineVideo=null;}
-  slide=index;host.dataset.slide=String(slide);
+  if(slide!==index){
+    mediaBuildTriggered=false;
+    mediaPlaybackEnded=false;
+    mediaPlaybackNode=null;
+    mediaAttempted=new WeakSet();
+    slide=index;
+  }
+  host.dataset.slide=String(slide);
+  if(mode==='slides')scheduleMedia();
 }
 function enableLoop(){
   const store=viewer?.store;
@@ -49,13 +117,25 @@ async function prepare(){
       fileName:'mas-duenos-liniers.pptx',
       onLoad:({slideCount})=>{total=slideCount;},
       onSlideChange:slideChanged,
-      onPresentationChange:active=>{if(!active&&mode==='slides')mode='ready';},
+      onPresentationChange:active=>{
+        if(active&&mode==='slides')scheduleMedia();
+        else if(!active&&mode==='slides'){
+          mode='ready';document.body.classList.remove('tv-presenting');
+        }
+      },
       onError:e=>console.warn('Visor:',e),
     });
-    await viewer.loadFile(new File([blob],'mas-duenos-liniers.pptx',{
+    const file=new File([blob],'mas-duenos-liniers.pptx',{
       type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    }));
+    });
+    await viewer.loadFile(file);
     if(total<1)throw Error('No hay diapositivas reconocibles.');
+    // Same SHA-256-based click-build detection as the web presentation.
+    mediaBuildSlide=await getTimedVideoSlide(file);
+    pausedPreviewSlides=duplicateVideoPreviewSlides(viewer.getSlides?.()||[]);
+    mediaObserver?.disconnect();
+    mediaObserver=new MutationObserver(()=>{if(mode==='slides')scheduleMedia();});
+    mediaObserver.observe(host,{childList:true,subtree:true});
     mode='ready';$('loading').hidden=true;$('ready').hidden=false;
     $('summary').textContent=total+' diapositivas · Archivo guardado en Android TV';
     $('start').focus();
@@ -69,7 +149,9 @@ function start(){
   try{Promise.resolve(viewer.enterPresentation()).catch(e=>{
     console.warn('Fullscreen WebView fallback:',e);
   });}catch(e){console.warn('Fullscreen native fallback:',e);}
+  document.body.classList.add('tv-presenting');
   slideChanged(viewer.getCurrentSlide?.()??0);
+  scheduleMedia();
 }
 function closeIntro(){
   if(mode!=='intro')return;
@@ -100,20 +182,12 @@ function seek(direction){
   const next=Math.max(0,Math.min(end,(Number(video.currentTime)||0)+direction*5));
   try{video.currentTime=next;}catch{}
 }
-function maybePlayGeraldine(){
-  // The original 40-slide deck contains a playFrom build on slide 21.
-  // Preserve its still frame on entry; first forward button plays the video.
-  if(slide!==20||total!==40||geraldineTriggered)return false;
-  const video=visibleMedia()[0];
-  if(!video)return false;
-  geraldineTriggered=true;geraldineVideo=video;
-  video.playsInline=true;
-  try{video.currentTime=0;}catch{}
-  video.play()?.catch?.(()=>{});
-  return true;
-}
+// PowerPoint playFrom: the first forward command on the verified slide 21
+// starts the embedded video, the second moves on without replaying it.
 function next(){
-  if(maybePlayGeraldine())return;
+  if(slide===mediaBuildSlide){
+    if(!mediaBuildTriggered){mediaBuildTriggered=true;scheduleMedia();return;}
+  }
   viewer?.goToSlide?.((slide+1)%total);
 }
 function previous(){viewer?.goToSlide?.((slide-1+total)%total);}
@@ -130,17 +204,19 @@ function handle(key,repeat=false){
     return;
   }
   if(mode!=='slides')return;
-  if(key==='Tab'||key==='Enter'){
+  if(key==='Tab'){
     if(slide===0)openIntro();
-    else next();
-  }else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
+  }else if(key==='Enter')next();
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
     mode='ready';
+    document.body.classList.remove('tv-presenting');
     if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
     $('ready').hidden=false;$('start').focus();
   }
 }
+document.addEventListener('play',blockPreviewAutoplay,true);
 document.addEventListener('keydown',event=>{
   const keys=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',
     'PageUp','PageDown','Tab','Enter','Escape',' '];
@@ -152,4 +228,5 @@ document.addEventListener('keydown',event=>{
 window.tvRemoteKey=key=>handle(key,false);
 $('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
+window.addEventListener('beforeunload',()=>mediaObserver?.disconnect());
 void prepare();

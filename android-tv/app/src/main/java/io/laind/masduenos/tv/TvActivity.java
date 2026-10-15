@@ -44,6 +44,9 @@ public final class TvActivity extends Activity {
     private View customView;
     private WebChromeClient.CustomViewCallback customCallback;
     private boolean inPlayer=false;
+    // Launch the locally stored deck as soon as BOTH media sync attempts finish.
+    // Returning with Back keeps the native menu open until the user requests it.
+    private boolean autoOpenAfterSync=true;
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
     private TextView text(String content,int size,int color,boolean bold){
@@ -187,7 +190,10 @@ public final class TvActivity extends Activity {
         retry.setTextSize(shortTV?16:18);
         retry.setAllCaps(false);
         retry.setMinHeight(dp(shortTV?46:54));
-        retry.setOnClickListener(v->refresh());
+        retry.setOnClickListener(v->{
+            autoOpenAfterSync=true;
+            refresh();
+        });
         LinearLayout.LayoutParams retryLayout=new LinearLayout.LayoutParams(-1,-2);
         retryLayout.topMargin=dp(8);
         actions.addView(retry,retryLayout);
@@ -244,12 +250,22 @@ public final class TvActivity extends Activity {
                 notice.setText(message);
                 retry.setEnabled(true);
                 open.setEnabled(playable);
-                if(playable)open.requestFocus();
+                if(playable && autoOpenAfterSync && !inPlayer){
+                    // Called only by TvAssetStore.complete, which is posted
+                    // after PPTX and MP4 were checked / downloaded and saved.
+                    // Navigate to the same native-cached "Preparando presentación"
+                    // screen as the former manual "Abrir presentación" button.
+                    autoOpenAfterSync=false;
+                    openPlayer();
+                }else if(playable && !inPlayer){
+                    open.requestFocus();
+                }
             }
         });
     }
     private void openPlayer(){
-        if(!files.has("presentation"))return;
+        if(inPlayer||!files.has("presentation"))return;
+        autoOpenAfterSync=false;
         inPlayer=true;
         menuSurface.setVisibility(View.GONE);
         player.setVisibility(View.VISIBLE);
@@ -257,6 +273,7 @@ public final class TvActivity extends Activity {
         player.requestFocus();
     }
     private void returnMenu(){
+        autoOpenAfterSync=false;
         hideCustom();
         inPlayer=false;
         player.loadUrl("about:blank");

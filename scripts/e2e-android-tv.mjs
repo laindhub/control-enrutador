@@ -7,6 +7,9 @@ import {chromium} from 'playwright';
 const dir=path.resolve('android-tv/app/src/main/assets');
 const nativeRouter=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvActivity.java','utf8');
 const htmlEntry=readFileSync(path.join(dir,'index.html'),'utf8');
+assert.match(nativeRouter,/autoOpenAfterSync/);
+assert.match(nativeRouter,/void refresh\(\)/);
+assert.match(nativeRouter,/openPlayer\(\)/);
 const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
 // Browser tests must not serve an import that Android's real WebView rejects.
 // This previously caused production to freeze on the static loading screen
@@ -81,11 +84,11 @@ try {
       return originalPlay.call(this);
     };
   });
-  // The actual deck's 40-slide SHA-256 is covered in the web timing
-  // tests. Here we simulate its known on-click build at logical slide 21.
+  // Verify the fallback also works for future replacement PPTX versions:
+  // the known SHA-256 doesn't match, but slide 21 still contains Geraldine.
   await page.route('**/tv/presentation-timing.js',route=>route.fulfill({
     status:200,contentType:'application/javascript',
-    body:'export async function getTimedVideoSlide(){return 20;}',
+    body:'export async function getTimedVideoSlide(){return null;}',
   }));
   await page.route('https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle',route=>route.fulfill({
     status:200,contentType:'application/javascript',
@@ -106,6 +109,7 @@ try {
           v.id='geraldine-test';
           v.style.cssText='display:block;width:480px;height:270px;';
           v.dataset.mockPaused='true';
+          v.controls=true;
           zone.append(v);
           // Simulate the PPTX engine's unwelcome automatic video play.
           v.play();
@@ -167,6 +171,10 @@ try {
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
   await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='true');
   const visible=page.locator('#geraldine-test');
+  await page.waitForFunction(()=>{
+    const v=document.querySelector('#geraldine-test');
+    return v && !v.controls && v.style.pointerEvents==='none';
+  });
   assert.ok(Number(await visible.getAttribute('data-pause-calls'))>=1,
     'automatic Geraldine play must be intercepted and paused');
   await page.keyboard.press('PageDown');
@@ -184,6 +192,20 @@ try {
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'21',
     'second forward input must advance from the video to slide 22');
+  // The engine can recreate its toolbar whenever slides change.
+  await page.evaluate(()=>{
+    const wrap=document.querySelector('.pptxv');
+    const controls=document.createElement('div');
+    controls.className='pptxv-present-toolbar-wrap';
+    controls.textContent='late controls';
+    controls.style.display='block';
+    wrap.appendChild(controls);
+  });
+  await page.waitForFunction(()=>{
+    const all=[...document.querySelectorAll('.pptxv-present-toolbar-wrap')];
+    return all.length>=2 && all.every(el=>getComputedStyle(el).display==='none' &&
+      el.getAttribute('aria-hidden')==='true');
+  });
   await page.keyboard.press('PageUp');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
   await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='true');

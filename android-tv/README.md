@@ -72,3 +72,25 @@ Los endpoints `/tv/*` leen **dos rutas fijas**, no aceptan nombres
 arbitrarios. El PPTX de escritorio conserva su SHA-256 fijo; la app de TV
 consulta un manifiesto dinámico específico para ella. El código no toca
 clientes, ventas ni datos del Salón y no requiere iniciar sesión.
+
+
+## Corrección de pantalla de carga de Android TV 1.2.0
+
+La versión 1.1.0 podía quedar detenida en «Preparando presentación»:
+`tv.js` importaba `presentation-media.js` y `presentation-timing.js`,
+pero el interceptor de recursos del WebView solo entregaba tres archivos
+(`index.html`, `tv.js` y `tv.css`). Los dos módulos daban HTTP 404
+silenciosamente e impedían que el JavaScript iniciara.
+
+En 1.2.0 las rutas de ambos módulos están habilitadas expresamente y
+comprobadas con una prueba de regresión que compara los imports de la web
+contra el servidor interno de Android. Si en el futuro vuelve a fallar
+algún componente, la app muestra un mensaje de error y «Reintentar» en
+lugar de un spinner interminable. Cada fase de lectura/renderizado del
+PPTX tiene una espera máxima y registra el fallo en Logcat (`MasDuenosTV`).
+
+Esta modificación **no cambia los archivos descargados** de Hostinger,
+la caché, la navegación con control remoto ni la presentación web. Para
+pasar de APK debug 1.1.0 a 1.2.0 podría ser necesario desinstalar si
+las firmas de ambas compilaciones difieren. Al desinstalar se borran las
+copias locales y se tendrán que descargar nuevamente.

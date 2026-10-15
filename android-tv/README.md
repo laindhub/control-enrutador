@@ -112,3 +112,19 @@ orden de avance en esa diapositiva, y el siguiente avance continúa a
 la diapositiva posterior. Los controles HTML de video y los controles
 flotantes del visor se suprimen también si aparecen al cambiar de
 diapositiva o al actualizar estilos.
+
+## Versión 1.6.0: video introductorio visible
+
+En algunos televisores y teléfonos el `VideoView` anterior reproducía el
+sonido de `introduccion.mp4` pero su imagen permanecía negra. El video
+ahora utiliza `TextureView` y `MediaPlayer` con un `Surface` vinculado a
+la jerarquía visual nativa de Android. Este diseño evita los problemas de
+composición de `SurfaceView` por debajo de `WebView` y mantiene la
+relación de aspecto con bandas negras cuando corresponde.
+
+Tab / OK siguen iniciando o deteniendo el video, y PageUp / PageDown o
+las flechas conservan los saltos de cinco segundos. El MP4 sigue
+leyéndose directamente del archivo local verificado; no se vuelve a bajar.
+El registro de Android incluye el tamaño detectado del video y el evento
+`MEDIA_INFO_VIDEO_RENDERING_START` para ayudar a diagnosticar equipos con
+códecs incompatibles.

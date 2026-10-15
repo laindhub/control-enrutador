@@ -220,6 +220,10 @@ public final class TvActivity extends Activity {
         super.onDestroy();
     }
     private class LocalClient extends WebViewClient{
+        // IMPORTANT: The TV entry module imports the next two local modules.
+        // A missing whitelist entry causes Chromium WebView to abandon all
+        // module execution silently and freeze on the static loading screen.
+
         @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
             return !ASSET_HOST.equals(request.getUrl().getHost());
         }
@@ -228,7 +232,11 @@ public final class TvActivity extends Activity {
             if(!"https".equals(uri.getScheme())||!ASSET_HOST.equals(uri.getHost()))return null;
             String path=uri.getPath();
             try{
-                if(path.equals("/tv/index.html")||path.equals("/tv/tv.css")||path.equals("/tv/tv.js")){
+                if(path.equals("/tv/index.html") ||
+                   path.equals("/tv/tv.css") ||
+                   path.equals("/tv/tv.js") ||
+                   path.equals("/tv/presentation-media.js") ||
+                   path.equals("/tv/presentation-timing.js")){
                     String filename=path.substring(4);
                     InputStream in=getAssets().open(filename);
                     String mime=filename.endsWith(".html")?"text/html":

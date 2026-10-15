@@ -59,6 +59,10 @@ body.tv-presenting #slides * {
   -webkit-tap-highlight-color:transparent!important;
 }
 body.tv-presenting #slides{touch-action:none!important}
+/* Includes controls mounted via portals outside the .pptxv viewer root.
+   The selector applies only during a slide show and resets on exit. */
+body.tv-presenting button,
+body.tv-presenting [role="button"],
 body.tv-presenting .pptxv :is(button,[role="button"]),
 body.tv-presenting .pptxv-present-toolbar,
 body.tv-presenting .pptxv-present-toolbar-wrap,

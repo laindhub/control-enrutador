@@ -44,7 +44,7 @@ for(const [kind,spec] of Object.entries(media)){
   assert.ok(Number.isSafeInteger(item.size) && item.size>12);
   const head=await get(BASE+item.url,{method:'HEAD'});
   assert.equal(head.status,200,kind+' download must be reachable');
-  assert.match(head.headers.get('content-type')||'',new RegExp(spec.mime.replace(/[.*+?^$\{\}()|[\]\\]/g,'\\$&')));
+  assert.equal((head.headers.get('content-type')||'').split(';')[0].trim(),spec.mime);
   assert.equal(Number(head.headers.get('content-length')),item.size);
   const range=await get(BASE+item.url,{
     headers:{Range:'bytes=0-15','Accept-Encoding':'identity'},

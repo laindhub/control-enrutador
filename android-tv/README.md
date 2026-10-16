@@ -292,3 +292,14 @@ El pipeline **no publica** paquetes sin el módulo PPTX real; sus pruebas
 rechazan explícitamente el CDN remoto y comprueban el arranque del
 visor con acceso a la red deshabilitado. Descarga de ambos multimedia en CI,
 ninguna descarga obligatoria en la TV.
+
+
+### Fuentes Carlito 100% offline
+
+El visor solicita la tipografía Carlito para la presentación original. El
+workflow fija `@fontsource/carlito@5.3.0` y embebe localmente cuatro
+variantes Carlito WOFF2 (400/700, normal/cursiva; SIL OFL 1.1). La página
+establece una política CSP que impide acceso a Google Fonts, CDNs y otros
+servidores, de modo que el televisor no necesite Wi-Fi siquiera para la
+tipografía. Se comprueba esto con la presentación original cargada en un
+navegador con todos los accesos externos bloqueados.

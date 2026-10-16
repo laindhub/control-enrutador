@@ -48,3 +48,17 @@ if(/from\s*["']https?:\/\//.test(source))throw Error('PPTX viewer still imports 
 const size=(await stat(output)).size;
 console.log('Bundled pptx-vanilla-viewer@3.31.1 into local WebView module:',size,'bytes');
 console.log('Inputs bundled:',Object.keys(result.metafile.inputs).length,' | Imports remaining:',imports.length);
+
+const fontsRoot=resolve('node_modules/@fontsource/carlito/files');
+let fontCss='/* Local Carlito font faces — SIL OFL 1.1; no Google Fonts requests. */\n';
+for(const [weight,style] of [[400,'normal'],[700,'normal'],[400,'italic'],[700,'italic']]){
+  const name='carlito-latin-'+weight+'-'+style+'.woff2';
+  const bytes=await readFile(resolve(fontsRoot,name));
+  if(bytes.length<1000)throw Error('Missing bundled font '+name);
+  fontCss+="@font-face{font-family:'Carlito';font-weight:"+weight+";font-style:"+style+
+    ";font-display:block;src:url(data:font/woff2;base64,"+bytes.toString('base64')+
+    ") format('woff2')}\n";
+}
+const fontOutput=resolve('android-tv/app/src/main/assets/tv-fonts.css');
+await (await import('node:fs/promises')).writeFile(fontOutput,fontCss);
+console.log('Four Carlito font faces embedded for offline PowerPoint typography:',fontCss.length,'CSS bytes');

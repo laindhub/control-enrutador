@@ -68,7 +68,7 @@ const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
 // Browser tests must not serve an import that Android's real WebView rejects.
 // This previously caused production to freeze on the static loading screen
 // even though a permissive Chromium mock passed all presentation tests.
-const required=['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js','pptx-viewer-offline.js'];
+const required=['index.html','tv.js','tv.css','tv-fonts.css','presentation-media.js','presentation-timing.js','pptx-viewer-offline.js'];
 assert.ok(!tvScript.includes('https://esm.sh'),'PowerPoint engine must not require esm.sh');
 assert.match(tvScript,/const MODULE='\.\/pptx-viewer-offline\.js'/);
 for(const name of required){
@@ -77,6 +77,8 @@ for(const name of required){
   assert.ok(readFileSync(path.join(dir,name)).length>0);
 }
 assert.match(htmlEntry,/window\.__tvBooted=false/);
+assert.match(htmlEntry,/Content-Security-Policy/);
+assert.match(htmlEntry,/tv-fonts\.css/);
 assert.match(tvScript,/window\.__tvBooted=true/);
 // Presentation must start automatically with no intermediate confirmation UI.
 assert.doesNotMatch(htmlEntry,/id="ready"|id="start"/);
@@ -96,7 +98,7 @@ const server=http.createServer((req,res)=>{
     return;
   }
   const name=path.basename(pathName);
-  if(!['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js','pptx-viewer-offline.js'].includes(name)){res.writeHead(404).end();return;}
+  if(!['index.html','tv.js','tv.css','tv-fonts.css','presentation-media.js','presentation-timing.js','pptx-viewer-offline.js'].includes(name)){res.writeHead(404).end();return;}
   res.writeHead(200,{'content-type':mime[path.extname(name)]});
   res.end(readFileSync(path.join(dir,name)));
 });

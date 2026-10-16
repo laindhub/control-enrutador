@@ -32,7 +32,7 @@ jobs:
       - name: Install browser simulation dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Install exact PPTX engine and offline bundler
-        run: npm install --no-save --ignore-scripts --no-audit --no-fund --legacy-peer-deps pptx-vanilla-viewer@3.31.1 esbuild@0.25.12
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund --legacy-peer-deps pptx-vanilla-viewer@3.31.1 esbuild@0.25.12 @fontsource/carlito@5.3.0
       - name: Bundle PPTX viewer into Android local assets
         run: node scripts/build-tv-pptx-engine.mjs
       - name: Install Chromium

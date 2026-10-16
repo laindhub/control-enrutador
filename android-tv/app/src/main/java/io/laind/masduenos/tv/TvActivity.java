@@ -667,6 +667,7 @@ public final class TvActivity extends Activity {
             try{
                 if(path.equals("/tv/index.html") ||
                    path.equals("/tv/tv.css") ||
+                   path.equals("/tv/tv-fonts.css") ||
                    path.equals("/tv/tv.js") ||
                    path.equals("/tv/presentation-media.js") ||
                    path.equals("/tv/presentation-timing.js") ||

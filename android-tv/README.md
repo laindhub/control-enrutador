@@ -262,3 +262,18 @@ El APK ordinario sigue funcionando sin ninguna modificación de flujo: si
 no existe `assets/bundle/manifest.json`, usa exclusivamente la descarga
 existente. Ambas variantes conservan el package id y la misma firma
 permanente, para permitir actualizaciones sin reinstalación.
+
+## 1.6.12 · Sin requisito de firma permanente
+
+Se retiró el requisito de los secretos de firma de GitHub. Los workflows
+habitual y completo vuelven a generar APKs instalables con
+`gradle :app:assembleDebug`, sin certificado PIN ni secretos externos.
+La edición completa conserva `io.laind.masduenos.tv` y trae el
+PowerPoint y video de introducción originales ya dentro del APK.
+
+**Importante:** los runners de GitHub crean una firma debug distinta en
+distintas ejecuciones. Es posible que Android no permita actualizar un
+APK anterior encima del instalado; si da conflicto de firmas hay que
+desinstalar la versión previa, lo que borra su caché local (los medios
+están dentro del nuevo APK). La app no garantiza actualizaciones
+incrementales entre APKs con diferente firma.

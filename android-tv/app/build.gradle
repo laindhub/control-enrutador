@@ -6,34 +6,13 @@ android {
         applicationId 'io.laind.masduenos.tv'
         minSdk 26
         targetSdk 35
-        versionCode 18
-        versionName '1.6.11'
+        versionCode 19
+        versionName '1.6.12'
     }
     // The bundled offline edition embeds a large PPTX and MP4. These are
     // already ZIP/MP4 files; avoid recompressing them while building the APK.
     androidResources {
         noCompress += ['pptx', 'mp4']
-    }
-    // Release builds MUST be signed with the permanent LAIND PKCS12 key.
-    // Never use the Android debug keystore for downloadable TV APKs.
-    signingConfigs {
-        tvPermanent {
-            def signingPath = System.getenv('TV_SIGNING_STORE_PATH')
-            def signingPassword = System.getenv('TV_SIGNING_SECRET')
-            if (signingPath != null && signingPassword != null) {
-                storeFile file(signingPath)
-                storePassword signingPassword
-                keyAlias 'masduenostv'
-                keyPassword signingPassword
-                storeType 'pkcs12'
-            }
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.tvPermanent
-            minifyEnabled false
-        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

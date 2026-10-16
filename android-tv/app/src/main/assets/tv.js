@@ -8,7 +8,7 @@ const INTRO='/tv/cache/introduccion.mp4';
 const MODULE='https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
 let viewer=null,slide=0,total=0,mode='loading';
 let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
-let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),pausedPreviewSlides=new Set();
+let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),mediaFailures=new WeakMap(),pausedPreviewSlides=new Set();
 let mediaObserver=null,mediaGeneration=0;
 let chromeObserver=null;
 // Presentation-only TV mode: disable the viewer's own navigation at creation
@@ -145,7 +145,10 @@ function locateGeraldineBuild(slides,known){
   return null;
 }
 function allowedToPlayVideo(){
-  if(slide===mediaBuildSlide&&(!mediaBuildTriggered||mediaPlaybackEnded))return false;
+  // The native click-build on slide 21 takes precedence over the adjacent-
+  // slide duplicate-preview heuristic. Otherwise a video also present on
+  // slide 22 could keep Geraldine permanently paused after PageDown.
+  if(slide===mediaBuildSlide)return mediaBuildTriggered&&!mediaPlaybackEnded;
   return mayAutoPlayVideo(slide,pausedPreviewSlides);
 }
 function pausePreview(video){
@@ -162,6 +165,24 @@ function blockPreviewAutoplay(event){
      !allowedToPlayVideo() ||
      slide===mediaBuildSlide&&mediaPlaybackNode&&mediaPlaybackNode!==video){
     pausePreview(video);
+  }
+}
+function playbackFailed(video,error){
+  mediaAttempted.delete(video);
+  const failures=(mediaFailures.get(video)||0)+1;
+  mediaFailures.set(video,failures);
+  if(mediaPlaybackNode===video&&!mediaPlaybackEnded)mediaPlaybackNode=null;
+  console.warn('Video integrado: intento '+failures,error);
+  // A transient WebView decoder/readyState error must not permanently mark
+  // Geraldine as played. Only retry the explicitly requested slide and cap
+  // retries to avoid hammering a genuinely unsupported codec.
+  if(failures<3&&slide===mediaBuildSlide&&mediaBuildTriggered&&
+     !mediaPlaybackEnded&&mode==='slides'){
+    setTimeout(()=>{
+      if(video.isConnected&&slide===mediaBuildSlide&&
+         mediaBuildTriggered&&!mediaPlaybackEnded&&mode==='slides')
+        playVisibleMedia();
+    },250*failures);
   }
 }
 function playVisibleMedia(){
@@ -187,11 +208,13 @@ function playVisibleMedia(){
         },{once:true});
       }
     }
-    if(mediaAttempted.has(video))continue;
+    if(mediaAttempted.has(video)||mediaFailures.get(video)>=3)continue;
     mediaAttempted.add(video);
     video.autoplay=true;
     if(video.tagName==='VIDEO')video.playsInline=true;
-    video.play()?.catch?.(err=>console.warn('Video integrado:',err));
+    try {
+      Promise.resolve(video.play()).catch(err=>playbackFailed(video,err));
+    }catch(err){playbackFailed(video,err);}
   }
 }
 function scheduleMedia(){
@@ -207,6 +230,7 @@ function slideChanged(index){
     mediaPlaybackEnded=false;
     mediaPlaybackNode=null;
     mediaAttempted=new WeakSet();
+    mediaFailures=new WeakMap();
     slide=index;
   }
   host.dataset.slide=String(slide);

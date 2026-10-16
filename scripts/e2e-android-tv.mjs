@@ -102,6 +102,10 @@ try {
       if(this.id==='intro-video')return Promise.resolve();
       if(this.id==='geraldine-test'){
         this.dataset.playCalls=String(1+Number(this.dataset.playCalls||0));
+        if(this.dataset.failNextPlay==='true'){
+          this.dataset.failNextPlay='false';
+          return Promise.reject(new DOMException('Transient decoder startup','AbortError'));
+        }
         this.dataset.mockPaused='false';
         this.dispatchEvent(new Event('play'));
         return Promise.resolve();
@@ -151,7 +155,7 @@ try {
       };
       const slides=Array.from({length:40},(_,i)=>({
         elements:i===19?[{type:'video',src:'geraldine.mp4',x:1,y:1,width:10,height:10}]:
-          i===20?[{type:'media',media:{mimeType:'video/mp4',src:'geraldine.mp4'},
+          i===20||i===21?[{type:'media',media:{mimeType:'video/mp4',src:'geraldine.mp4'},
             x:1,y:1,width:10,height:10}]:[]
       }));
       return {
@@ -267,10 +271,17 @@ try {
   });
   assert.ok(Number(await visible.getAttribute('data-pause-calls'))>=1,
     'automatic Geraldine play must be intercepted and paused');
+  // The same media reference also occurs on slide 22: the duplicate-preview
+  // detector would previously classify slide 21 as paused forever.
+  // Simulate one rejected play() so the retry path is covered as well.
+  await visible.evaluate(v=>{v.dataset.failNextPlay='true';});
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20',
     'first forward input on slide 21 must play the video, not change slide');
-  await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='false');
+  await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='false',
+    {timeout:3500});
+  assert.equal(await visible.getAttribute('data-fail-next-play'),'false',
+    'a transient playback failure must be retried on Geraldine');
   const played=Number(await visible.getAttribute('data-play-calls'));
   await page.waitForTimeout(500);
   assert.equal(Number(await visible.getAttribute('data-play-calls')),played,

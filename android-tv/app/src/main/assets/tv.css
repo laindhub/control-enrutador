@@ -100,3 +100,28 @@ body.tv-presenting #hint {
 }
 
 
+
+/* Cached slide compositor, generated at 1920x1080 from the original PPTX.
+   Only ONE decoded screenshot is painted at a time; no transitions, fades,
+   controls, or PPTX tile repaints when pressing the remote. */
+#tv-fast-layer {
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100vh!important;
+  z-index:2147483600!important;
+  pointer-events:none!important;
+  overflow:hidden!important;
+  background:#050506;
+  contain:layout paint style;
+}
+#tv-fast-layer .tv-fast-slide {
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  border:0!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:none!important;
+}

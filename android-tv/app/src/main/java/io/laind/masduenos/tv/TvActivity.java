@@ -678,6 +678,15 @@ public final class TvActivity extends Activity {
                         filename.endsWith(".css")?"text/css":"application/javascript";
                     return response(200,"OK",mime,in,0,-1,-1);
                 }
+                // Exact, locally bundled presentation snapshots. No network.
+                if(path.equals("/tv/slides/manifest.json")){
+                    return response(200,"OK","application/json",
+                        getAssets().open("slides/manifest.json"),0,-1,-1);
+                }
+                if(path.matches("^/tv/slides/slide-[0-9]{3}\\.jpg$")){
+                    return response(200,"OK","image/jpeg",
+                        getAssets().open(path.substring(4)),0,-1,-1);
+                }
                 if(path.equals("/tv/cache/presentation.pptx"))return media("presentation",request);
                 if(path.equals("/tv/cache/introduccion.mp4"))return media("introduction",request);
             }catch(Exception e){return response(404,"Not Found","text/plain",

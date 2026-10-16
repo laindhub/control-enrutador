@@ -14,6 +14,121 @@ let mediaFrame=0,mediaRetryShort=0,mediaRetryLong=0;
 let chromeObserver=null,chromeFrame=0;
 let mediaSlides=new Set();
 let geraldineNativeRequested=false;
+// One-time pre-rendered slide images: no PPTX DOM reflow on PageDown/PageUp.
+// Images are generated at build time from this exact source PPTX; version
+// and SHA-256 must match or we automatically retain the live PPTX viewer.
+let fastSlides=null,fastLayer=null,fastCurrent=null,fastToken=0;
+const fastDecoded=new Map();
+const fastPreloadCount=3;
+function fastFile(index){
+  return '/tv/slides/'+fastSlides.images[index];
+}
+function warmFastFrame(index){
+  if(!fastSlides)return null;
+  index=(index+total)%total;
+  if(fastDecoded.has(index))return fastDecoded.get(index);
+  const img=new Image();
+  img.className='tv-fast-slide';
+  img.alt='';
+  img.decoding='async';
+  img.loading='eager';
+  const promise=new Promise((resolve,reject)=>{
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error('Diapositiva precalculada inválida: '+(index+1)));
+  });
+  img.src=fastFile(index);
+  // decode() primes the browser's native image decode cache for nearby pages.
+  const ready=promise.then(()=>img.decode?.().catch(()=>{})??Promise.resolve())
+    .then(()=>img);
+  const entry={img,ready};
+  fastDecoded.set(index,entry);
+  // Ensure preload failures can't produce unhandled rejections.
+  ready.catch(err=>console.warn('Caché visual:',err.message));
+  return entry;
+}
+function primeNearby(index){
+  if(!fastSlides)return;
+  for(const offset of [0,1,2,3,-1,-2]){
+    warmFastFrame(index+offset);
+  }
+  // Keep the decoded working set small on budget Android TV hardware.
+  for(const key of fastDecoded.keys()){
+    const forwards=(key-index+total)%total;
+    const backwards=(index-key+total)%total;
+    if(forwards>fastPreloadCount&&backwards>2&&key!==index){
+      const entry=fastDecoded.get(key);
+      if(entry.img!==fastCurrent)fastDecoded.delete(key);
+    }
+  }
+}
+function fastMount(){
+  if(!fastSlides)return;
+  // Fullscreen browser API places the viewer in a compositor top layer;
+  // render the precomputed frames INSIDE that root to stay visible on TCL.
+  const root=document.fullscreenElement||host;
+  if(fastLayer?.parentElement!==root){
+    fastLayer?.remove();
+    fastLayer=document.createElement('div');
+    fastLayer.id='tv-fast-layer';
+    root.appendChild(fastLayer);
+    // Reparenting a Fullscreen API overlay must reattach the decoded image.
+    fastCurrent=null;
+  }
+  showFastFrame(slide);
+}
+function fallbackToLiveSlide(reason){
+  console.warn('Presentación precalculada no disponible:',reason);
+  fastSlides=null;
+  fastToken++;
+  fastLayer?.remove();
+  fastLayer=null;
+  fastCurrent=null;
+  fastDecoded.clear();
+  // Preserve presenter position even if one screenshot is corrupt.
+  viewer?.goToSlide?.(slide);
+}
+function showFastFrame(index){
+  if(!fastSlides)return;
+  if(!fastLayer)fastMount();
+  const token=++fastToken;
+  const entry=warmFastFrame(index);
+  entry.ready.then(img=>{
+    if(!fastSlides||fastToken!==token||!fastLayer)return;
+    if(img!==fastCurrent){
+      // The image has already decoded: one compositor layer replacement,
+      // rather than 4 tiling passes through the PPTX renderer.
+      fastLayer.replaceChildren(img);
+      fastCurrent=img;
+    }
+  }).catch(fallbackToLiveSlide);
+  primeNearby(index);
+}
+async function loadFastSlides(blob){
+  try{
+    const reply=await fetch('/tv/slides/manifest.json',{cache:'no-store'});
+    if(!reply.ok)return;
+    const manifest=await reply.json();
+    if(manifest.version!==1||manifest.slideCount!==total||
+       manifest.pptxBytes!==blob.size||
+       manifest.width!==1920||manifest.height!==1080||
+       !Array.isArray(manifest.images)||manifest.images.length!==total||
+       !manifest.images.every((name,i)=>
+         name==='slide-'+String(i+1).padStart(3,'0')+'.jpg'))
+      throw Error('Metadatos precalculados incompatibles con la presentación');
+    // A newer downloaded PPTX must never be shown using the older images.
+    const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()));
+    const sha=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
+    if(sha!==manifest.pptxSha256)return;
+    fastSlides=manifest;
+    await Promise.all([warmFastFrame(0).ready,warmFastFrame(1).ready,
+      warmFastFrame(total-1).ready]);
+    console.info('Presentación acelerada: 40 diapositivas precalculadas, sin repintado PPTX.');
+  }catch(err){
+    console.warn('Usando el visor PowerPoint convencional:',err);
+    fastSlides=null;fastDecoded.clear();
+  }
+}
+
 // Original slide 21 video shape geometry in EMUs, independently verified
 // against the ZIP contents of mas-duenos-liniers.pptx.
 const GERALDINE_GEOMETRY={
@@ -80,7 +195,7 @@ function removePresentationChrome(){
 // slide transition or when entering real fullscreen. Hide it again in DOM,
 // not just with a selector that depends on the browser's fullscreen element.
 function scheduleChromeSweep(){
-  if(chromeFrame||mode!=='slides')return;
+  if(fastSlides||chromeFrame||mode!=='slides')return;
   // Only one DOM traversal per animation frame, regardless of how many
   // individual tiles/styles the PowerPoint renderer touches.
   chromeFrame=requestAnimationFrame(()=>{
@@ -96,7 +211,7 @@ function keepPresenterChromeHidden(){
   stopChromeSweep();
   removePresentationChrome();
   chromeObserver=new MutationObserver(records=>{
-    if(mode!=='slides')return;
+    if(mode!=='slides'||fastSlides)return;
     // Ignore the flood of ordinary slide style/transform mutations;
     // CSS already suppresses known buttons. Only new DOM or changed
     // presentation controls need a follow-up scan.
@@ -412,6 +527,8 @@ async function prepare(){
       }
     });
     mediaObserver.observe(host,{childList:true,subtree:true});
+    message('Preparando imágenes de navegación instantánea…');
+    await deadline(loadFastSlides(blob),'precargar imágenes de las diapositivas',30000);
     // Once the complete PPTX and Geraldine timing are ready, enter directly.
     // No readiness menu or synthetic button click is needed.
     start();
@@ -431,15 +548,20 @@ function start(){
     host.querySelector('.pptxv')?.classList.add('pptxv-presenting');
     scheduleChromeSweep();
   };
-  try{Promise.resolve(viewer.enterPresentation()).catch(fallback);}
-  catch(error){fallback(error);}
+  try{Promise.resolve(viewer.enterPresentation())
+    .then(()=>{if(fastSlides)fastMount();})
+    .catch(error=>{fallback(error);if(fastSlides)fastMount();});}
+  catch(error){fallback(error);if(fastSlides)fastMount();}
   keepPresenterChromeHidden();
   slideChanged(viewer.getCurrentSlide?.()??0);
   scheduleMedia();
   // Leave the loading screen only after the compositor had a chance to
   // mount the first slide, preventing a transient unrendered white frame.
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    if(mode==='slides')$('loading').hidden=true;
+    if(mode==='slides'){
+      if(fastSlides)fastMount();
+      $('loading').hidden=true;
+    }
   }));
 }
 function closeIntro(){
@@ -447,7 +569,9 @@ function closeIntro(){
   const video=$('intro-video');
   video.pause();video.removeAttribute('src');video.load();
   $('intro').hidden=true;
-  mode='slides';viewer?.goToSlide?.(0);slideChanged(0);
+  mode='slides';
+  if(fastSlides){slideChanged(0);showFastFrame(0);}
+  else{viewer?.goToSlide?.(0);slideChanged(0);}
 }
 function openIntro(){
   if(mode!=='slides'||slide!==0)return;
@@ -505,9 +629,17 @@ function next(){
       return;
     }
   }
-  viewer?.goToSlide?.((slide+1)%total);
+  if(fastSlides){
+    slideChanged((slide+1)%total);
+    showFastFrame(slide);
+  }else viewer?.goToSlide?.((slide+1)%total);
 }
-function previous(){viewer?.goToSlide?.((slide-1+total)%total);}
+function previous(){
+  if(fastSlides){
+    slideChanged((slide-1+total)%total);
+    showFastFrame(slide);
+  }else viewer?.goToSlide?.((slide-1+total)%total);
+}
 function handle(key,repeat=false){
   if(repeat)return;
   if(mode==='intro'){
@@ -545,6 +677,13 @@ document.addEventListener('keydown',event=>{
 },true);
 window.tvRemoteKey=key=>handle(key,false);
 window.tvRemoteTab=()=>handle('Tab',false);
+// Build-time diagnostic only; never offered as a runtime remote command.
+if(location.hostname==='127.0.0.1')
+  window.__tvCaptureSlide=index=>{
+    if(!viewer||index<0||index>=total)throw Error('Invalid capture slide '+index);
+    viewer.goToSlide(index);
+    return viewer.getCurrentSlide();
+  };
 // Called by the Activity after native playback completes, fails, or is stopped.
 window.tvNativeIntroEnded=detail=>{
   if(mode!=='intro')return;
@@ -564,5 +703,8 @@ window.addEventListener('beforeunload',()=>{
   try{window.AndroidTv?.stopGeraldine?.();}catch{}
   mediaObserver?.disconnect();
   stopChromeSweep();
+  fastToken++;
+  fastLayer?.remove();
+  fastDecoded.clear();
 });
 void prepare();

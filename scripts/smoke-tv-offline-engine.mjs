@@ -8,7 +8,13 @@ const dir=resolve('android-tv/app/src/main/assets');
 const pptx=join(dir,'bundle','presentation.pptx');
 assert.ok(statSync(pptx).size>1000000,'Actual verified PPTX must be available');
 assert.ok(statSync(join(dir,'pptx-viewer-offline.js')).size>10000,'Bundled engine must be built');
-const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation'};
+const snapshots=JSON.parse(readFileSync(join(dir,'slides','manifest.json'),'utf8'));
+const packageManifest=JSON.parse(readFileSync(join(dir,'bundle','manifest.json'),'utf8'));
+assert.equal(snapshots.pptxSha256,packageManifest.presentation.sha256,'Images must match original PPTX');
+assert.equal(snapshots.slideCount,40);
+for(let i=1;i<=40;i++)
+  assert.ok(statSync(join(dir,'slides','slide-'+String(i).padStart(3,'0')+'.jpg')).size>14000);
+const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation','.jpg':'image/jpeg','.json':'application/json'};
 const server=http.createServer((req,res)=>{
   let requested=new URL(req.url,'http://127.0.0.1').pathname;
   let file;
@@ -61,11 +67,24 @@ try{
   assert.equal(forbidden.length,0,'External network used by PPTX viewer: '+forbidden.join(', '));
   assert.ok(status.ok,'Failed offline PPTX parse: '+JSON.stringify(state)+'; errors '+errors.join(' | '));
   assert.equal(String(state.slide),'0','Presentation must automatically start on first slide');
-  await page.evaluate(()=>window.tvRemoteKey?.('PageDown'));
-  await page.waitForTimeout(500);
-  const next=await page.locator('#slides').getAttribute('data-slide');
-  assert.equal(next,'1','PageDown must advance with no Wi-Fi');
-  console.log('Offline TCL scenario: full PPTX engine, slide 1/2, PageDown and no network PASSED');
+  const first=await page.waitForFunction(()=>document.querySelector('#tv-fast-layer img')?.naturalWidth===1920,
+    null,{timeout:20000});
+  assert.ok(first,'First instant screenshot must be fully decoded');
+  const clock=await page.evaluate(()=>{
+    const start=performance.now();
+    window.tvRemoteKey?.('PageDown');
+    return {ms:performance.now()-start,slide:document.getElementById('slides')?.dataset.slide};
+  });
+  assert.equal(clock.slide,'1','PageDown must advance immediately with no Wi-Fi');
+  assert.ok(clock.ms<120,'PageDown handler must not redraw PPTX: '+clock.ms+'ms');
+  await page.waitForFunction(()=>
+    document.querySelector('#tv-fast-layer img')?.src.endsWith('/slide-002.jpg') &&
+    document.querySelector('#tv-fast-layer img')?.naturalWidth===1920,
+    null,{timeout:15000});
+  await page.evaluate(()=>window.tvRemoteKey?.('PageUp'));
+  await page.waitForFunction(()=>document.querySelector('#tv-fast-layer img')?.src.endsWith('/slide-001.jpg'),null,{timeout:5000});
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'0');
+  console.log('Offline TCL scenario: all 40 screenshots pre-rendered, full PPTX loaded, next/previous without PPTX repaint or Wi-Fi PASSED');
 }finally{
   await browser.close();
   await new Promise(resolve=>server.close(resolve));

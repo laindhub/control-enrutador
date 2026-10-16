@@ -303,3 +303,25 @@ establece una política CSP que impide acceso a Google Fonts, CDNs y otros
 servidores, de modo que el televisor no necesite Wi-Fi siquiera para la
 tipografía. Se comprueba esto con la presentación original cargada en un
 navegador con todos los accesos externos bloqueados.
+
+
+## 1.6.14 · Precálculo de 40 diapositivas (navegación instantánea)
+
+La edición offline completa incorpora 40 imágenes JPEG a 1920×1080,
+**generadas desde el PowerPoint original** con el motor PPTX local durante
+GitHub Actions. El paquete incluye manifiesto de SHA-256: si el PPTX
+se actualiza y ya no coincide, la app utiliza automáticamente el visor
+PowerPoint ordinario, nunca muestra imágenes de una versión anterior.
+
+En el televisor se mantiene el PPTX cargado para controles y Geraldine,
+pero cada orden PageUp/PageDown/Teclas desplaza una imagen ya decodificada
+sin llamar `viewer.goToSlide()` (evita repintado por cuadrantes, reflujo de
+shapes y demoras de 500 ms). Solo se mantienen precargadas unas pocas
+imágenes vecinas para limitar la memoria de las TCL; no se introducen
+animaciones ni transiciones. Las diapositivas 21 y 22 conservan la
+reproducción de Geraldine nativa, con preview del primer fotograma.
+
+El test CI comprueba los 40 JPEG, coincidencia de SHA-256 con el archivo
+original, entrada de PPTX sin Internet y avance de página sin invocar
+el renderizador pesado. No modifica la presentación, los controles ni
+el video de introducción.

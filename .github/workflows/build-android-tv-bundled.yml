@@ -7,6 +7,7 @@ on:
       - 'scripts/build-tv-pptx-engine.mjs'
       - 'scripts/tv-pptx-engine-entry.mjs'
       - 'scripts/smoke-tv-offline-engine.mjs'
+      - 'scripts/pre-render-tv-slides.mjs'
       - 'android-tv/app/src/main/assets/tv.js'
       - 'scripts/e2e-android-tv.mjs'
       - 'android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java'
@@ -43,7 +44,9 @@ jobs:
         run: node scripts/e2e-android-tv.mjs
       - name: Download official PPTX and MP4, verify each SHA-256
         run: node scripts/package-tv-bundle.mjs
-      - name: Verify actual PowerPoint loads completely offline
+      - name: Pre-render the 40 slides into instant-display images
+        run: node scripts/pre-render-tv-slides.mjs
+      - name: Verify actual PowerPoint and cached slide navigation offline
         run: node scripts/smoke-tv-offline-engine.mjs
       - name: Build Android TV APK including both files and local PPTX engine
         working-directory: android-tv
@@ -55,6 +58,10 @@ jobs:
           test -s "$apk"
           unzip -Z -1 "$apk" | grep -Fx 'assets/pptx-viewer-offline.js'
           unzip -Z -1 "$apk" | grep -Fx 'assets/tv-fonts.css'
+          unzip -Z -1 "$apk" | grep -Fx 'assets/slides/manifest.json'
+          for n in $(seq -w 1 40); do
+            unzip -Z -1 "$apk" | grep -Fx "assets/slides/slide-$(printf '%03d' "$n").jpg"
+          done
           for name in presentation.pptx introduccion.mp4 manifest.json; do
             unzip -Z -1 "$apk" | grep -Fx "assets/bundle/$name"
           done
@@ -72,16 +79,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          direct="$RUNNER_TEMP/MasDuenosTV_1.6.13_Offline_Real.apk"
+          direct="$RUNNER_TEMP/MasDuenosTV_1.6.14_Instantanea.apk"
           cp android-tv/app/build/outputs/apk/debug/app-debug.apk "$direct"
-          tag="masduenos-tv-1.6.13-offline"
+          tag="masduenos-tv-1.6.14-instantanea"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$direct" --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$tag" "$direct" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "Más Dueños TV 1.6.13 — Offline completo TCL" \
+              --title "Más Dueños TV 1.6.14 — Diapositivas instantáneas" \
               --notes "Instalador con las 40 diapositivas, video de introducción y motor PowerPoint incorporado. Validado sin Internet mediante navegador offline real. En TV basta instalar; no necesita red para abrir el PowerPoint."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

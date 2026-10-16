@@ -1,0 +1,51 @@
+name: Publish complete TV APK directly
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/publish-android-tv-offline.yml'
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve already-built complete APK (no rebuild, no changes)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/tv-offline"
+          gh run download 38920268262 --repo "$GITHUB_REPOSITORY" \
+            --name masduenos-android-tv-offline-complete-apk \
+            --dir "$RUNNER_TEMP/tv-offline"
+          source="$RUNNER_TEMP/tv-offline/app-debug.apk"
+          test -s "$source"
+          test "$(stat -c %s "$source")" -gt 250000000
+          for entry in assets/bundle/presentation.pptx assets/bundle/introduccion.mp4 assets/bundle/manifest.json; do
+            unzip -Z -1 "$source" | grep -Fx "$entry"
+          done
+          cp "$source" "MasDuenosTV_1.6.12_Completo_Offline.apk"
+          sha256sum "MasDuenosTV_1.6.12_Completo_Offline.apk"
+      - name: Publish single directly downloadable APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="masduenos-tv-1.6.12-completo"
+          apk="MasDuenosTV_1.6.12_Completo_Offline.apk"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Más Dueños TV 1.6.12 — APK completo" \
+              --notes "APK instalable con el PPTX comercial y video de introducción originales incorporados. Verificados mediante SHA-256 durante la compilación. No requiere descargar esos dos archivos en el primer inicio. Es una compilación debug firmada automáticamente por GitHub Actions; si Android indica firma incompatible, puede ser necesario desinstalar la versión anterior." \
+              --latest=false
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '.assets[] | select(.name=="MasDuenosTV_1.6.12_Completo_Offline.apk") | {name,size,url}'

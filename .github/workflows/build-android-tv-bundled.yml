@@ -59,7 +59,7 @@ jobs:
           unzip -Z -1 "$apk" | grep -Fx 'assets/pptx-viewer-offline.js'
           unzip -Z -1 "$apk" | grep -Fx 'assets/tv-fonts.css'
           unzip -Z -1 "$apk" | grep -Fx 'assets/slides/manifest.json'
-          for n in $(seq -w 1 40); do
+          for n in $(seq 1 40); do
             unzip -Z -1 "$apk" | grep -Fx "assets/slides/slide-$(printf '%03d' "$n").jpg"
           done
           for name in presentation.pptx introduccion.mp4 manifest.json; do

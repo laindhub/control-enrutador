@@ -1,0 +1,67 @@
+name: Verify/install and publish complete TV APK
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-android-tv-complete.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  inspect-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Download already built original APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download 38920268262 --repo "$GITHUB_REPOSITORY" --name masduenos-android-tv-offline-complete-apk --dir dist
+          test -s dist/app-debug.apk
+          mv dist/app-debug.apk dist/MasDuenosTV_1.6.12_Completa.apk
+      - name: Inspect app metadata and installation signatures
+        run: |
+          set -euo pipefail
+          apk=dist/MasDuenosTV_1.6.12_Completa.apk
+          for name in presentation.pptx introduccion.mp4 manifest.json; do
+            unzip -Z -1 "$apk" | grep -Fx "assets/bundle/$name"
+          done
+          signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
+          aapt=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -n 1)
+          "$signer" verify --verbose "$apk"
+          "$aapt" dump badging "$apk" | head -n 15
+          ls -lh "$apk"
+      - name: Enable KVM acceleration for Android emulator
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Test installation on clean Android 15 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            adb shell pm list packages | grep -F io.laind.masduenos.tv && exit 1 || true
+            adb install -r -t "$GITHUB_WORKSPACE/dist/MasDuenosTV_1.6.12_Completa.apk"
+            adb shell pm path io.laind.masduenos.tv
+      - name: Publish direct APK on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=masduenos-tv-1.6.12-completa
+          apk=dist/MasDuenosTV_1.6.12_Completa.apk
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Más Dueños TV 1.6.12 — APK completo" --notes "APK único con PowerPoint y video de introducción incluidos. Instalación verificada en Android 15 limpio. Si falla en otro dispositivo, consultar error específico."
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

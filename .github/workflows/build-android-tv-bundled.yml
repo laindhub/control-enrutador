@@ -1,0 +1,86 @@
+name: Build Más Dueños TV with preloaded media
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/package-tv-bundle.mjs'
+      - 'android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java'
+      - 'android-tv/app/build.gradle'
+      - '.github/workflows/build-android-tv-bundled.yml'
+permissions:
+  contents: read
+jobs:
+  bundled-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      # No random debug signing: use the SAME cert as the original TV app,
+      # making the bundled installer an in-place upgrade.
+      - name: Require permanent signing secrets
+        env:
+          TV_SIGNING_SECRET: ${{ secrets.TV_SIGNING_SECRET }}
+          TV_SIGNING_KEYSTORE_B64: ${{ secrets.TV_SIGNING_KEYSTORE_B64 }}
+        run: |
+          if [[ -z "$TV_SIGNING_SECRET" || -z "$TV_SIGNING_KEYSTORE_B64" ]]; then
+            echo "::error::Missing TV permanent signing secrets."
+            exit 1
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+      - name: Recover the permanent TV signing key
+        env:
+          TV_SIGNING_SECRET: ${{ secrets.TV_SIGNING_SECRET }}
+          TV_SIGNING_KEYSTORE_B64: ${{ secrets.TV_SIGNING_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          echo "TV_SIGNING_STORE_PATH=$RUNNER_TEMP/masduenos-tv-release.p12" >> "$GITHUB_ENV"
+          printf '%s' "$TV_SIGNING_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/masduenos-tv-release.p12"
+          chmod 600 "$RUNNER_TEMP/masduenos-tv-release.p12"
+          keytool -list -keystore "$RUNNER_TEMP/masduenos-tv-release.p12" \
+            -storetype PKCS12 -storepass:env TV_SIGNING_SECRET -alias masduenostv > /dev/null
+      - run: node --test test/tv-media.test.js
+      - name: Install browser test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify Android TV navigation
+        run: node scripts/e2e-android-tv.mjs
+      - name: Fetch and SHA-256-verify both Hostinger media assets
+        run: node scripts/package-tv-bundle.mjs
+      - name: Build installable OFFLINE TV APK with permanent signing key
+        working-directory: android-tv
+        env:
+          TV_SIGNING_SECRET: ${{ secrets.TV_SIGNING_SECRET }}
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Verify media is inside the APK and certificate is pinned
+        run: |
+          set -euo pipefail
+          apk="android-tv/app/build/outputs/apk/release/app-release.apk"
+          test -s "$apk"
+          unzip -Z -1 "$apk" | grep -Fx 'assets/bundle/presentation.pptx'
+          unzip -Z -1 "$apk" | grep -Fx 'assets/bundle/introduccion.mp4'
+          unzip -Z -1 "$apk" | grep -Fx 'assets/bundle/manifest.json'
+          signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
+          "$signer" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/tv-bundled-signature.txt"
+          pinned=$(tr -d '[:space:]' < android-tv/signing/certificate.sha256)
+          actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/tv-bundled-signature.txt" | head -n 1)
+          if [[ -z "$actual" || "$actual" != "$pinned" ]]; then
+            echo "::error::Bundled TV APK signing certificate mismatch."
+            exit 1
+          fi
+          echo "Bundle and signing verified: $(du -h "$apk")"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masduenos-android-tv-offline-complete-apk
+          path: android-tv/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30

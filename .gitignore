@@ -14,3 +14,6 @@ android-tv/signing/*.keystore
 android-tv/signing/*.key
 android-tv/signing/*.pem
 android-tv/signing/*secret*
+
+# Large offline TV payload is fetched during CI, never committed to Git
+android-tv/app/src/main/assets/bundle/

@@ -231,3 +231,34 @@ posteriores firmadas con esta misma clave, la actualización será en el
 mismo paquete `io.laind.masduenos.tv` sin borrar archivos locales,
 siempre que se incremente `versionCode`.
 
+
+## 1.6.11: APK completo, con medios incorporados (sin descarga inicial)
+
+La variante **masduenos-android-tv-offline-complete-apk** incluye los **dos
+archivos originales**: `mas-duenos-liniers.pptx` y `introduccion.mp4`.
+No se agregan videos ni documentos grandes al repositorio GitHub.
+
+El workflow `.github/workflows/build-android-tv-bundled.yml` descarga desde
+Hostinger exactamente `/tv/media/presentation.pptx` y
+`/tv/media/introduccion.mp4` durante la compilación y comprueba sus tamaños,
+contenidos y SHA-256 contra `/tv/manifest.json`. Si falta algún archivo o
+falla una verificación, NO publica el APK.
+
+Al iniciar por primera vez, `TvAssetStore` copia ambos archivos desde
+`assets/bundle/` a su almacenamiento privado y comprueba su SHA-256 antes
+de utilizarlos. La copia se realiza una sola vez. Conserva copias previas
+válidas, y lanza la presentación en cuanto ambos archivos locales están
+verificados, aunque Hostinger no esté disponible. En segundo plano se
+mantiene la comprobación de actualizaciones del servidor. El archivo
+PowerPoint y la introducción no se modifican ni se convierten.
+
+La APK tiene varios cientos de megabytes y la instalación/copia inicial
+necesita espacio libre adicional en Android TV. El motor remoto de PPTX
+`esm.sh` todavía podría requerir conexión cuando no esté guardado en la
+caché del WebView; la variante incluye **los medios**, no un motor PPTX
+completamente desconectado.
+
+El APK ordinario sigue funcionando sin ninguna modificación de flujo: si
+no existe `assets/bundle/manifest.json`, usa exclusivamente la descarga
+existente. Ambas variantes conservan el package id y la misma firma
+permanente, para permitir actualizaciones sin reinstalación.

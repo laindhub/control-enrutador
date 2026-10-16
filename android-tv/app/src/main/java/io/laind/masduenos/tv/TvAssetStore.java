@@ -59,6 +59,14 @@ public final class TvAssetStore {
             try {
                 report(listener,"presentation",0,0,"comprobando");
                 report(listener,"introduction",0,0,"comprobando");
+                // The special large APK ships both SHA-256-pinned media assets.
+                // Restore them before any network access, so a new TV can start
+                // presenting immediately, including entirely offline.
+                if(restoreBundledAssets(listener)&&has("presentation")&&has("introduction")){
+                    finish(listener,"Presentación e introducción incluidas: listas sin conexión.");
+                }
+                // Keep the existing Hostinger update protocol intact: after
+                // the initial local-ready callback, check for newer assets.
                 JSONObject manifest=readJson(MANIFEST);
                 if(manifest.getInt("version")!=1)throw new IOException("Versión de manifiesto desconocida");
                 String[] kinds={"presentation","introduction"};
@@ -97,6 +105,98 @@ public final class TvAssetStore {
                 finish(listener,message);
             }
         },"tv-assets-updater").start();
+    }
+
+    /**
+     * Preloaded large APKs contain assets/bundle/manifest.json and the two
+     * ORIGINAL byte-for-byte Hostinger resources. Normal slim APKs have no
+     * bundle manifest and continue to work exactly as before.
+     *
+     * The APK itself is trusted via Android's pinned release signature; every
+     * extracted resource is also streamed through SHA-256 and length checks
+     * before being atomically published to app-private storage.
+     */
+    private boolean restoreBundledAssets(Listener listener)throws Exception {
+        JSONObject manifest;
+        try(InputStream source=context.getAssets().open("bundle/manifest.json")){
+            ByteArrayOutputStream buf=new ByteArrayOutputStream();
+            byte[] chunk=new byte[4096];
+            int n;
+            while((n=source.read(chunk))!=-1){
+                if(buf.size()+n>16*1024)throw new IOException("Manifiesto incorporado demasiado grande");
+                buf.write(chunk,0,n);
+            }
+            manifest=new JSONObject(buf.toString("UTF-8"));
+        }catch(java.io.FileNotFoundException absent){
+            return false; // Standard lean release has no bundled media.
+        }
+        if(manifest.optInt("version")!=1)
+            throw new IOException("Versión de paquete multimedia desconocida");
+        for(String kind:new String[]{"presentation","introduction"}){
+            JSONObject item=manifest.getJSONObject(kind);
+            String expectedSha=item.getString("sha256").toLowerCase(Locale.ROOT);
+            long expectedSize=item.getLong("size");
+            String asset="bundle/"+("presentation".equals(kind)?"presentation.pptx":"introduccion.mp4");
+            if(!expectedSha.matches("[0-9a-f]{64}")||
+               expectedSize<12||expectedSize>maxBytes(kind))
+                throw new IOException("Metadatos multimedia inválidos: "+kind);
+            // A newer cached version is valid too; never downgrade it merely
+            // because this APK was packaged with an older copy.
+            if(has(kind)){
+                long current=file(kind).length();
+                report(listener,kind,current,current,"guardado");
+                continue;
+            }
+            File original=file(kind);
+            File tmp=new File(context.getFilesDir(),"bundle-"+kind+".part");
+            if(tmp.exists()&&!tmp.delete())throw new IOException("No se pudo limpiar paquete parcial");
+            MessageDigest hash=MessageDigest.getInstance("SHA-256");
+            long written=0;
+            try(InputStream input=new BufferedInputStream(context.getAssets().open(asset));
+                FileOutputStream stream=new FileOutputStream(tmp);
+                BufferedOutputStream output=new BufferedOutputStream(stream)){
+                byte[] bytes=new byte[128*1024];
+                int n;
+                while((n=input.read(bytes))!=-1){
+                    written+=n;
+                    if(written>expectedSize||written>maxBytes(kind))
+                        throw new IOException("Datos incorporados exceden el tamaño declarado");
+                    output.write(bytes,0,n);
+                    hash.update(bytes,0,n);
+                    report(listener,kind,written,expectedSize,"guardando");
+                }
+            }catch(Exception e){
+                tmp.delete();
+                throw e;
+            }
+            StringBuilder digest=new StringBuilder(64);
+            for(byte b:hash.digest())digest.append(String.format(Locale.ROOT,"%02x",b&0xff));
+            if(written!=expectedSize||!expectedSha.equals(digest.toString())){
+                tmp.delete();
+                throw new IOException("SHA-256 del paquete incorporado incorrecto: "+kind);
+            }
+            try(RandomAccessFile probe=new RandomAccessFile(tmp,"r")){
+                byte[] sig=new byte[4];
+                if("presentation".equals(kind)){
+                    probe.readFully(sig);
+                    if(sig[0]!=0x50||sig[1]!=0x4b||sig[2]!=3||sig[3]!=4)
+                        throw new IOException("PPTX incorporado inválido");
+                }else{
+                    probe.seek(4);probe.readFully(sig);
+                    if(!"ftyp".equals(new String(sig,"US-ASCII")))
+                        throw new IOException("MP4 incorporado inválido");
+                }
+            }
+            try{Files.move(tmp.toPath(),original.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
+            catch(java.nio.file.AtomicMoveNotSupportedException e){
+                Files.move(tmp.toPath(),original.toPath(),StandardCopyOption.REPLACE_EXISTING);
+            }
+            saved.edit().putLong(kind+".size",expectedSize)
+                .putString(kind+".sha",expectedSha).commit();
+            report(listener,kind,written,written,"guardado");
+        }
+        return true;
     }
     private static long maxBytes(String kind){
         return "presentation".equals(kind)?250L*1024*1024:1024L*1024*1024;

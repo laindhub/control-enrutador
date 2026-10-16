@@ -6,6 +6,14 @@ import {chromium} from 'playwright';
 
 const dir=path.resolve('android-tv/app/src/main/assets');
 const nativeRouter=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvActivity.java','utf8');
+const assetStore=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java','utf8');
+assert.match(assetStore,/restoreBundledAssets\(listener\)/,
+  'Bundled media must be restored before the server manifest fetch');
+assert.ok(assetStore.indexOf('restoreBundledAssets(listener)')<
+  assetStore.indexOf('JSONObject manifest=readJson(MANIFEST)'),
+  'Start must be possible from APK assets before any network request');
+assert.match(assetStore,/getAssets\(\)\.open\("bundle\/manifest\.json"\)/);
+assert.match(assetStore,/SHA-256 del paquete incorporado incorrecto/);
 const htmlEntry=readFileSync(path.join(dir,'index.html'),'utf8');
 assert.match(nativeRouter,/autoOpenAfterSync/);
 assert.match(nativeRouter,/if\(playable && autoOpenAfterSync && !inPlayer\)/);

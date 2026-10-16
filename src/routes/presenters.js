@@ -1,6 +1,5 @@
 import express from 'express';
 import {createPresenterLeadsRouter} from './presenter-leads.js';
-import {createPresenterCrmRouter} from './presenter-crm.js';
 import {createPresenterAdminRouter} from './presenter-admin.js';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
@@ -57,7 +56,6 @@ async function leadSelection(visitId, data) {
 export function createPresenterRouter() {
  const router=express.Router();router.use(requireAuth,presenterAccess);
  router.use(createPresenterLeadsRouter());
- router.use(createPresenterCrmRouter());
  router.use('/admin',createPresenterAdminRouter({id,text,saleValues,saleFingerprint,leadSelection}));
  router.get('/state',async(req,res)=>{
   const userId=req.session.user.id;

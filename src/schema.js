@@ -254,18 +254,6 @@ const schemaStatements = [
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `INSERT IGNORE INTO presenter_lead_policies (month,policy_json) VALUES ('2026-10','{"unlock":650,"elite":780,"baseRate":1350,"eliteRate":1500}')`,
-  `CREATE TABLE IF NOT EXISTS presenter_crm_links (
-    user_id INT UNSIGNED NOT NULL PRIMARY KEY,
-    crm_name VARCHAR(120) NOT NULL,
-    crm_name_key VARCHAR(120) NOT NULL UNIQUE,
-    pin_cipher VARCHAR(256) NOT NULL,
-    status ENUM('pending','active','invalid','error') NOT NULL DEFAULT 'pending',
-    last_attempt_at DATETIME NULL,
-    last_success_at DATETIME NULL,
-    last_error VARCHAR(255) NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS presenter_lead_snapshots (
     user_id INT UNSIGNED NOT NULL, month CHAR(7) NOT NULL, quantity INT UNSIGNED NOT NULL,
     source_label VARCHAR(255) NOT NULL DEFAULT '', captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

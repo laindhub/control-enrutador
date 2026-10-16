@@ -3,7 +3,6 @@ import {pool} from '../db.js';
 import {nowLocal} from '../time.js';
 import {validDate} from '../presenter-sales.js';
 import {defaultLeadPolicy,leadMonth,leadInteger,leadPolicy,leadPlan,leadSummary} from '../presenter-leads.js';
-import {getLink} from './presenter-crm.js';
 const json=v=>typeof v==='string'?JSON.parse(v):v;
 const admin=(req,res,next)=>req.session.user.role==='presenter_admin'?next():res.status(403).json({error:'Solo el administrador puede modificar el esquema.'});
 export function createPresenterLeadsRouter(){
@@ -17,8 +16,7 @@ export function createPresenterLeadsRouter(){
    pool.execute('SELECT plan_json FROM presenter_lead_plans WHERE user_id=? AND month=?',[userId,month])]);
   const policy=json(policies[0]?.policy_json)||defaultLeadPolicy,plan=json(plans[0]?.plan_json)||{goal:policy.elite,offDays:null};
   const snapshot=snapshots[0]||null,today=nowLocal().toISODate();
-  const crmLink=await getLink(userId);
-  res.set('Cache-Control','no-store').json({month,today,user:req.session.user,crmLink:crmLink?{status:crmLink.status,name:crmLink.crm_name,lastSuccess:crmLink.last_success_at}:null,policy,policyMonth:policies[0]?.month||null,plan,snapshot,entries,summary:leadSummary({month,today,policy,plan,sourceCount:snapshot?Number(snapshot.quantity):null,manualCount:entries.reduce((sum,e)=>sum+Number(e.quantity),0)})});
+  res.set('Cache-Control','no-store').json({month,today,user:req.session.user,policy,policyMonth:policies[0]?.month||null,plan,snapshot,entries,summary:leadSummary({month,today,policy,plan,sourceCount:snapshot?Number(snapshot.quantity):null,manualCount:entries.reduce((sum,e)=>sum+Number(e.quantity),0)})});
  });
  router.post('/lead-snapshot',async(req,res)=>{
   const month=leadMonth(req.body.month),quantity=leadInteger(req.body.quantity),sourceLabel=String(req.body.sourceLabel||'').trim().slice(0,255);

@@ -1,10 +1,8 @@
 import { createPresenterRouter, presenterAccess } from './routes/presenters.js';
 import { enableSalonSession, restoreSalonSession, allowSalonFrame } from './presenter-embed.js';
 import { startLeadSync, stopLeadSync } from './lead-sync-runner.js';
-import { startPresenterCrmSync,stopPresenterCrmSync } from './presenter-crm-runner.js';
-import { getLink,isIOS } from './routes/presenter-crm.js';
-process.once('SIGTERM', () => { stopPresenterCrmSync();stopLeadSync().finally(() => process.exit(0)); });
-process.once('SIGINT', () => { stopPresenterCrmSync();stopLeadSync().finally(() => process.exit(0)); });
+process.once('SIGTERM', () => { stopLeadSync().finally(() => process.exit(0)); });
+process.once('SIGINT', () => { stopLeadSync().finally(() => process.exit(0)); });
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
@@ -356,23 +354,7 @@ app.get('/presentador/integrado', allowSalonFrame, (req,res,next) => {
   if (!req.session.user) return res.render('presenter-connect');
   return presenterAccess(req,res,() => res.render('presenter', { title:'Mis ventas', embedded:true }));
 });
-app.get('/presentador/vincular',requireAuth,presenterAccess,async(req,res,next)=>{
- try{
-  const link=await getLink(req.session.user.id);
-  if(link?.status==='active'&&req.query.editar!=='1')return res.redirect('/presentador');
-  return res.render('presenter-crm-link',{title:'Vincular Liniers',link});
- }catch(error){next(error);}
-});
-app.get('/presentador',enableSalonSession,requireAuth,presenterAccess,async(req,res,next)=>{
- try{
-  const iphone=isIOS(req);
-  if(iphone){
-   const link=await getLink(req.session.user.id);
-   if(!link||link.status==='invalid')return res.redirect('/presentador/vincular');
-  }
-  return res.render('presenter',{title:'Mis ventas',embedded:false,ios:iphone});
- }catch(error){next(error);}
-});
+app.get('/presentador', enableSalonSession, requireAuth, presenterAccess, (_req, res) => res.render('presenter', { title: 'Mis ventas', embedded:false }));
 app.use('/api/presenters', verifyCsrf, createPresenterRouter());
 
 app.get('/admin', requireAuth, requireRole('admin'), (_req, res) => {
@@ -496,7 +478,6 @@ async function initializeApplication() {
     await initializeWithRetry(() => initializeDatabase());
     startupState = 'ready';
     try { startLeadSync(); } catch { console.error('Sincronización de leads desactivada: revisá su configuración.'); }
-    startPresenterCrmSync();
     console.log('Salón Más Dueños inicializado correctamente.');
 
     cleanupExpiredRecords().catch((error) => console.error('No se pudo ejecutar la retención inicial:', error));

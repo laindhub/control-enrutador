@@ -1,4 +1,5 @@
 name: Publish complete Más Dueños TV APK
+# Publication uses the existing verified build, without recompressing the media.
 on:
   workflow_dispatch:
   push:

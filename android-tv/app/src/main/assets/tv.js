@@ -677,6 +677,14 @@ document.addEventListener('keydown',event=>{
 },true);
 window.tvRemoteKey=key=>handle(key,false);
 window.tvRemoteTab=()=>handle('Tab',false);
+// Return from the native main menu without loading index.html or rebuilding the
+// PPTX. Keep the current slide and restore the snapshot above fullscreen.
+window.tvMenuResumed=()=>{
+  if(mode==='intro')closeIntro();
+  if(mode!=='slides')return;
+  if(fastSlides)fastMount();
+  if(slide===mediaBuildSlide&&!mediaBuildTriggered)slideChanged(slide);
+};
 // Build-time diagnostic only; never offered as a runtime remote command.
 if(location.hostname==='127.0.0.1')
   window.__tvCaptureSlide=index=>{

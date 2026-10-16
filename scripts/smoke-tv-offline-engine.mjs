@@ -76,6 +76,9 @@ try{
     return {ms:performance.now()-start,slide:document.getElementById('slides')?.dataset.slide};
   });
   assert.equal(clock.slide,'1','PageDown must advance immediately with no Wi-Fi');
+  await page.evaluate(()=>window.tvMenuResumed?.());
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1',
+    'Resuming from the native menu must not recreate/reset the PowerPoint');
   assert.ok(clock.ms<120,'PageDown handler must not redraw PPTX: '+clock.ms+'ms');
   await page.waitForFunction(()=>
     document.querySelector('#tv-fast-layer img')?.src.endsWith('/slide-002.jpg') &&

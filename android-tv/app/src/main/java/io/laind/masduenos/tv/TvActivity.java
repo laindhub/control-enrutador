@@ -45,6 +45,7 @@ public final class TvActivity extends Activity {
     private TvAssetStore files;
     private FrameLayout frame;
     private LinearLayout menu;
+    private LinearLayout checkingPanel;
     private ScrollView menuSurface;
     private TextView pptxStatus,videoStatus,notice;
     private ProgressBar pptxProgress,videoProgress;
@@ -53,6 +54,9 @@ public final class TvActivity extends Activity {
     private View customView;
     private WebChromeClient.CustomViewCallback customCallback;
     private boolean inPlayer=false;
+    // The prepared WebView stays loaded while the native main menu is shown.
+    // Pressing Back suspends the presentation, not its PPTX or cached slides.
+    private boolean playerLoaded=false;
     // Launch the locally stored deck as soon as BOTH media sync attempts finish.
     // Returning with Back keeps the native menu open until the user requests it.
     private boolean autoOpenAfterSync=true;
@@ -153,6 +157,9 @@ public final class TvActivity extends Activity {
         int gap=dp(shortTV?12:18);
         menuSurface=new ScrollView(this);
         menuSurface.setFillViewport(true);
+        // The loaded slide remains underneath the menu; use an opaque
+        // background so it never shows through or steals focus.
+        menuSurface.setBackgroundColor(Color.rgb(15,16,20));
         menuSurface.setVerticalScrollBarEnabled(false);
         menuSurface.setOverScrollMode(View.OVER_SCROLL_NEVER);
         menuSurface.setClipToPadding(false);
@@ -183,24 +190,26 @@ public final class TvActivity extends Activity {
             shortTV?15:17,Color.rgb(186,188,197),false);
         menu.addView(info);
 
+        checkingPanel=vertical();
+        menu.addView(checkingPanel);
         TextView filesTitle=text("ARCHIVOS EN EL TELEVISOR",shortTV?12:14,
             Color.rgb(160,162,172),true);
         filesTitle.setLetterSpacing(.08f);
         filesTitle.setPadding(0,dp(shortTV?17:25),0,dp(5));
-        menu.addView(filesTitle);
+        checkingPanel.addView(filesTitle);
         pptxStatus=text("PowerPoint · comprobando…",shortTV?15:17,Color.WHITE,false);
-        pptxStatus.setPadding(0,dp(7),0,dp(7));menu.addView(pptxStatus);
+        pptxStatus.setPadding(0,dp(7),0,dp(7));checkingPanel.addView(pptxStatus);
         pptxProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
         pptxProgress.setMax(100);
-        menu.addView(pptxProgress,new LinearLayout.LayoutParams(-1,dp(6)));
+        checkingPanel.addView(pptxProgress,new LinearLayout.LayoutParams(-1,dp(6)));
         videoStatus=text("Introducción MP4 · comprobando…",shortTV?15:17,Color.WHITE,false);
-        videoStatus.setPadding(0,dp(14),0,dp(7));menu.addView(videoStatus);
+        videoStatus.setPadding(0,dp(14),0,dp(7));checkingPanel.addView(videoStatus);
         videoProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
         videoProgress.setMax(100);
-        menu.addView(videoProgress,new LinearLayout.LayoutParams(-1,dp(6)));
+        checkingPanel.addView(videoProgress,new LinearLayout.LayoutParams(-1,dp(6)));
 
         notice=text("Preparando archivos…",shortTV?13:15,Color.rgb(173,178,190),false);
-        notice.setPadding(0,dp(13),0,dp(5));menu.addView(notice);
+        notice.setPadding(0,dp(13),0,dp(5));checkingPanel.addView(notice);
 
         LinearLayout actions=vertical();
         LinearLayout.LayoutParams actionsLayout=new LinearLayout.LayoutParams(-1,-2);
@@ -219,6 +228,8 @@ public final class TvActivity extends Activity {
         retry.setAllCaps(false);
         retry.setMinHeight(dp(shortTV?46:54));
         retry.setOnClickListener(v->{
+            // Verification is explicit only; Back never launches this screen.
+            checkingPanel.setVisibility(View.VISIBLE);
             autoOpenAfterSync=true;
             refresh();
         });
@@ -537,8 +548,6 @@ public final class TvActivity extends Activity {
                 case KeyEvent.KEYCODE_ENTER:
                 case KeyEvent.KEYCODE_NUMPAD_ENTER:
                 case KeyEvent.KEYCODE_BUTTON_A:
-                case KeyEvent.KEYCODE_ESCAPE:
-                case KeyEvent.KEYCODE_BACK:
                     fadeOutNativeIntroduction(true,null);
                     break;
                 case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -563,18 +572,36 @@ public final class TvActivity extends Activity {
         inPlayer=true;
         menuSurface.setVisibility(View.GONE);
         player.setVisibility(View.VISIBLE);
-        player.loadUrl(LOCAL+"index.html");
+        if(!playerLoaded){
+            playerLoaded=true;
+            player.loadUrl(LOCAL+"index.html");
+        }else{
+            // Continue on exactly the same cached slide, without reloading the
+            // PPTX, restarting the offline verification or reentering the WebView.
+            player.evaluateJavascript("window.tvMenuResumed?.()",null);
+        }
+        // Browser fullscreen can be a separate native customView; keep it in
+        // front of the WebView when returning to the existing presentation.
+        if(customView!=null)customView.bringToFront();
+        else player.bringToFront();
         player.requestFocus();
     }
     private void returnMenu(){
+        if(!inPlayer)return;
+        inPlayer=false;
+        autoOpenAfterSync=false;
         if(geraldine!=null)geraldine.dismiss();
         if(introNativeActive)stopNativeIntroduction(false,null);
-        autoOpenAfterSync=false;
-        hideCustom();
-        inPlayer=false;
-        player.loadUrl("about:blank");
-        player.setVisibility(View.GONE);
+        // Keep the PPTX viewer, decoded screenshots, current slide and WebView
+        // alive. Just close any native movie that was playing and overlay the
+        // main menu above the existing fullscreen activity.
+        player.evaluateJavascript(
+            "window.tvNativeIntroEnded?.('');window.tvNativeGeraldineEnded?.('');",
+            null);
+        open.setText("▶  Continuar presentación");
+        checkingPanel.setVisibility(View.GONE);
         menuSurface.setVisibility(View.VISIBLE);
+        menuSurface.bringToFront();
         open.requestFocus();
     }
     @Override public void onBackPressed(){
@@ -597,6 +624,13 @@ public final class TvActivity extends Activity {
             null);
     }
     @Override public boolean dispatchKeyEvent(KeyEvent event){
+        // Return/Back always means MAIN MENU, including during introduction.
+        // Consume both key phases; menu return happens once on ACTION_UP.
+        if(inPlayer&&(event.getKeyCode()==KeyEvent.KEYCODE_BACK||
+                      event.getKeyCode()==KeyEvent.KEYCODE_ESCAPE)){
+            if(event.getAction()==KeyEvent.ACTION_UP)returnMenu();
+            return true;
+        }
         if(introNativeActive)return handleNativeIntroKey(event);
         if(inPlayer){
             int code=event.getKeyCode();
@@ -611,10 +645,6 @@ public final class TvActivity extends Activity {
                 // dispatching DOM keydown. Invoke the exact JS mapping directly.
                 if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0)
                     player.evaluateJavascript("window.tvRemoteTab?.()",null);
-                return true;
-            }
-            if(code==KeyEvent.KEYCODE_BACK){
-                if(event.getAction()==KeyEvent.ACTION_UP)returnMenu();
                 return true;
             }
             // Android TV D-pad OK becomes browser Enter; this clicks the

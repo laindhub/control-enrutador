@@ -85,6 +85,28 @@ assert.doesNotMatch(htmlEntry,/id="ready"|id="start"/);
 assert.doesNotMatch(tvScript,/\$\('ready'\)|\$\('start'\)/);
 assert.match(tvScript,/\/\/ Once the complete PPTX and Geraldine timing are ready, enter directly\.[\s\S]*?start\(\);/);
 assert.match(nativeRouter,/void exitPresentation\(\)/);
+// Back/Return must suspend, not destroy the prepared WebView or recheck files.
+const returnBody=nativeRouter.match(/private void returnMenu\(\)\{([\s\S]*?)\n    \}/)?.[1];
+const reopenBody=nativeRouter.match(/private void openPlayer\(\)\{([\s\S]*?)\n    \}/)?.[1];
+assert.ok(returnBody,'Native main menu return handler must exist');
+assert.ok(reopenBody,'Native resume handler must exist');
+assert.doesNotMatch(returnBody,/loadUrl|refresh\(|hideCustom\(/,
+  'Returning to the main menu must never reset the PPTX, fullscreen or files');
+assert.match(returnBody,/checkingPanel\.setVisibility\(View\.GONE\)/,
+  'Returning to the main menu must hide all file verification panels');
+assert.match(returnBody,/menuSurface\.bringToFront\(\)/);
+assert.match(returnBody,/Continuar presentación/);
+assert.match(reopenBody,/if\(!playerLoaded\)/,
+  'The PowerPoint must only load once');
+assert.match(reopenBody,/window\.tvMenuResumed\?\.\(\)/,
+  'Resume must restore the previous slide instead of opening from zero');
+assert.match(nativeRouter,/KEYCODE_BACK\|\|[\s\S]{0,120}KEYCODE_ESCAPE/,
+  'Back and Escape must always return to the main menu');
+assert.ok(nativeRouter.indexOf('if(inPlayer&&(event.getKeyCode()==KeyEvent.KEYCODE_BACK') <
+  nativeRouter.indexOf('if(introNativeActive)return handleNativeIntroKey(event)'),
+  'Native Back must reach main menu even while introduction is playing');
+assert.match(tvScript,/window\.tvMenuResumed=\(\)=>/);
+
 assert.doesNotMatch(tvScript,/tv-slide-veil|beginSlideTransition|navigateSlide/,
   'Slide navigation must be instantaneous with no gradient overlay');
 assert.match(tvScript,/scheduleChromeSweep/);
@@ -294,6 +316,9 @@ try {
     'Geraldine native video playback must remain unchanged');
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1');
+  await page.evaluate(()=>window.tvMenuResumed?.());
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1',
+    'Return to the main menu and resume must preserve exact slide position');
   await page.keyboard.press('PageUp');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'0');
   await page.keyboard.press('Tab');

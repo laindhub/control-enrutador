@@ -325,3 +325,15 @@ El test CI comprueba los 40 JPEG, coincidencia de SHA-256 con el archivo
 original, entrada de PPTX sin Internet y avance de página sin invocar
 el renderizador pesado. No modifica la presentación, los controles ni
 el video de introducción.
+
+## Versión 1.6.15 — Atrás vuelve al menú, sin cerrar ni comprobar
+
+Durante la presentación, Atrás/Return vuelve **siempre al menú principal**.
+El WebView no navega a `about:blank` y tampoco se desmonta ni recarga; se
+conservan el visor PPTX, las 40 imágenes precalculadas, la posición actual
+y el estado en memoria, incluidos los controles K01. El menú tapa la
+presentación con fondo opaco y ofrece «Continuar presentación».
+No se muestran ni reejecutan las comprobaciones de archivos a menos que
+se elija expresamente «Buscar actualizaciones». También funciona cuando
+está abierto el video nativo de introducción: Back lo detiene y va al menú;
+Tab/OK siguen manejando la introducción sin cambios.

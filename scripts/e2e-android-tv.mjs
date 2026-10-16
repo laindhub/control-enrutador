@@ -17,6 +17,10 @@ assert.ok(nativeRouter.includes('engine.setSurface(surface)'));
 assert.ok(nativeRouter.includes('transform.setScale(scaleX,scaleY,w/2f,h/2f)'));
 assert.ok(nativeRouter.includes('introLayer.bringToFront()'));
 assert.ok(nativeRouter.includes('MEDIA_INFO_VIDEO_RENDERING_START'));
+assert.ok(nativeRouter.includes('introLayer.setAlpha(0f)'),
+  'Only the native introduction should fade in over the existing slide');
+assert.match(nativeRouter,/fadeOutNativeIntroduction\(true,null\)/);
+assert.match(nativeRouter,/void revealNativeIntroduction\(\)/);
 // SurfaceView layering and the old opaque VideoView background caused
 // sound-only playback while the composited image stayed black.
 assert.ok(!nativeRouter.includes('new VideoView(this)'));
@@ -64,6 +68,10 @@ for(const name of required){
 }
 assert.match(htmlEntry,/window\.__tvBooted=false/);
 assert.match(tvScript,/window\.__tvBooted=true/);
+assert.doesNotMatch(tvScript,/tv-slide-veil|beginSlideTransition|navigateSlide/,
+  'Slide navigation must be instantaneous with no gradient overlay');
+assert.match(tvScript,/scheduleChromeSweep/);
+assert.match(tvScript,/mediaSlides=new Set/);
 const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css'};
 const server=http.createServer((req,res)=>{
   const pathName=new URL(req.url,'http://localhost').pathname;
@@ -225,32 +233,22 @@ try {
   await page.waitForTimeout(120);
   assert.equal(await page.locator('.pptxv-present-touch-next').evaluate(
     el=>getComputedStyle(el).display),'none','moving a pointer must not reveal controls');
-  // Consecutive remote inputs must not drop slides or accumulate transition
-  // overlays. The gradient runs on the visible root without reloading PPTX.
-  const transition=await page.evaluate(()=>{
+  // The gradient used to cover slide changes in 1.6.7 and was distracting.
+  // Both remote commands must act immediately, without a transition veil.
+  const navigation=await page.evaluate(()=>{
     window.tvRemoteKey('PageDown');
+    const first=document.getElementById('slides').dataset.slide;
     window.tvRemoteKey('PageUp');
-    const surface=document.fullscreenElement||document.getElementById('slides');
-    return {
-      slide:document.getElementById('slides').dataset.slide,
-      veil:surface.classList.contains('tv-slide-veil'),
-      content:getComputedStyle(surface,'::after').content,
-      pointer:getComputedStyle(surface,'::after').pointerEvents,
-    };
+    const second=document.getElementById('slides').dataset.slide;
+    return {first,second,overlay:!!document.querySelector('.tv-slide-veil,.tv-slide-reveal')};
   });
-  assert.equal(transition.slide,'0','rapid slide navigation must not lose or delay inputs');
-  assert.equal(transition.veil,true,'transition must mask the tiled viewer repaint');
-  assert.notEqual(transition.content,'none','gradient overlay must exist during a slide change');
-  assert.equal(transition.pointer,'none','gradient overlay must not intercept the K01/touch');
-  await page.waitForFunction(()=>{
-    const surface=document.fullscreenElement||document.getElementById('slides');
-    return !surface.classList.contains('tv-slide-veil') &&
-      !surface.classList.contains('tv-slide-reveal');
-  },null,{timeout:4000});
-  assert.ok(readFileSync(path.join(dir,'tv.css'),'utf8').includes('linear-gradient(125deg'));
-  assert.ok(readFileSync(path.join(dir,'tv.js'),'utf8').includes('finishSlideTransition()'));
-  assert.ok(nativeGeraldine.includes('setDuration(185)'));
-  assert.ok(nativeGeraldine.includes('layer.animate().alpha(0f)'));
+  assert.equal(navigation.first,'1','PageDown must advance immediately');
+  assert.equal(navigation.second,'0','PageUp must reverse immediately');
+  assert.equal(navigation.overlay,false,'No visual veil should appear between slides');
+  assert.ok(!readFileSync(path.join(dir,'tv.css'),'utf8').includes('.tv-slide-veil'),
+    'No PPTX gradient overlay CSS should remain');
+  assert.ok(nativeGeraldine.includes('setDuration(185)'),
+    'Geraldine native video playback must remain unchanged');
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'1');
   await page.keyboard.press('PageUp');

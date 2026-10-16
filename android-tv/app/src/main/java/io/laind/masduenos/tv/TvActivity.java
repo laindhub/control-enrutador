@@ -5,6 +5,7 @@ import android.webkit.JavascriptInterface;
 import android.view.TextureView;
 import android.graphics.SurfaceTexture;
 import android.graphics.Matrix;
+import android.view.animation.DecelerateInterpolator;
 import android.view.Surface;
 import android.widget.Toast;
 import android.media.MediaPlayer;
@@ -62,6 +63,8 @@ public final class TvActivity extends Activity {
     private int introVideoWidth;
     private int introVideoHeight;
     private boolean introNativeActive=false;
+    private boolean introRevealed=false;
+    private boolean introStopping=false;
     private GeraldinePlayer geraldine;
 
 
@@ -343,10 +346,15 @@ public final class TvActivity extends Activity {
             return;
         }
         introNativeActive=true;
+        introRevealed=false;
+        introStopping=false;
         introVideoWidth=0;
         introVideoHeight=0;
         introLayer=new FrameLayout(this);
         introLayer.setBackgroundColor(Color.BLACK);
+        // Fade applies ONLY to the introduction, never to PPTX navigation.
+        // Keep the slides visible while the native 280 MB MP4 prepares.
+        introLayer.setAlpha(0f);
         introLayer.setFocusable(true);
         final TextureView texture=new TextureView(this);
         introTexture=texture;
@@ -369,7 +377,11 @@ public final class TvActivity extends Activity {
                     stopNativeIntroduction(true,"Se perdió la superficie de video; volvé a iniciar la introducción.");
                 return true;
             }
-            @Override public void onSurfaceTextureUpdated(SurfaceTexture surface){}
+            @Override public void onSurfaceTextureUpdated(SurfaceTexture surface){
+                // Some TV decoders don't emit VIDEO_RENDERING_START. The first
+                // real TextureView frame is a safe fallback for the fade-in.
+                if(introNativeActive && introMedia!=null)revealNativeIntroduction();
+            }
         });
     }
     private void prepareNativeIntroduction(SurfaceTexture surfaceTexture){
@@ -401,12 +413,14 @@ public final class TvActivity extends Activity {
                 }
             });
             engine.setOnInfoListener((mp,what,extra)->{
-                if(what==MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START)
+                if(what==MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START){
                     Log.i("MasDuenosTV","Primer cuadro de introducción renderizado en TextureView");
+                    revealNativeIntroduction();
+                }
                 return false;
             });
             engine.setOnCompletionListener(mp->{
-                if(introMedia==mp)stopNativeIntroduction(true,null);
+                if(introMedia==mp)fadeOutNativeIntroduction(true,null);
             });
             engine.setOnErrorListener((mp,what,extra)->{
                 Log.e("MasDuenosTV","Error de introduccion nativa: "+what+", "+extra);
@@ -436,8 +450,34 @@ public final class TvActivity extends Activity {
         transform.setScale(scaleX,scaleY,w/2f,h/2f);
         texture.setTransform(transform);
     }
+    private void revealNativeIntroduction(){
+        if(!introNativeActive||introRevealed||introStopping||introLayer==null)return;
+        introRevealed=true;
+        introLayer.animate().cancel();
+        introLayer.animate().alpha(1f).setDuration(190)
+            .setInterpolator(new DecelerateInterpolator()).start();
+    }
+    private void fadeOutNativeIntroduction(boolean notifyWeb,String error){
+        if(!introNativeActive||introStopping)return;
+        introStopping=true;
+        final FrameLayout leaving=introLayer;
+        if(leaving==null||leaving.getAlpha()<0.05f||error!=null){
+            stopNativeIntroduction(notifyWeb,error);
+            return;
+        }
+        // Native overlay dissolves back to the same still-open slide.
+        leaving.animate().cancel();
+        leaving.animate().alpha(0f).setDuration(190)
+            .setInterpolator(new DecelerateInterpolator())
+            .withEndAction(()->{
+                if(introNativeActive&&introLayer==leaving)
+                    stopNativeIntroduction(notifyWeb,error);
+            }).start();
+    }
     private void stopNativeIntroduction(boolean notifyWeb,String error){
         introNativeActive=false;
+        introRevealed=false;
+        introStopping=false;
         MediaPlayer engine=introMedia;
         introMedia=null;
         if(engine!=null){
@@ -457,6 +497,7 @@ public final class TvActivity extends Activity {
         introTexture=null;
         if(texture!=null)texture.setSurfaceTextureListener(null);
         if(introLayer!=null){
+            introLayer.animate().cancel();
             frame.removeView(introLayer);
             introLayer=null;
         }
@@ -493,7 +534,7 @@ public final class TvActivity extends Activity {
                 case KeyEvent.KEYCODE_BUTTON_A:
                 case KeyEvent.KEYCODE_ESCAPE:
                 case KeyEvent.KEYCODE_BACK:
-                    stopNativeIntroduction(true,null);
+                    fadeOutNativeIntroduction(true,null);
                     break;
                 case KeyEvent.KEYCODE_DPAD_LEFT:
                 case KeyEvent.KEYCODE_DPAD_UP:

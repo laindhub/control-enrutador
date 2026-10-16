@@ -182,3 +182,21 @@ arranca el decodificador. El TextureView entra con un degradé de 185 ms
 y, al finalizar el clip, se desvanece brevemente hacia el fotograma de espera.
 Salir o avanzar durante la reproducción cancela estas animaciones
 sin dejar superficies colgadas.
+
+## Versión 1.6.8 · navegación directa y fundido exclusivo de introducción
+
+Se elimina completamente el degradé de la versión 1.6.7 en los cambios
+entre diapositivas. PageDown, PageUp y las flechas vuelven a mostrar
+inmediatamente la siguiente diapositiva, sin máscaras ni demoras
+artificiales. El visor conserva el modo totalmente limpio.
+
+Optimización real del renderizado: la observación de controles se
+agrupa a un solo barrido por fotograma, ignorando cambios ordinarios de
+estilo de las diapositivas; y las inspecciones de video se ejecutan solo
+en las diapositivas que tienen multimedia, con timers cancelables.
+Esto reduce el trabajo redundante mientras Chromium actualiza el PPTX.
+
+El fundido de 190 ms se aplica solamente al video de introducción nativo
+al aparecer su primer fotograma y al cerrarse/terminar. La
+reproducción de Geraldine, el manejo del teclado y las descargas
+permanecen intactos. 

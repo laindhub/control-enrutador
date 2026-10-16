@@ -100,24 +100,3 @@ body.tv-presenting #hint {
 }
 
 
-/* 1.6.7: compositor-only gradient dissolve masks the PPTX tile repaint.
-   :fullscreen may live in Chromium's top layer, so the class is attached
-   to whichever presentation surface is actually visible. This overlay has
-   no controls, accepts no pointer input and does not mutate slide content. */
-body.tv-presenting .tv-slide-veil::after{
-  content:'';
-  position:fixed;
-  inset:0;
-  z-index:2147483646;
-  pointer-events:none!important;
-  background:linear-gradient(125deg,
-    rgba(18,19,24,.84) 0%,
-    rgba(30,30,35,.79) 48%,
-    rgba(12,13,18,.87) 100%);
-  opacity:1;
-  transition:none;
-}
-body.tv-presenting .tv-slide-veil.tv-slide-reveal::after{
-  opacity:0;
-  transition:opacity 185ms ease-out;
-}

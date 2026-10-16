@@ -10,7 +10,9 @@ let viewer=null,slide=0,total=0,mode='loading';
 let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
 let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),mediaFailures=new WeakMap(),pausedPreviewSlides=new Set();
 let mediaObserver=null,mediaGeneration=0;
-let chromeObserver=null;
+let mediaFrame=0,mediaRetryShort=0,mediaRetryLong=0;
+let chromeObserver=null,chromeFrame=0;
+let mediaSlides=new Set();
 let geraldineNativeRequested=false;
 // Original slide 21 video shape geometry in EMUs, independently verified
 // against the ZIP contents of mas-duenos-liniers.pptx.
@@ -50,11 +52,11 @@ function hidePresenterControl(target){
   if(target.tabIndex!==-1)target.tabIndex=-1;
   if(target.style.pointerEvents!=='none')target.style.pointerEvents='none';
 }
+const CHROME_SELECTOR=HIDDEN_PRESENTER_CONTROLS.join(',');
 function removePresentationChrome(){
   if(mode!=='slides'&&mode!=='intro')return;
-  // The viewer may mount its presentation overlay inside a Fullscreen API
-  // element rather than below #slides; search the whole document.
-  for(const target of document.querySelectorAll(HIDDEN_PRESENTER_CONTROLS.join(',')))
+  // Don't rebuild the selector string on every slide update.
+  for(const target of document.querySelectorAll(CHROME_SELECTOR))
     hidePresenterControl(target);
   // Older versions mount the 21 / 40 pill as an unclassified span. Hide only
   // a leaf counter inside presentation chrome, not actual PowerPoint text.
@@ -77,10 +79,37 @@ function removePresentationChrome(){
 // The viewer injects its own CSS and may recreate toolbar DOM during every
 // slide transition or when entering real fullscreen. Hide it again in DOM,
 // not just with a selector that depends on the browser's fullscreen element.
+function scheduleChromeSweep(){
+  if(chromeFrame||mode!=='slides')return;
+  // Only one DOM traversal per animation frame, regardless of how many
+  // individual tiles/styles the PowerPoint renderer touches.
+  chromeFrame=requestAnimationFrame(()=>{
+    chromeFrame=0;
+    removePresentationChrome();
+  });
+}
+function stopChromeSweep(){
+  chromeObserver?.disconnect();chromeObserver=null;
+  if(chromeFrame){cancelAnimationFrame(chromeFrame);chromeFrame=0;}
+}
 function keepPresenterChromeHidden(){
+  stopChromeSweep();
   removePresentationChrome();
-  chromeObserver?.disconnect();
-  chromeObserver=new MutationObserver(()=>removePresentationChrome());
+  chromeObserver=new MutationObserver(records=>{
+    if(mode!=='slides')return;
+    // Ignore the flood of ordinary slide style/transform mutations;
+    // CSS already suppresses known buttons. Only new DOM or changed
+    // presentation controls need a follow-up scan.
+    for(const record of records){
+      if(record.type==='childList'){
+        if(record.addedNodes.length){scheduleChromeSweep();return;}
+      }else if(record.target instanceof Element &&
+               (record.target.matches(CHROME_SELECTOR) ||
+                record.target.closest('.pptxv-present-toolbar-wrap,.pptxv-present-nav'))){
+        scheduleChromeSweep();return;
+      }
+    }
+  });
   chromeObserver.observe(document.documentElement,{
     childList:true,subtree:true,attributes:true,
     attributeFilter:['style','class'],
@@ -101,60 +130,6 @@ for(const type of ['touchstart','touchmove','touchend','pointerdown','pointerup'
 
 const host=$('slides');
 
-// A short gradient veil covers the PPTX viewer's progressive tiled redraw.
-// It is outside the slide tree, so it never causes the deck to re-render.
-// Use the current fullscreen root: top-layer elements sit above normal DOM.
-const SLIDE_REVEAL_MS=185;
-let transitionSurface=null,transitionTick=0,transitionTimer=0;
-let transitionFailsafeTimer=0,transitionToken=0;
-function cancelSlideTransition(){
-  transitionToken++;
-  clearTimeout(transitionTimer);
-  clearTimeout(transitionFailsafeTimer);
-  if(transitionTick)cancelAnimationFrame(transitionTick);
-  transitionTick=0;
-  if(transitionSurface){
-    transitionSurface.classList.remove('tv-slide-veil','tv-slide-reveal');
-    transitionSurface=null;
-  }
-}
-function beginSlideTransition(){
-  if(mode!=='slides')return;
-  cancelSlideTransition();
-  transitionSurface=document.fullscreenElement||host;
-  transitionSurface.classList.add('tv-slide-veil');
-  const token=transitionToken;
-  // RequestAnimationFrame may be suspended if a TV temporarily loses focus.
-  // The veil must never get stranded in front of the presentation.
-  transitionFailsafeTimer=setTimeout(()=>{
-    if(token===transitionToken)cancelSlideTransition();
-  },650);
-  // Force immediate application before the renderer starts replacing tiles.
-  transitionSurface.classList.remove('tv-slide-reveal');
-}
-function finishSlideTransition(){
-  if(!transitionSurface)return;
-  const token=transitionToken;
-  // Allow the viewer two compositor frames to finish its first set of tiles,
-  // then gently uncover the finished slide. No extra controls or assets.
-  transitionTick=requestAnimationFrame(()=>{
-    transitionTick=requestAnimationFrame(()=>{
-      transitionTimer=setTimeout(()=>{
-        if(token!==transitionToken||!transitionSurface)return;
-        transitionSurface.classList.add('tv-slide-reveal');
-        transitionTimer=setTimeout(()=>{
-          if(token===transitionToken)cancelSlideTransition();
-        },SLIDE_REVEAL_MS+35);
-      },75);
-    });
-  });
-}
-function navigateSlide(index){
-  if(!viewer||!total)return;
-  beginSlideTransition();
-  try{viewer.goToSlide(index);}
-  catch(error){cancelSlideTransition();throw error;}
-}
 function message(value){$('message').textContent=value;}
 async function deadline(promise,stage,ms=90000){
   let timeoutId;
@@ -276,7 +251,8 @@ function playbackFailed(video,error){
 }
 function playVisibleMedia(){
   if(mode!=='slides')return;
-  removePresentationChrome();
+  // Chrome removal runs in a separate, batched DOM pass. Never make video
+  // probing re-scan every span, div and slide tile.
   for(const video of visibleMedia()){
     if(video.tagName==='VIDEO'){
       if(slide===mediaBuildSlide&&mediaPlaybackEnded){
@@ -306,11 +282,28 @@ function playVisibleMedia(){
     }catch(err){playbackFailed(video,err);}
   }
 }
+function cancelMediaChecks(){
+  mediaGeneration++;
+  if(mediaFrame){cancelAnimationFrame(mediaFrame);mediaFrame=0;}
+  clearTimeout(mediaRetryShort);clearTimeout(mediaRetryLong);
+  mediaRetryShort=0;mediaRetryLong=0;
+}
 function scheduleMedia(){
-  const generation=++mediaGeneration;
-  const refresh=()=>{if(generation===mediaGeneration)playVisibleMedia();};
-  refresh();
-  setTimeout(refresh,100);setTimeout(refresh,350);
+  if(mode!=='slides'||!mediaSlides.has(slide))return;
+  // On ordinary slides there is no media to probe. On Geraldine, coalesce
+  // potentially hundreds of viewer mutations into one compositor tick.
+  cancelMediaChecks();
+  const generation=mediaGeneration;
+  mediaFrame=requestAnimationFrame(()=>{
+    mediaFrame=0;
+    if(generation!==mediaGeneration||mode!=='slides')return;
+    playVisibleMedia();
+    const refresh=()=>{
+      if(generation===mediaGeneration&&mode==='slides')playVisibleMedia();
+    };
+    mediaRetryShort=setTimeout(refresh,100);
+    mediaRetryLong=setTimeout(refresh,350);
+  });
 }
 function slideChanged(index){
   if(!Number.isInteger(index)||index<0)return;
@@ -325,11 +318,13 @@ function slideChanged(index){
     mediaPlaybackNode=null;
     mediaAttempted=new WeakSet();
     mediaFailures=new WeakMap();
+    cancelMediaChecks();
     slide=index;
   }
   host.dataset.slide=String(slide);
   if(mode==='slides'){
-    finishSlideTransition();
+    // Only media slides need playback checks; plain PowerPoint slides can
+    // change immediately without a full DOM/video scan or transition overlay.
     // The APK 1.5.0 showed movie pixels immediately. The newer native
     // decoder must do likewise, instead of exposing the PowerPoint black
     // movie-placeholder while waiting for the remote's PageDown command.
@@ -394,8 +389,23 @@ async function prepare(){
       'verificar las animaciones',90000);
     mediaBuildSlide=locateGeraldineBuild(slides,timedIndex);
     pausedPreviewSlides=duplicateVideoPreviewSlides(slides);
+    mediaSlides=new Set(slides.flatMap((model,index)=>
+      hasVideoModel(model)?[index]:[]));
+    if(mediaBuildSlide!==null)mediaSlides.add(mediaBuildSlide);
     mediaObserver?.disconnect();
-    mediaObserver=new MutationObserver(()=>{if(mode==='slides')scheduleMedia();});
+    mediaObserver=new MutationObserver(records=>{
+      if(mode!=='slides'||!mediaSlides.has(slide))return;
+      // Only schedule playback when the renderer mounted new actual media.
+      // Other slide tiles/layout changes should not trigger extra work.
+      for(const record of records){
+        for(const node of record.addedNodes){
+          if(node.nodeType===1 &&
+             (node.matches('video,audio')||node.querySelector('video,audio'))){
+            scheduleMedia();return;
+          }
+        }
+      }
+    });
     mediaObserver.observe(host,{childList:true,subtree:true});
     mode='ready';$('loading').hidden=true;$('ready').hidden=false;
     $('summary').textContent=total+' diapositivas · Archivo guardado en Android TV';
@@ -417,7 +427,6 @@ function start(){
 }
 function closeIntro(){
   if(mode!=='intro')return;
-  cancelSlideTransition();
   const video=$('intro-video');
   video.pause();video.removeAttribute('src');video.load();
   $('intro').hidden=true;
@@ -479,9 +488,9 @@ function next(){
       return;
     }
   }
-  navigateSlide((slide+1)%total);
+  viewer?.goToSlide?.((slide+1)%total);
 }
-function previous(){navigateSlide((slide-1+total)%total);}
+function previous(){viewer?.goToSlide?.((slide-1+total)%total);}
 function handle(key,repeat=false){
   if(repeat)return;
   if(mode==='intro'){
@@ -506,10 +515,10 @@ function handle(key,repeat=false){
   }else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
-    cancelSlideTransition();
+    cancelMediaChecks();
     try{window.AndroidTv?.stopGeraldine?.();}catch{}
     mode='ready';
-    chromeObserver?.disconnect();
+    stopChromeSweep();
     document.body.classList.remove('tv-presenting');
     if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
     $('ready').hidden=false;$('start').focus();
@@ -542,9 +551,9 @@ window.tvNativeGeraldineEnded=detail=>{
 $('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
 window.addEventListener('beforeunload',()=>{
-  cancelSlideTransition();
+  cancelMediaChecks();
   try{window.AndroidTv?.stopGeraldine?.();}catch{}
   mediaObserver?.disconnect();
-  chromeObserver?.disconnect();
+  stopChromeSweep();
 });
 void prepare();

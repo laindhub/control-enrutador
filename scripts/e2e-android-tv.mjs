@@ -105,6 +105,12 @@ let browser;
 try {
   browser=await chromium.launch({headless:true});
   const page=await browser.newPage();
+  const offlineUnexpected=[];
+  page.on('request',request=>{
+    const url=request.url();
+    if(!url.startsWith('http://127.0.0.1:')&&!url.startsWith('data:')&&!url.startsWith('blob:'))
+      offlineUnexpected.push(url);
+  });
   page.on('pageerror',err=>{throw err;});
   await page.addInitScript(()=>{
     const originalPlay=HTMLMediaElement.prototype.play;

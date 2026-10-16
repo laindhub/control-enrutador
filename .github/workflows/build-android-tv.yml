@@ -6,6 +6,8 @@ on:
       - 'src/tv-media.js'
       - 'test/tv-media.test.js'
       - 'scripts/e2e-android-tv.mjs'
+      - 'scripts/tv-pptx-engine-entry.mjs'
+      - 'scripts/build-tv-pptx-engine.mjs'
       - '.github/workflows/build-android-tv.yml'
   workflow_dispatch:
 permissions:
@@ -20,17 +22,25 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.12'
       - run: node --test test/tv-media.test.js
       - name: Install browser simulation dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install exact PPTX engine and offline bundler
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund --legacy-peer-deps pptx-vanilla-viewer@3.31.1 esbuild@0.25.12
+      - name: Bundle PPTX viewer into Android local assets
+        run: node scripts/build-tv-pptx-engine.mjs
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify complete keyboard navigation in Chromium
         run: node scripts/e2e-android-tv.mjs
-      - name: Build installable TV APK (no signing secrets required)
+      - name: Build installable TV APK (local PPTX engine included, no signing secrets)
+
         working-directory: android-tv
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify APK signature
@@ -40,6 +50,7 @@ jobs:
           test -s "$apk"
           signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
           "$signer" verify "$apk"
+          unzip -Z -1 "$apk" | grep -Fx assets/pptx-viewer-offline.js
       - uses: actions/upload-artifact@v4
         with:
           name: masduenos-android-tv-apk

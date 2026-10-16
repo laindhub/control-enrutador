@@ -4,11 +4,16 @@ on:
   push:
     paths:
       - 'scripts/package-tv-bundle.mjs'
+      - 'scripts/build-tv-pptx-engine.mjs'
+      - 'scripts/tv-pptx-engine-entry.mjs'
+      - 'scripts/smoke-tv-offline-engine.mjs'
+      - 'android-tv/app/src/main/assets/tv.js'
+      - 'scripts/e2e-android-tv.mjs'
       - 'android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java'
       - 'android-tv/app/build.gradle'
       - '.github/workflows/build-android-tv-bundled.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   bundled-apk:
     runs-on: ubuntu-latest
@@ -28,13 +33,19 @@ jobs:
       - run: node --test test/tv-media.test.js
       - name: Install browser test dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install exact PPTX engine and offline bundler
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund --legacy-peer-deps pptx-vanilla-viewer@3.31.1 esbuild@0.25.12
+      - name: Bundle PPTX viewer into Android local assets
+        run: node scripts/build-tv-pptx-engine.mjs
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify Android TV navigation
         run: node scripts/e2e-android-tv.mjs
       - name: Download official PPTX and MP4, verify each SHA-256
         run: node scripts/package-tv-bundle.mjs
-      - name: Build Android TV APK including both files
+      - name: Verify actual PowerPoint loads completely offline
+        run: node scripts/smoke-tv-offline-engine.mjs
+      - name: Build Android TV APK including both files and local PPTX engine
         working-directory: android-tv
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify both media payloads and APK signature
@@ -42,12 +53,31 @@ jobs:
           set -euo pipefail
           apk="android-tv/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$apk"
+          unzip -Z -1 "$apk" | grep -Fx 'assets/pptx-viewer-offline.js'
           for name in presentation.pptx introduccion.mp4 manifest.json; do
             unzip -Z -1 "$apk" | grep -Fx "assets/bundle/$name"
           done
           signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
           "$signer" verify "$apk"
           ls -lh "$apk"
+      - name: Publish the direct APK for TCL installation
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          direct="$RUNNER_TEMP/MasDuenosTV_1.6.13_Offline_Real.apk"
+          cp android-tv/app/build/outputs/apk/debug/app-debug.apk "$direct"
+          tag="masduenos-tv-1.6.13-offline"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$direct" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$direct" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Más Dueños TV 1.6.13 — Offline completo TCL" \
+              --notes "Instalador con las 40 diapositivas, video de introducción y motor PowerPoint incorporado. Validado sin Internet mediante navegador offline real. En TV basta instalar; no necesita red para abrir el PowerPoint."
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets
       - uses: actions/upload-artifact@v4
         with:
           name: masduenos-android-tv-offline-complete-apk

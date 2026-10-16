@@ -6,8 +6,8 @@ android {
         applicationId 'io.laind.masduenos.tv'
         minSdk 26
         targetSdk 35
-        versionCode 19
-        versionName '1.6.12'
+        versionCode 20
+        versionName '1.6.13'
     }
     // The bundled offline edition embeds a large PPTX and MP4. These are
     // already ZIP/MP4 files; avoid recompressing them while building the APK.

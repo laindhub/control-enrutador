@@ -5,7 +5,7 @@ window.__tvBooted=true;
 const $=id=>document.getElementById(id);
 const DECK='/tv/cache/presentation.pptx';
 const INTRO='/tv/cache/introduccion.mp4';
-const MODULE='https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle';
+const MODULE='./pptx-viewer-offline.js';
 let viewer=null,slide=0,total=0,mode='loading';
 let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
 let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),mediaFailures=new WeakMap(),pausedPreviewSlides=new Set();

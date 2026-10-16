@@ -460,6 +460,7 @@ try {
   assert.equal(await broken.locator('.spinner').isVisible(),false);
   await broken.close();
   console.log('Android TV: missing module now shows actionable error and Retry button');
+  assert.deepEqual(offlineUnexpected,[],'Viewer must not request Internet for PowerPoint engine');
 }finally{
   await browser?.close();
   await new Promise(resolve=>server.close(resolve));

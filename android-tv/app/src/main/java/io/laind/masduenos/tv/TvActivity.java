@@ -669,7 +669,8 @@ public final class TvActivity extends Activity {
                    path.equals("/tv/tv.css") ||
                    path.equals("/tv/tv.js") ||
                    path.equals("/tv/presentation-media.js") ||
-                   path.equals("/tv/presentation-timing.js")){
+                   path.equals("/tv/presentation-timing.js") ||
+                   path.equals("/tv/pptx-viewer-offline.js")){
                     String filename=path.substring(4);
                     InputStream in=getAssets().open(filename);
                     String mime=filename.endsWith(".html")?"text/html":

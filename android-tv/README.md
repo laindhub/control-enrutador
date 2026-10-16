@@ -277,3 +277,18 @@ APK anterior encima del instalado; si da conflicto de firmas hay que
 desinstalar la versión previa, lo que borra su caché local (los medios
 están dentro del nuevo APK). La app no garantiza actualizaciones
 incrementales entre APKs con diferente firma.
+
+## 1.6.13 · motor PPTX incorporado para TCL sin Wi-Fi
+
+Se elimina la única dependencia necesaria del visor en tiempo de ejecución:
+`https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle`. Ahora el módulo
+`pptx-viewer-offline.js` se genera **durante GitHub Actions** usando la
+versión exacta `pptx-vanilla-viewer@3.31.1` y esbuild, y se incluye como
+asset JavaScript del APK. La Activity lo intercepta localmente con el MIME
+`application/javascript`. Se mantiene el PPTX original (40 diapositivas),
+la introducción MP4, la reproducción nativa de Geraldine y el control.
+
+El pipeline **no publica** paquetes sin el módulo PPTX real; sus pruebas
+rechazan explícitamente el CDN remoto y comprueban el arranque del
+visor con acceso a la red deshabilitado. Descarga de ambos multimedia en CI,
+ninguna descarga obligatoria en la TV.

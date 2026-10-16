@@ -1,0 +1,43 @@
+name: Verify complete TV APK on Android 16
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-android16-tv-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download identical 1.6.12 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download 38920268262 --repo "$GITHUB_REPOSITORY" --name masduenos-android-tv-offline-complete-apk --dir dist
+          test -s dist/app-debug.apk
+          sha256sum dist/app-debug.apk
+      - name: Enable hardware virtualization
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Install on clean Android 16 emulator and report package result
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            adb shell getprop ro.build.version.release
+            adb shell pm list packages io.laind.masduenos.tv
+            adb install -r -t "$GITHUB_WORKSPACE/dist/app-debug.apk"
+            adb shell pm path io.laind.masduenos.tv

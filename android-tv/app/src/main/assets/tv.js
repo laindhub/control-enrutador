@@ -142,7 +142,7 @@ async function deadline(promise,stage,ms=90000){
   }finally{clearTimeout(timeoutId);}
 }
 function error(value){
-  mode='error';$('loading').hidden=false;$('ready').hidden=true;
+  mode='error';$('loading').hidden=false;
   $('loading').querySelector('h1').textContent='No se pudo abrir la presentación';
   message(value?.message||String(value));
   const spinner=$('loading').querySelector('.spinner');
@@ -371,7 +371,12 @@ async function prepare(){
       onPresentationChange:active=>{
         if(active&&mode==='slides')scheduleMedia();
         else if(!active&&mode==='slides'){
-          mode='ready';document.body.classList.remove('tv-presenting');
+          // Android already owns immersive fullscreen. Some WebView builds
+          // reject the browser Fullscreen API without a user gesture, even
+          // though the PPTX viewer can display its slides normally. Never
+          // leave the slideshow or require an extra OK in that situation.
+          host.querySelector('.pptxv')?.classList.add('pptxv-presenting');
+          scheduleChromeSweep();
         }
       },
       onError:e=>console.warn('Visor:',e),
@@ -407,23 +412,35 @@ async function prepare(){
       }
     });
     mediaObserver.observe(host,{childList:true,subtree:true});
-    mode='ready';$('loading').hidden=true;$('ready').hidden=false;
-    $('summary').textContent=total+' diapositivas · Archivo guardado en Android TV';
-    $('start').focus();
+    // Once the complete PPTX and Geraldine timing are ready, enter directly.
+    // No readiness menu or synthetic button click is needed.
+    start();
   }catch(e){error(e);}
 }
 function start(){
-  if(mode!=='ready'||!viewer)return;
-  enableLoop();mode='slides';
-  $('ready').hidden=true;$('loading').hidden=true;
-  // This click comes from a real TV OK/Enter press, enabling browser fullscreen.
-  try{Promise.resolve(viewer.enterPresentation()).catch(e=>{
-    console.warn('Fullscreen WebView fallback:',e);
-  });}catch(e){console.warn('Fullscreen native fallback:',e);}
+  if(mode!=='loading'||!viewer||total<1)return;
+  enableLoop();
+  mode='slides';
   document.body.classList.add('tv-presenting');
+  // The Android Activity is already immersive: request browser presentation
+  // mode but do not require a human gesture or block on requestFullscreen().
+  // If Chromium refuses fullscreen without activation, keep slides visible
+  // and apply the same viewer presentation layout locally.
+  const fallback=error=>{
+    console.warn('Visor sin Fullscreen API (Android ya es inmersivo):',error);
+    host.querySelector('.pptxv')?.classList.add('pptxv-presenting');
+    scheduleChromeSweep();
+  };
+  try{Promise.resolve(viewer.enterPresentation()).catch(fallback);}
+  catch(error){fallback(error);}
   keepPresenterChromeHidden();
   slideChanged(viewer.getCurrentSlide?.()??0);
   scheduleMedia();
+  // Leave the loading screen only after the compositor had a chance to
+  // mount the first slide, preventing a transient unrendered white frame.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(mode==='slides')$('loading').hidden=true;
+  }));
 }
 function closeIntro(){
   if(mode!=='intro')return;
@@ -499,10 +516,6 @@ function handle(key,repeat=false){
     else if(['ArrowRight','ArrowDown','PageDown'].includes(key))seek(1);
     return;
   }
-  if(mode==='ready'){
-    if(key==='Enter'||key===' ')$('start').click();
-    return;
-  }
   if(mode!=='slides')return;
   // TV D-pad OK (Enter) also opens the intro on slide 1 so a standard
   // Android TV remote, which has no Tab button, can operate the entire app.
@@ -515,13 +528,10 @@ function handle(key,repeat=false){
   }else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
-    cancelMediaChecks();
-    try{window.AndroidTv?.stopGeraldine?.();}catch{}
-    mode='ready';
-    stopChromeSweep();
-    document.body.classList.remove('tv-presenting');
-    if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
-    $('ready').hidden=false;$('start').focus();
+    // Exit to the native file/update menu; never show a second start screen.
+    if(typeof window.AndroidTv?.exitPresentation==='function'){
+      window.AndroidTv.exitPresentation();
+    }
   }
 }
 document.addEventListener('play',blockPreviewAutoplay,true);
@@ -548,7 +558,6 @@ window.tvNativeGeraldineEnded=detail=>{
   mediaPlaybackEnded=true;
   if(detail)console.error('Geraldine nativa:',detail);
 };
-$('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
 window.addEventListener('beforeunload',()=>{
   cancelMediaChecks();

@@ -68,6 +68,11 @@ for(const name of required){
 }
 assert.match(htmlEntry,/window\.__tvBooted=false/);
 assert.match(tvScript,/window\.__tvBooted=true/);
+// Presentation must start automatically with no intermediate confirmation UI.
+assert.doesNotMatch(htmlEntry,/id="ready"|id="start"/);
+assert.doesNotMatch(tvScript,/\$\('ready'\)|\$\('start'\)/);
+assert.match(tvScript,/\/\/ Once the complete PPTX and Geraldine timing are ready, enter directly\.[\s\S]*?start\(\);/);
+assert.match(nativeRouter,/void exitPresentation\(\)/);
 assert.doesNotMatch(tvScript,/tv-slide-veil|beginSlideTransition|navigateSlide/,
   'Slide navigation must be instantaneous with no gradient overlay');
 assert.match(tvScript,/scheduleChromeSweep/);
@@ -199,10 +204,16 @@ try {
     }`,
   }));
   await page.goto('http://127.0.0.1:'+server.address().port+'/tv/index.html');
-  await page.locator('#start').waitFor({state:'visible',timeout:25000});
-  assert.match(await page.locator('#summary').textContent(),/40 diapositivas/);
-  await page.keyboard.press('Enter');
-  assert.equal(await page.locator('#ready').isVisible(),false);
+  // No Enter, simulated click or other user gesture: the page must enter
+  // presentation by itself as soon as its cached PPTX finishes loading.
+  await page.waitForFunction(()=>document.body.classList.contains('tv-presenting') &&
+    document.querySelector('#slides')?.dataset.slide==='0' &&
+    document.getElementById('loading')?.hidden,{},{timeout:25000});
+  assert.equal(await page.locator('#ready').count(),0,'No Todo listo screen');
+  assert.equal(await page.locator('#start').count(),0,'No start button');
+  assert.equal(await page.locator('.pptxv').evaluate(
+    el=>el.classList.contains('pptxv-presenting')),true);
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'0');
   // Most important Android TV acceptance test: never build navigation buttons,
   // and forcibly hide any desktop/mobile chrome reintroduced by the viewer.
   assert.ok(JSON.parse(await page.locator('.pptxv').getAttribute('data-hidden-actions'))

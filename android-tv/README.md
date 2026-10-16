@@ -200,3 +200,19 @@ El fundido de 190 ms se aplica solamente al video de introducción nativo
 al aparecer su primer fotograma y al cerrarse/terminar. La
 reproducción de Geraldine, el manejo del teclado y las descargas
 permanecen intactos. 
+
+## Versión 1.6.9 · inicio automático de la presentación
+
+Luego de sincronizar y verificar el PPTX y el MP4, la aplicación
+sigue automáticamente con la preparación del PowerPoint. En cuanto
+están disponibles todas las diapositivas y la lógica de Geraldine,
+entra directamente en la presentación. **No existe más la pantalla
+"Todo listo" ni el botón "Iniciar presentación".** No se necesita OK,
+Enter ni ratón después de encender/abrir la app.
+
+Se conserva el modo inmersivo nativo de Android TV, de modo que una
+restricción de la Fullscreen API de WebView no bloquea el inicio
+automático. La pantalla "Preparando presentación" permanece hasta
+los primeros fotogramas de renderizado. Escape vuelve al menú nativo
+de archivos/actualizaciones sin pasar por la pantalla eliminada.
+El resto de los controles, vídeos, cache y navegación se conserva.

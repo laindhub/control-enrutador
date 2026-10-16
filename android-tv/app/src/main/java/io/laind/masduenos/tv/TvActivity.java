@@ -300,6 +300,11 @@ public final class TvActivity extends Activity {
     // JS-to-native bridge. The interface contains no file paths or arbitrary URLs.
     // Only the fixed, SHA-256-verified introduction in private app storage plays.
     private final class IntroBridge {
+        @JavascriptInterface public void exitPresentation(){
+            runOnUiThread(()->{
+                if(inPlayer)returnMenu();
+            });
+        }
         @JavascriptInterface public void playIntroduction(){
             runOnUiThread(()->startNativeIntroduction());
         }

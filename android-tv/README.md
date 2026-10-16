@@ -147,3 +147,22 @@ Los cambios de configuración por conectar/desconectar un teclado o
 control USB/Bluetooth no recrean la Activity: se preservan el WebView,
 las diapositivas, las descargas y la posición actual. Se mantiene el
 modo inmersivo y se recoloca la superficie de video si cambia el tamaño.
+
+## Versión 1.6.6 · Geraldine sin cuadro negro de espera
+
+La versión 1.5.0 mostraba correctamente los fotogramas de Geraldine,
+pero la transición al decodificador nativo introducida en 1.6.5
+dejaba a la vista un cuadro negro antes de pulsar PageDown.
+
+Ahora `GeraldinePlayer` extrae el MP4 durante la preparación del
+PowerPoint y obtiene **el primer fotograma real del archivo** mediante
+`MediaMetadataRetriever`. Al llegar a la diapositiva 21, muestra esa
+imagen de espera exactamente encima del video original. Al recibir
+PageDown, inicia el MP4 con un `TextureView` inicialmente transparente;
+solo muestra esa superficie al recibir `MEDIA_INFO_VIDEO_RENDERING_START`.
+La imagen permanece por detrás hasta entonces, sin negro intermedio.
+
+Al abandonar la diapositiva o regresar al menú se libera el reproductor
+y desaparece la vista previa. No se modifica el PPTX ni se generan
+imágenes mediante IA. Se conserva la solución de 1.6.5 para no reiniciar
+la presentación al reconectar el mando o teclado.

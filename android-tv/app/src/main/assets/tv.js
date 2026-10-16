@@ -261,8 +261,9 @@ function scheduleMedia(){
 function slideChanged(index){
   if(!Number.isInteger(index)||index<0)return;
   if(slide!==index){
-    if(geraldineNativeRequested){
+    if(slide===mediaBuildSlide||geraldineNativeRequested){
       geraldineNativeRequested=false;
+      // This also removes the first-frame preview after slide 21.
       try{window.AndroidTv?.stopGeraldine?.();}catch(e){console.warn('Cierre Geraldine:',e);}
     }
     mediaBuildTriggered=false;
@@ -273,7 +274,18 @@ function slideChanged(index){
     slide=index;
   }
   host.dataset.slide=String(slide);
-  if(mode==='slides')scheduleMedia();
+  if(mode==='slides'){
+    // The APK 1.5.0 showed movie pixels immediately. The newer native
+    // decoder must do likewise, instead of exposing the PowerPoint black
+    // movie-placeholder while waiting for the remote's PageDown command.
+    if(slide===mediaBuildSlide&&!mediaBuildTriggered &&
+       typeof window.AndroidTv?.previewGeraldine==='function'){
+      const [x,y,w,h]=nativeGeraldineBounds();
+      try{window.AndroidTv.previewGeraldine(x,y,w,h);}
+      catch(error){console.warn('Vista previa Geraldine:',error);}
+    }
+    scheduleMedia();
+  }
 }
 function enableLoop(){
   const store=viewer?.store;
@@ -438,6 +450,7 @@ function handle(key,repeat=false){
   }else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
+    try{window.AndroidTv?.stopGeraldine?.();}catch{}
     mode='ready';
     chromeObserver?.disconnect();
     document.body.classList.remove('tv-presenting');

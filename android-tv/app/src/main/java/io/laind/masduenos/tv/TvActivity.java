@@ -275,6 +275,12 @@ public final class TvActivity extends Activity {
                 notice.setText(message);
                 retry.setEnabled(true);
                 open.setEnabled(playable);
+                // Extract and decode the first frame while other slides load.
+                if(playable&&geraldine!=null){
+                    String fingerprint=getSharedPreferences("tv-files-v1",MODE_PRIVATE)
+                        .getString("presentation.sha","");
+                    geraldine.warm(files.file("presentation"),fingerprint);
+                }
                 if(playable && autoOpenAfterSync && !inPlayer){
                     // Called only by TvAssetStore.complete, which is posted
                     // after PPTX and MP4 were checked / downloaded and saved.
@@ -294,6 +300,14 @@ public final class TvActivity extends Activity {
         @JavascriptInterface public void playIntroduction(){
             runOnUiThread(()->startNativeIntroduction());
         }
+        @JavascriptInterface public void previewGeraldine(double x,double y,double w,double h){
+            runOnUiThread(()->{
+                if(!inPlayer||introNativeActive||!files.has("presentation"))return;
+                String digest=getSharedPreferences("tv-files-v1",MODE_PRIVATE)
+                    .getString("presentation.sha","");
+                geraldine.preview(files.file("presentation"),digest,x,y,w,h);
+            });
+        }
         @JavascriptInterface public void playGeraldine(double x,double y,double w,double h){
             runOnUiThread(()->{
                 if(!inPlayer||introNativeActive||!files.has("presentation"))return;
@@ -303,7 +317,7 @@ public final class TvActivity extends Activity {
             });
         }
         @JavascriptInterface public void stopGeraldine(){
-            runOnUiThread(()->geraldine.stop(false,null));
+            runOnUiThread(()->geraldine.dismiss());
         }
     }
     private void sendIntroResult(String error){
@@ -323,7 +337,7 @@ public final class TvActivity extends Activity {
      */
     private void startNativeIntroduction(){
         if(!inPlayer||introNativeActive)return;
-        if(geraldine!=null)geraldine.stop(false,null);
+        if(geraldine!=null)geraldine.dismiss();
         if(!files.has("introduction")){
             sendIntroResult("El video introductorio no está guardado. Volvé al menú y buscá actualizaciones.");
             return;
@@ -507,7 +521,7 @@ public final class TvActivity extends Activity {
         player.requestFocus();
     }
     private void returnMenu(){
-        if(geraldine!=null)geraldine.stop(false,null);
+        if(geraldine!=null)geraldine.dismiss();
         if(introNativeActive)stopNativeIntroduction(false,null);
         autoOpenAfterSync=false;
         hideCustom();
@@ -586,7 +600,7 @@ public final class TvActivity extends Activity {
         });
     }
     @Override protected void onDestroy(){
-        if(geraldine!=null)geraldine.stop(false,null);
+        if(geraldine!=null)geraldine.dismiss();
         if(introNativeActive)stopNativeIntroduction(false,null);
         hideCustom();
         player.destroy();

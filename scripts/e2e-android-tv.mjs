@@ -42,6 +42,14 @@ assert.match(manifest,/keyboard\|keyboardHidden\|navigation/);
 const nativeGeraldine=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/GeraldinePlayer.java','utf8');
 assert.match(nativeGeraldine,/ppt\/slides\/_rels\/slide21\.xml\.rels/);
 assert.match(nativeGeraldine,/new TextureView\(activity\)/);
+assert.match(nativeGeraldine,/MediaMetadataRetriever/);
+assert.match(nativeGeraldine,/getFrameAtTime\(0,MediaMetadataRetriever\.OPTION_CLOSEST_SYNC\)/);
+assert.match(nativeGeraldine,/texture\.setAlpha\(0f\)/);
+assert.match(nativeGeraldine,/MEDIA_INFO_VIDEO_RENDERING_START/);
+assert.match(nativeGeraldine,/previewRequested/);
+assert.match(nativeGeraldine,/void dismiss\(\)/);
+assert.match(nativeRouter,/geraldine\.warm\(files\.file\("presentation"\)/);
+assert.match(nativeRouter,/void previewGeraldine\(double x,double y,double w,double h\)/);
 assert.match(nativeGeraldine,/ppt\/media\//);
 
 const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
@@ -342,20 +350,30 @@ try {
   await page.waitForFunction(()=>[...document.querySelectorAll('.pptxv-present-toolbar-wrap')]
     .every(el=>getComputedStyle(el).display==='none'));
 
-  await page.keyboard.press('PageUp');
-  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
-  await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='true');
-  // Real Android uses a TextureView layered over the ORIGINAL PPTX movie
-  // shape, not the Chromium <video> stub. Verify that native path never
-  // restarts browser playback or corrupts slide navigation.
+  // Simulate native Android's poster/decoder bridge *before* reaching slide
+  // 21, so the preview must appear without a separate PageDown command.
   await page.evaluate(()=>{
     window.__geraldineNative=[];
+    window.__geraldinePreviews=[];
     window.__geraldineStopped=0;
     window.AndroidTv={
+      previewGeraldine(...bounds){window.__geraldinePreviews.push(bounds);},
       playGeraldine(...bounds){window.__geraldineNative.push(bounds);},
       stopGeraldine(){window.__geraldineStopped++;}
     };
   });
+  await page.keyboard.press('PageUp');
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
+  await page.waitForFunction(()=>document.querySelector('#geraldine-test')?.dataset.mockPaused==='true');
+  assert.equal(await page.evaluate(()=>window.__geraldinePreviews.length),1,
+    'slide 21 must request its first-frame poster before playback is triggered');
+  assert.equal(await page.evaluate(()=>window.__geraldineNative.length),0,
+    'showing a poster must never autoplay Geraldine');
+  const previewBounds=await page.evaluate(()=>window.__geraldinePreviews[0]);
+  assert.ok(previewBounds.every(v=>Number.isFinite(v)&&v>0&&v<1),
+    'first frame must be positioned over the embedded movie, not the entire slide');
+  // Real Android uses a TextureView over the ORIGINAL PPTX movie
+  // shape, not the Chromium video stub.
   const browserPlays=Number(await page.locator('#geraldine-test').getAttribute('data-play-calls'));
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'20');
@@ -372,17 +390,19 @@ try {
     'finishing native playback must leave the presentation on slide 21');
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'21');
-  assert.equal(await page.evaluate(()=>window.__geraldineStopped),0,
-    'completed native playback was already released by Android');
+  assert.equal(await page.evaluate(()=>window.__geraldineStopped),1,
+    'leaving the finished slide must dismiss its poster');
   // A user can also skip Geraldine mid-play: that must release the decoder.
   await page.keyboard.press('PageUp');
+  assert.equal(await page.evaluate(()=>window.__geraldinePreviews.length),2,
+    'revisiting slide 21 must redisplay the cached poster');
   await page.keyboard.press('PageDown');
   assert.equal(await page.evaluate(()=>window.__geraldineNative.length),2,
     'revisiting slide 21 should allow another native playback');
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'21');
-  assert.equal(await page.evaluate(()=>window.__geraldineStopped),1,
-    'skipping active Geraldine must release the native decoder');
+  assert.equal(await page.evaluate(()=>window.__geraldineStopped),2,
+    'skipping active Geraldine must release both decoder and poster');
   console.log('Android TV: Geraldine native video and remote navigation verified; all controls remain hidden');
   // Failed module requests must show a usable retry action, not an endless
   // "Preparando presentación" spinner like Android TV 1.1.0.

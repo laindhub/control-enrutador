@@ -372,8 +372,17 @@ try {
     'finishing native playback must leave the presentation on slide 21');
   await page.keyboard.press('PageDown');
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'21');
+  assert.equal(await page.evaluate(()=>window.__geraldineStopped),0,
+    'completed native playback was already released by Android');
+  // A user can also skip Geraldine mid-play: that must release the decoder.
+  await page.keyboard.press('PageUp');
+  await page.keyboard.press('PageDown');
+  assert.equal(await page.evaluate(()=>window.__geraldineNative.length),2,
+    'revisiting slide 21 should allow another native playback');
+  await page.keyboard.press('PageDown');
+  assert.equal(await page.locator('#slides').getAttribute('data-slide'),'21');
   assert.equal(await page.evaluate(()=>window.__geraldineStopped),1,
-    'leaving Geraldine must release the native decoder');
+    'skipping active Geraldine must release the native decoder');
   console.log('Android TV: Geraldine native video and remote navigation verified; all controls remain hidden');
   // Failed module requests must show a usable retry action, not an endless
   // "Preparando presentación" spinner like Android TV 1.1.0.

@@ -128,3 +128,22 @@ leyéndose directamente del archivo local verificado; no se vuelve a bajar.
 El registro de Android incluye el tamaño detectado del video y el evento
 `MEDIA_INFO_VIDEO_RENDERING_START` para ayudar a diagnosticar equipos con
 códecs incompatibles.
+
+## Versión 1.6.5 · Geraldine nativa y reconexión del teclado
+
+La diapositiva 21 contiene un video H.264/AAC de 40,61 s en el PPTX
+original, relacionado desde `ppt/slides/_rels/slide21.xml.rels`.
+El lector JavaScript puede dejar su superficie negra en ciertos Android TV.
+
+Al pulsar PageDown en la diapositiva 21, `GeraldinePlayer` extrae
+solo el MP4 vinculado a esa diapositiva desde la copia íntegra de PPTX
+y lo decodifica con `TextureView + MediaPlayer` en la posición vertical
+original del video. Se almacena una copia privada identificada por el
+SHA-256 del PPTX; no descarga nada ni modifica el PPTX. Al finalizar,
+la diapositiva permanece visible y otro PageDown continúa normalmente.
+Al cambiar de diapositiva o salir se libera el reproductor.
+
+Los cambios de configuración por conectar/desconectar un teclado o
+control USB/Bluetooth no recrean la Activity: se preservan el WebView,
+las diapositivas, las descargas y la posición actual. Se mantiene el
+modo inmersivo y se recoloca la superficie de video si cambia el tamaño.

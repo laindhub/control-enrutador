@@ -11,6 +11,13 @@ let mediaBuildSlide=null,mediaBuildTriggered=false,mediaPlaybackEnded=false;
 let mediaPlaybackNode=null,mediaAttempted=new WeakSet(),mediaFailures=new WeakMap(),pausedPreviewSlides=new Set();
 let mediaObserver=null,mediaGeneration=0;
 let chromeObserver=null;
+let geraldineNativeRequested=false;
+// Original slide 21 video shape geometry in EMUs, independently verified
+// against the ZIP contents of mas-duenos-liniers.pptx.
+const GERALDINE_GEOMETRY={
+  slideW:18288000,slideH:10287000,
+  left:9425035,top:969288,width:4447375,height:7909700,
+};
 // Presentation-only TV mode: disable the viewer's own navigation at creation
 // and suppress every fallback control, including touch-only overlays. Never
 // select slide content using broad "present*" selectors.
@@ -148,8 +155,36 @@ function allowedToPlayVideo(){
   // The native click-build on slide 21 takes precedence over the adjacent-
   // slide duplicate-preview heuristic. Otherwise a video also present on
   // slide 22 could keep Geraldine permanently paused after PageDown.
-  if(slide===mediaBuildSlide)return mediaBuildTriggered&&!mediaPlaybackEnded;
+  if(slide===mediaBuildSlide)
+    return mediaBuildTriggered&&!mediaPlaybackEnded&&!geraldineNativeRequested;
   return mayAutoPlayVideo(slide,pausedPreviewSlides);
+}
+// Native Android decodes the MP4 directly from the verified PPTX. Position its
+// TextureView over the real movie shape without covering slide title or logo.
+function nativeGeraldineBounds(){
+  const v=visibleMedia().find(node=>node.tagName==='VIDEO');
+  const rect=v?.getBoundingClientRect();
+  if(rect&&rect.width>35&&rect.height>35&&
+     rect.width/rect.height>0.43&&rect.width/rect.height<0.78&&
+     rect.left>=0&&rect.top>=0&&rect.right<=innerWidth&&rect.bottom<=innerHeight){
+    return [rect.left/innerWidth,rect.top/innerHeight,
+      rect.width/innerWidth,rect.height/innerHeight];
+  }
+  // If the PPTX viewer only paints the blank video poster, it may not create
+  // a <video> element at all. Use its exact OOXML movie shape coordinates.
+  const stage=host.getBoundingClientRect();
+  const g=GERALDINE_GEOMETRY;
+  const aspect=g.slideW/g.slideH;
+  const width=Math.min(stage.width,stage.height*aspect);
+  const height=width/aspect;
+  const left=stage.left+(stage.width-width)/2;
+  const top=stage.top+(stage.height-height)/2;
+  return [
+    (left+g.left/g.slideW*width)/innerWidth,
+    (top+g.top/g.slideH*height)/innerHeight,
+    (g.width/g.slideW*width)/innerWidth,
+    (g.height/g.slideH*height)/innerHeight,
+  ];
 }
 function pausePreview(video){
   if(video.autoplay)video.autoplay=false;
@@ -226,6 +261,10 @@ function scheduleMedia(){
 function slideChanged(index){
   if(!Number.isInteger(index)||index<0)return;
   if(slide!==index){
+    if(geraldineNativeRequested){
+      geraldineNativeRequested=false;
+      try{window.AndroidTv?.stopGeraldine?.();}catch(e){console.warn('Cierre Geraldine:',e);}
+    }
     mediaBuildTriggered=false;
     mediaPlaybackEnded=false;
     mediaPlaybackNode=null;
@@ -354,7 +393,23 @@ function seek(direction){
 // starts the embedded video, the second moves on without replaying it.
 function next(){
   if(slide===mediaBuildSlide){
-    if(!mediaBuildTriggered){mediaBuildTriggered=true;scheduleMedia();return;}
+    if(!mediaBuildTriggered){
+      mediaBuildTriggered=true;
+      if(typeof window.AndroidTv?.playGeraldine==='function'){
+        const [x,y,w,h]=nativeGeraldineBounds();
+        geraldineNativeRequested=true;
+        // Pause the WebView movie: a duplicate browser decoder would leave a
+        // black layer over the working native TextureView and double audio.
+        scheduleMedia();
+        try{window.AndroidTv.playGeraldine(x,y,w,h);}
+        catch(error){
+          geraldineNativeRequested=false;
+          console.warn('Geraldine nativa no disponible:',error);
+          scheduleMedia();
+        }
+      }else scheduleMedia();
+      return;
+    }
   }
   viewer?.goToSlide?.((slide+1)%total);
 }
@@ -407,9 +462,17 @@ window.tvNativeIntroEnded=detail=>{
   closeIntro();
   if(detail)hint(detail);
 };
+// Native MP4 completion must never restart or advance the slide by itself.
+window.tvNativeGeraldineEnded=detail=>{
+  if(slide!==mediaBuildSlide||!mediaBuildTriggered)return;
+  geraldineNativeRequested=false;
+  mediaPlaybackEnded=true;
+  if(detail)console.error('Geraldine nativa:',detail);
+};
 $('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
 window.addEventListener('beforeunload',()=>{
+  try{window.AndroidTv?.stopGeraldine?.();}catch{}
   mediaObserver?.disconnect();
   chromeObserver?.disconnect();
 });

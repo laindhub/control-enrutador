@@ -62,6 +62,7 @@ public final class TvActivity extends Activity {
     private int introVideoWidth;
     private int introVideoHeight;
     private boolean introNativeActive=false;
+    private GeraldinePlayer geraldine;
 
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
@@ -86,6 +87,11 @@ public final class TvActivity extends Activity {
         frame=new FrameLayout(this);frame.setBackgroundColor(Color.rgb(15,16,20));
         setContentView(frame);
         createMenu();
+        geraldine=new GeraldinePlayer(this,frame,error->{
+            if(!error.isEmpty())Log.e("MasDuenosTV","Geraldine: "+error);
+            if(inPlayer&&player!=null)
+                player.evaluateJavascript("window.tvNativeGeraldineEnded?.("+JSONObject.quote(error)+")",null);
+        });
         player=new WebView(this);
         player.setBackgroundColor(Color.BLACK);
         player.setVisibility(View.GONE);
@@ -288,6 +294,17 @@ public final class TvActivity extends Activity {
         @JavascriptInterface public void playIntroduction(){
             runOnUiThread(()->startNativeIntroduction());
         }
+        @JavascriptInterface public void playGeraldine(double x,double y,double w,double h){
+            runOnUiThread(()->{
+                if(!inPlayer||introNativeActive||!files.has("presentation"))return;
+                String digest=getSharedPreferences("tv-files-v1",MODE_PRIVATE)
+                    .getString("presentation.sha","");
+                geraldine.play(files.file("presentation"),digest,x,y,w,h);
+            });
+        }
+        @JavascriptInterface public void stopGeraldine(){
+            runOnUiThread(()->geraldine.stop(false,null));
+        }
     }
     private void sendIntroResult(String error){
         if(!inPlayer||player==null)return;
@@ -306,6 +323,7 @@ public final class TvActivity extends Activity {
      */
     private void startNativeIntroduction(){
         if(!inPlayer||introNativeActive)return;
+        if(geraldine!=null)geraldine.stop(false,null);
         if(!files.has("introduction")){
             sendIntroResult("El video introductorio no está guardado. Volvé al menú y buscá actualizaciones.");
             return;
@@ -489,6 +507,7 @@ public final class TvActivity extends Activity {
         player.requestFocus();
     }
     private void returnMenu(){
+        if(geraldine!=null)geraldine.stop(false,null);
         if(introNativeActive)stopNativeIntroduction(false,null);
         autoOpenAfterSync=false;
         hideCustom();
@@ -553,7 +572,21 @@ public final class TvActivity extends Activity {
         }
         return super.dispatchKeyEvent(event);
     }
+    @Override public void onConfigurationChanged(Configuration config){
+        // Connecting/disconnecting a USB or Bluetooth keyboard changes
+        // keyboard/keyboardHidden/navigation on Android TV. Keep the same
+        // Activity, WebView, deck and current slide alive mid-presentation.
+        super.onConfigurationChanged(config);
+        getWindow().getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_FULLSCREEN|
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        if(frame!=null)frame.post(()->{
+            fitNativeIntroToScreen();
+            if(geraldine!=null)geraldine.reposition();
+        });
+    }
     @Override protected void onDestroy(){
+        if(geraldine!=null)geraldine.stop(false,null);
         if(introNativeActive)stopNativeIntroduction(false,null);
         hideCustom();
         player.destroy();

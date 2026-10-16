@@ -8,7 +8,7 @@
         android:supportsRtl="true" android:banner="@drawable/tv_banner"
         android:icon="@drawable/tv_icon">
         <activity android:name=".TvActivity" android:exported="true"
-            android:screenOrientation="landscape" android:configChanges="screenSize|orientation"
+            android:screenOrientation="landscape" android:configChanges="screenSize|orientation|keyboard|keyboardHidden|navigation|uiMode|screenLayout|smallestScreenSize"
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

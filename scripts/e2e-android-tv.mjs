@@ -214,9 +214,23 @@ try {
   await page.goto('http://127.0.0.1:'+server.address().port+'/tv/index.html');
   // No Enter, simulated click or other user gesture: the page must enter
   // presentation by itself as soon as its cached PPTX finishes loading.
-  await page.waitForFunction(()=>document.body.classList.contains('tv-presenting') &&
-    document.querySelector('#slides')?.dataset.slide==='0' &&
-    document.getElementById('loading')?.hidden,{},{timeout:25000});
+  try{
+    await page.waitForFunction(()=>document.body.classList.contains('tv-presenting') &&
+      document.querySelector('#slides')?.dataset.slide==='0' &&
+      document.getElementById('loading')?.hidden,{},{timeout:25000});
+  }catch(err){
+    const diagnostic=await page.evaluate(()=>({
+      title:document.querySelector('#loading h1')?.textContent,
+      message:document.getElementById('message')?.textContent,
+      booted:window.__tvBooted,
+      started:document.body.classList.contains('tv-presenting'),
+      slide:document.querySelector('#slides')?.dataset.slide,
+      engineRequest:performance.getEntriesByType('resource')
+        .filter(x=>x.name.includes('pptx-viewer-offline.js')).map(x=>x.name),
+    }));
+    console.error('Offline browser startup diagnostic:',JSON.stringify(diagnostic));
+    throw err;
+  }
   assert.equal(await page.locator('#ready').count(),0,'No Todo listo screen');
   assert.equal(await page.locator('#start').count(),0,'No start button');
   assert.equal(await page.locator('.pptxv').evaluate(

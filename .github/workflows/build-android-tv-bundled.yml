@@ -8,7 +8,7 @@ on:
       - 'android-tv/app/build.gradle'
       - '.github/workflows/build-android-tv-bundled.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   bundled-apk:
     runs-on: ubuntu-latest
@@ -48,6 +48,25 @@ jobs:
           signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
           "$signer" verify "$apk"
           ls -lh "$apk"
+      - name: Publish verified APK directly (no ZIP)
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          original="android-tv/app/build/outputs/apk/debug/app-debug.apk"
+          direct="$RUNNER_TEMP/MasDuenosTV_1.6.12_Completa.apk"
+          cp "$original" "$direct"
+          tag="masduenos-tv-1.6.12-completa"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$direct" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$direct" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Más Dueños TV 1.6.12 — APK completo" \
+              --notes "APK instalable con presentación PowerPoint y video de introducción incluidos. No hay que descargar esos dos archivos en la primera apertura. Firma debug: si no se instala como actualización, desinstalá la versión previa e instalá este paquete."
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets
       - uses: actions/upload-artifact@v4
         with:
           name: masduenos-android-tv-offline-complete-apk

@@ -27,12 +27,14 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.graphics.drawable.GradientDrawable;
 import android.content.res.Configuration;
+import android.content.res.ColorStateList;
 import android.widget.TextView;
 import java.io.*;
 import java.util.HashMap;
@@ -50,6 +52,7 @@ public final class TvActivity extends Activity {
     private TextView pptxStatus,videoStatus,notice;
     private ProgressBar pptxProgress,videoProgress;
     private Button open,retry;
+    private TextView offlineStatus;
     private WebView player;
     private View customView;
     private WebChromeClient.CustomViewCallback customCallback;
@@ -72,6 +75,15 @@ public final class TvActivity extends Activity {
     private GeraldinePlayer geraldine;
 
 
+    // Flat opaque palette: premium red/black without blurred surfaces,
+    // looping effects or offscreen render layers on budget Android TVs.
+    private static final int TV_BLACK=Color.rgb(9,10,13);
+    private static final int TV_PANEL=Color.rgb(23,24,29);
+    private static final int TV_CARD=Color.rgb(30,31,37);
+    private static final int TV_RED=Color.rgb(216,37,27);
+    private static final int TV_RED_FOCUS=Color.rgb(235,55,45);
+    private static final int TV_WHITE=Color.rgb(249,249,251);
+    private static final int TV_MUTED=Color.rgb(169,172,183);
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
     private TextView text(String content,int size,int color,boolean bold){
         TextView view=new TextView(this);
@@ -91,7 +103,7 @@ public final class TvActivity extends Activity {
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_FULLSCREEN|
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         files=new TvAssetStore(this);
-        frame=new FrameLayout(this);frame.setBackgroundColor(Color.rgb(15,16,20));
+        frame=new FrameLayout(this);frame.setBackgroundColor(TV_BLACK);
         setContentView(frame);
         createMenu();
         geraldine=new GeraldinePlayer(this,frame,error->{
@@ -132,7 +144,7 @@ public final class TvActivity extends Activity {
         frame.addView(player,new FrameLayout.LayoutParams(-1,-1));
         open.setEnabled(files.has("presentation"));
         open.requestFocus();
-        refresh();
+        refresh(false);
     }
     private void hideCustom(){
         if(customView==null)return;
@@ -147,104 +159,191 @@ public final class TvActivity extends Activity {
         if(stroke!=0)bg.setStroke(dp(1),stroke);
         return bg;
     }
+    private GradientDrawable actionBackground(boolean primary,boolean focused){
+        int fill=primary?(focused?TV_RED_FOCUS:TV_RED):
+            (focused?Color.rgb(49,34,38):TV_CARD);
+        int border=focused?TV_WHITE:(primary?Color.rgb(222,70,64):Color.rgb(72,42,45));
+        GradientDrawable drawable=panelBackground(fill,border,22);
+        drawable.setStroke(dp(focused?2:1),border);
+        return drawable;
+    }
+    private void styleAction(Button button,boolean primary,boolean compact){
+        button.setAllCaps(false);
+        button.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        button.setTextColor(TV_WHITE);
+        button.setTextSize(compact?17:20);
+        button.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+        button.setMinHeight(dp(compact?56:68));
+        button.setMinimumHeight(0);
+        button.setPadding(dp(21),dp(12),dp(20),dp(12));
+        button.setBackgroundTintList(null);
+        button.setStateListAnimator(null);
+        button.setBackground(actionBackground(primary,false));
+        button.setFocusable(true);
+    }
     private void createMenu(){
-        // TV-safe viewport: never center a content column taller than the screen.
-        // A ScrollView keeps both buttons reachable on short/overscanned TVs.
+        // Single-screen 10-foot interface. The native view tree remains GONE
+        // throughout playback, so it never draws/reflows or intercepts input.
         int widthDp=getResources().getConfiguration().screenWidthDp;
         int heightDp=getResources().getConfiguration().screenHeightDp;
-        boolean shortTV=heightDp<620;
-        int edge=dp(shortTV?22:32);
-        int gap=dp(shortTV?12:18);
+        boolean compact=heightDp<650;
+        int edge=dp(compact?16:28);
+        int gap=dp(compact?10:16);
         menuSurface=new ScrollView(this);
         menuSurface.setFillViewport(true);
-        // The loaded slide remains underneath the menu; use an opaque
-        // background so it never shows through or steals focus.
-        menuSurface.setBackgroundColor(Color.rgb(15,16,20));
+        menuSurface.setBackgroundColor(TV_BLACK);
         menuSurface.setVerticalScrollBarEnabled(false);
         menuSurface.setOverScrollMode(View.OVER_SCROLL_NEVER);
         menuSurface.setClipToPadding(false);
         frame.addView(menuSurface,new FrameLayout.LayoutParams(-1,-1));
 
         LinearLayout viewport=vertical();
-        viewport.setGravity(Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+        viewport.setGravity(Gravity.CENTER_HORIZONTAL|Gravity.CENTER_VERTICAL);
         viewport.setPadding(edge,edge,edge,edge);
         menuSurface.addView(viewport,new ScrollView.LayoutParams(-1,-2));
+
         menu=vertical();
-        menu.setGravity(Gravity.TOP);
-        menu.setPadding(dp(shortTV?20:30),dp(shortTV?18:28),
-            dp(shortTV?20:30),dp(shortTV?18:28));
-        menu.setBackground(panelBackground(Color.rgb(26,27,32),Color.rgb(50,51,58),18));
+        menu.setPadding(dp(compact?20:32),dp(compact?20:30),
+            dp(compact?20:32),dp(compact?20:30));
+        menu.setBackground(panelBackground(TV_PANEL,Color.rgb(83,39,42),30));
         LinearLayout.LayoutParams container=new LinearLayout.LayoutParams(-1,-2);
-        // Cap content width, but never exceed the available viewport.
-        int desired=dp(widthDp<950?680:900);
-        container.width=Math.min(desired,Math.max(dp(300),getResources().getDisplayMetrics().widthPixels-2*edge));
+        int available=Math.max(dp(280),getResources().getDisplayMetrics().widthPixels-2*edge);
+        container.width=Math.min(dp(widthDp<800?710:860),available);
         viewport.addView(menu,container);
 
-        TextView kicker=text("MÁS DUEÑOS  /  LINIERS",shortTV?15:17,Color.rgb(235,95,86),true);
-        kicker.setLetterSpacing(.12f);
-        menu.addView(kicker);
-        TextView heading=text("Presentación comercial",shortTV?30:39,Color.WHITE,true);
-        heading.setPadding(0,gap,0,gap);
-        menu.addView(heading);
-        TextView info=text("Presentaciones listas para usar, incluso sin conexión.",
-            shortTV?15:17,Color.rgb(186,188,197),false);
-        menu.addView(info);
+        // Reuse the shipping brand artwork. No network/image decoding or
+        // additional asset download is required.
+        LinearLayout brand=new LinearLayout(this);
+        brand.setOrientation(LinearLayout.HORIZONTAL);
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        menu.addView(brand,new LinearLayout.LayoutParams(-1,-2));
+        ImageView brandIcon=new ImageView(this);
+        brandIcon.setImageResource(R.drawable.tv_icon);
+        brandIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        brandIcon.setBackground(panelBackground(TV_RED,0,13));
+        brandIcon.setClipToOutline(true);
+        brand.addView(brandIcon,new LinearLayout.LayoutParams(dp(compact?44:52),dp(compact?44:52)));
 
-        checkingPanel=vertical();
-        menu.addView(checkingPanel);
-        TextView filesTitle=text("ARCHIVOS EN EL TELEVISOR",shortTV?12:14,
-            Color.rgb(160,162,172),true);
-        filesTitle.setLetterSpacing(.08f);
-        filesTitle.setPadding(0,dp(shortTV?17:25),0,dp(5));
-        checkingPanel.addView(filesTitle);
-        pptxStatus=text("PowerPoint · comprobando…",shortTV?15:17,Color.WHITE,false);
-        pptxStatus.setPadding(0,dp(7),0,dp(7));checkingPanel.addView(pptxStatus);
-        pptxProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
-        pptxProgress.setMax(100);
-        checkingPanel.addView(pptxProgress,new LinearLayout.LayoutParams(-1,dp(6)));
-        videoStatus=text("Introducción MP4 · comprobando…",shortTV?15:17,Color.WHITE,false);
-        videoStatus.setPadding(0,dp(14),0,dp(7));checkingPanel.addView(videoStatus);
-        videoProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
-        videoProgress.setMax(100);
-        checkingPanel.addView(videoProgress,new LinearLayout.LayoutParams(-1,dp(6)));
+        LinearLayout branding=vertical();
+        LinearLayout.LayoutParams brandText=new LinearLayout.LayoutParams(-1,-2);
+        brandText.leftMargin=dp(14);
+        brand.addView(branding,brandText);
+        TextView logoName=text("MÁS DUEÑOS",compact?15:18,TV_WHITE,true);
+        logoName.setLetterSpacing(.12f);
+        branding.addView(logoName);
+        TextView branch=text("TV   /   LINIERS",compact?11:13,TV_RED_FOCUS,true);
+        branch.setLetterSpacing(.15f);
+        branch.setPadding(0,dp(3),0,0);
+        branding.addView(branch);
 
-        notice=text("Preparando archivos…",shortTV?13:15,Color.rgb(173,178,190),false);
-        notice.setPadding(0,dp(13),0,dp(5));checkingPanel.addView(notice);
+        TextView heading=text("Presentación comercial",compact?30:43,TV_WHITE,true);
+        LinearLayout.LayoutParams hero=new LinearLayout.LayoutParams(-1,-2);
+        hero.topMargin=dp(compact?18:25);
+        menu.addView(heading,hero);
+        TextView subtitle=text("Todo preparado para continuar tu charla.",
+            compact?15:18,TV_MUTED,false);
+        LinearLayout.LayoutParams subtitleLayout=new LinearLayout.LayoutParams(-1,-2);
+        subtitleLayout.topMargin=dp(compact?4:6);
+        menu.addView(subtitle,subtitleLayout);
+
+        // Persistent offline-ready card, independent from any sync progress.
+        LinearLayout readyCard=new LinearLayout(this);
+        readyCard.setOrientation(LinearLayout.HORIZONTAL);
+        readyCard.setGravity(Gravity.CENTER_VERTICAL);
+        readyCard.setPadding(dp(17),dp(compact?11:16),dp(17),dp(compact?11:16));
+        readyCard.setBackground(panelBackground(TV_CARD,Color.rgb(48,49,57),17));
+        LinearLayout.LayoutParams readyLayout=new LinearLayout.LayoutParams(-1,-2);
+        readyLayout.topMargin=dp(compact?18:26);
+        menu.addView(readyCard,readyLayout);
+        View readyDot=new View(this);
+        readyDot.setBackground(panelBackground(TV_RED,0,5));
+        readyCard.addView(readyDot,new LinearLayout.LayoutParams(dp(9),dp(9)));
+        offlineStatus=text("PREPARANDO CONTENIDO LOCAL",compact?13:15,TV_WHITE,true);
+        offlineStatus.setLetterSpacing(.025f);
+        LinearLayout.LayoutParams readyText=new LinearLayout.LayoutParams(-1,-2);
+        readyText.leftMargin=dp(12);
+        readyCard.addView(offlineStatus,readyText);
 
         LinearLayout actions=vertical();
-        LinearLayout.LayoutParams actionsLayout=new LinearLayout.LayoutParams(-1,-2);
-        actionsLayout.topMargin=dp(shortTV?10:16);
-        menu.addView(actions,actionsLayout);
+        LinearLayout.LayoutParams actionLayout=new LinearLayout.LayoutParams(-1,-2);
+        actionLayout.topMargin=dp(compact?17:24);
+        menu.addView(actions,actionLayout);
         open=new Button(this);
-        open.setText("▶  Abrir presentación");
-        open.setTextSize(shortTV?17:20);
-        open.setAllCaps(false);
-        open.setMinHeight(dp(shortTV?48:58));
+        open.setText("▶   Abrir presentación");
+        styleAction(open,true,compact);
         open.setOnClickListener(v->openPlayer());
         actions.addView(open,new LinearLayout.LayoutParams(-1,-2));
+
         retry=new Button(this);
-        retry.setText("Buscar actualizaciones");
-        retry.setTextSize(shortTV?16:18);
-        retry.setAllCaps(false);
-        retry.setMinHeight(dp(shortTV?46:54));
+        retry.setText("↻   Buscar actualizaciones");
+        styleAction(retry,false,compact);
         retry.setOnClickListener(v->{
-            // Verification is explicit only; Back never launches this screen.
+            if(inPlayer)return;
             checkingPanel.setVisibility(View.VISIBLE);
-            autoOpenAfterSync=true;
-            refresh();
+            autoOpenAfterSync=false;
+            refresh(true);
         });
         LinearLayout.LayoutParams retryLayout=new LinearLayout.LayoutParams(-1,-2);
-        retryLayout.topMargin=dp(8);
+        retryLayout.topMargin=dp(10);
         actions.addView(retry,retryLayout);
+
+        // Only visible on initial setup or when the user explicitly chooses
+        // updates. No progress bars/labels update during slide playback.
+        checkingPanel=vertical();
+        checkingPanel.setPadding(dp(17),dp(14),dp(17),dp(14));
+        checkingPanel.setBackground(panelBackground(TV_CARD,Color.rgb(60,43,46),18));
+        LinearLayout.LayoutParams checkingLayout=new LinearLayout.LayoutParams(-1,-2);
+        checkingLayout.topMargin=dp(14);
+        menu.addView(checkingPanel,checkingLayout);
+        TextView filesTitle=text("ARCHIVOS Y SINCRONIZACIÓN",
+            compact?11:13,TV_RED_FOCUS,true);
+        filesTitle.setLetterSpacing(.09f);
+        checkingPanel.addView(filesTitle);
+
+        pptxStatus=text("PowerPoint · comprobando…",compact?13:15,TV_WHITE,false);
+        pptxStatus.setPadding(0,dp(12),0,dp(7));
+        checkingPanel.addView(pptxStatus);
+        pptxProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        pptxProgress.setMax(100);
+        pptxProgress.setProgressTintList(ColorStateList.valueOf(TV_RED));
+        pptxProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(58,59,65)));
+        checkingPanel.addView(pptxProgress,new LinearLayout.LayoutParams(-1,dp(5)));
+
+        videoStatus=text("Introducción MP4 · comprobando…",compact?13:15,TV_WHITE,false);
+        videoStatus.setPadding(0,dp(13),0,dp(7));
+        checkingPanel.addView(videoStatus);
+        videoProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        videoProgress.setMax(100);
+        videoProgress.setProgressTintList(ColorStateList.valueOf(TV_RED));
+        videoProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(58,59,65)));
+        checkingPanel.addView(videoProgress,new LinearLayout.LayoutParams(-1,dp(5)));
+        notice=text("Preparando archivos…",compact?12:14,TV_MUTED,false);
+        notice.setPadding(0,dp(13),0,0);
+        checkingPanel.addView(notice);
+
+        TextView tips=text("OK para seleccionar    ·    Atrás para volver al menú",
+            compact?12:14,TV_MUTED,false);
+        LinearLayout.LayoutParams tipsLayout=new LinearLayout.LayoutParams(-1,-2);
+        tipsLayout.topMargin=dp(compact?18:24);
+        menu.addView(tips,tipsLayout);
+
+        // Focus and scrolling run ONLY while this menu is visible. Animations
+        // are one-shot, cancelled immediately when the slides become visible.
         View.OnFocusChangeListener focus=(v,hasFocus)->{
-            v.animate().scaleX(hasFocus?1.018f:1f).scaleY(hasFocus?1.018f:1f)
-                .setDuration(120).start();
-            v.setAlpha(hasFocus?1f:.92f);
+            if(inPlayer||menuSurface.getVisibility()!=View.VISIBLE)return;
+            v.animate().cancel();
+            v.animate().scaleX(hasFocus?1.025f:1f)
+                .scaleY(hasFocus?1.025f:1f).setDuration(105).start();
+            v.setBackground(actionBackground(v==open,hasFocus));
             if(hasFocus)menuSurface.post(()->{
+                if(inPlayer||menuSurface.getVisibility()!=View.VISIBLE)return;
                 android.graphics.Rect rect=new android.graphics.Rect();
                 v.getDrawingRect(rect);
-                menuSurface.offsetDescendantRectToMyCoords((View)v,rect);
-                menuSurface.smoothScrollTo(0,Math.max(0,rect.bottom-menuSurface.getHeight()+dp(35)));
+                menuSurface.offsetDescendantRectToMyCoords(v,rect);
+                int availableHeight=menuSurface.getHeight()-dp(28);
+                if(rect.bottom>menuSurface.getScrollY()+availableHeight)
+                    menuSurface.smoothScrollTo(0,
+                        Math.max(0,rect.bottom-availableHeight));
             });
         };
         open.setOnFocusChangeListener(focus);
@@ -253,16 +352,40 @@ public final class TvActivity extends Activity {
         retry.setId(View.generateViewId());
         open.setNextFocusDownId(retry.getId());
         retry.setNextFocusUpId(open.getId());
-
-        TextView tips=text("Flechas: navegar   •   OK: seleccionar   •   Atrás: volver",
-            shortTV?12:14,Color.rgb(161,162,170),false);
-        tips.setPadding(0,dp(13),0,0);
-        menu.addView(tips);
+        // No animation loops, video backgrounds, WebView or timers in menu.
     }
-    private void refresh(){
-        retry.setEnabled(false);
+    private void suspendMenuRendering(){
+        // GONE excludes the complete native menu subtree from layout/drawing.
+        // Cancel pending focus animations; progress observers are gated too.
+        open.animate().cancel();
+        retry.animate().cancel();
+        open.setScaleX(1f);open.setScaleY(1f);
+        retry.setScaleX(1f);retry.setScaleY(1f);
+        menuSurface.clearFocus();
+        menuSurface.setImportantForAccessibility(
+            View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        menuSurface.setVisibility(View.GONE);
+    }
+    private void showMenuRendering(){
+        menuSurface.setImportantForAccessibility(
+            View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        menuSurface.setVisibility(View.VISIBLE);
+        menuSurface.bringToFront();
+        offlineStatus.setText(files.has("presentation")?
+            "CONTENIDO LOCAL DISPONIBLE · SIN WI-FI":
+            "ARCHIVOS NO DISPONIBLES");
+        open.setEnabled(files.has("presentation"));
+        open.requestFocus();
+    }
+    private void refresh(boolean checkUpdates){
+        if(!inPlayer&&menuSurface.getVisibility()==View.VISIBLE)
+            retry.setEnabled(false);
         files.refresh(new TvAssetStore.Listener(){
             @Override public void status(String kind,long received,long total,String phase){
+                // A download can finish while the presenter is on a slide.
+                // Do not touch labels, progress, focus or layout offscreen.
+                if(inPlayer||menuSurface.getVisibility()!=View.VISIBLE||
+                   checkingPanel.getVisibility()!=View.VISIBLE)return;
                 boolean deck=kind.equals("presentation");
                 ProgressBar progress=deck?pptxProgress:videoProgress;
                 TextView label=deck?pptxStatus:videoStatus;
@@ -282,13 +405,18 @@ public final class TvActivity extends Activity {
                 }else{
                     label.setText(title+" · "+phase);
                 }
-                if(total>0)progress.setProgress(pct); else progress.setProgress(0);
-                open.setEnabled(files.has("presentation"));
+                int target=total>0?pct:0;
+                if(progress.getProgress()!=target)progress.setProgress(target);
             }
             @Override public void complete(boolean playable,String message){
-                notice.setText(message);
-                retry.setEnabled(true);
-                open.setEnabled(playable);
+                if(!inPlayer&&menuSurface.getVisibility()==View.VISIBLE){
+                    notice.setText(message);
+                    retry.setEnabled(true);
+                    open.setEnabled(playable);
+                    offlineStatus.setText(playable?
+                        "CONTENIDO LOCAL DISPONIBLE · SIN WI-FI":
+                        "ARCHIVOS NO DISPONIBLES");
+                }
                 // Extract and decode the first frame while other slides load.
                 if(playable&&geraldine!=null){
                     String fingerprint=getSharedPreferences("tv-files-v1",MODE_PRIVATE)
@@ -306,7 +434,7 @@ public final class TvActivity extends Activity {
                     open.requestFocus();
                 }
             }
-        });
+        },checkUpdates);
     }
     // JS-to-native bridge. The interface contains no file paths or arbitrary URLs.
     // Only the fixed, SHA-256-verified introduction in private app storage plays.
@@ -570,7 +698,7 @@ public final class TvActivity extends Activity {
         if(inPlayer||!files.has("presentation"))return;
         autoOpenAfterSync=false;
         inPlayer=true;
-        menuSurface.setVisibility(View.GONE);
+        suspendMenuRendering();
         player.setVisibility(View.VISIBLE);
         if(!playerLoaded){
             playerLoaded=true;
@@ -600,9 +728,7 @@ public final class TvActivity extends Activity {
             null);
         open.setText("▶  Continuar presentación");
         checkingPanel.setVisibility(View.GONE);
-        menuSurface.setVisibility(View.VISIBLE);
-        menuSurface.bringToFront();
-        open.requestFocus();
+        showMenuRendering();
     }
     @Override public void onBackPressed(){
         if(inPlayer)returnMenu();

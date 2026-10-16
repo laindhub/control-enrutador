@@ -337,3 +337,33 @@ No se muestran ni reejecutan las comprobaciones de archivos a menos que
 se elija expresamente «Buscar actualizaciones». También funciona cuando
 está abierto el video nativo de introducción: Back lo detiene y va al menú;
 Tab/OK siguen manejando la introducción sin cambios.
+
+
+## Versión 1.6.16 — Menú Pro, liviano para TCL
+
+El menú se rediseñó enteramente con vistas nativas Android (no WebView):
+isotipo Más Dueños existente, fondo negro, panel rojo/negro con esquinas
+redondeadas de 30dp, estado de contenido local, botón rojo principal,
+botón secundario oscuro delineado, enfoque TV visible y accesibilidad
+con el mando. El contenido es desplazable en equipos compactos sin perder
+botones. El panel de sincronización solo aparece durante la preparación
+inicial o al elegir «Buscar actualizaciones».
+
+**Aislamiento de recursos:** al entrar en presentación se cancelan todas
+las animaciones de enfoque, se elimina el foco del menú y todo su árbol
+nativo pasa a `View.GONE`, excluyéndose del dibujo y la disposición de
+vistas. Se suspenden las actualizaciones visuales de las barras de
+progreso mientras la presentación está abierta. Al pulsar Atrás, el mismo
+menú se muestra sin recrearlo y el PPTX y las 40 imágenes precalculadas
+conservan su posición.
+
+**Sin actividad de red innecesaria:** en la variante APK completa con
+PowerPoint y MP4 incorporados y verificados, el inicio ya no consulta
+Hostinger en segundo plano. El botón «Buscar actualizaciones» realiza
+explícitamente esa consulta, sin saltar automáticamente a la presentación
+ni cerrar el menú. En la APK ligera, la descarga inicial sigue
+funcionando cuando no existen medios incorporados.
+
+No se añade ninguna imagen ni vídeo al menú, se reutiliza el vector
+original. Las mejoras de Geraldine, introducción, navegador y teclas K01
+se mantienen intactas.

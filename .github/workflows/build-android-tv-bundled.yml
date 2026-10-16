@@ -91,16 +91,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          direct="$RUNNER_TEMP/MasDuenosTV_1.6.15_Menu_Persistente.apk"
+          direct="$RUNNER_TEMP/MasDuenosTV_1.6.16_Menu_Pro.apk"
           cp android-tv/app/build/outputs/apk/debug/app-debug.apk "$direct"
-          tag="masduenos-tv-1.6.15-menu-persistente"
+          tag="masduenos-tv-1.6.16-menu-pro"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$direct" --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$tag" "$direct" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "Más Dueños TV 1.6.15 — Menú sin reiniciar" \
+              --title "Más Dueños TV 1.6.16 — Menú Pro rojo y negro" \
               --notes "Instalador con las 40 diapositivas, video de introducción y motor PowerPoint incorporado. Validado sin Internet mediante navegador offline real. En TV basta instalar; no necesita red para abrir el PowerPoint."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

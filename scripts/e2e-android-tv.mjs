@@ -94,8 +94,19 @@ assert.doesNotMatch(returnBody,/loadUrl|refresh\(|hideCustom\(/,
   'Returning to the main menu must never reset the PPTX, fullscreen or files');
 assert.match(returnBody,/checkingPanel\.setVisibility\(View\.GONE\)/,
   'Returning to the main menu must hide all file verification panels');
-assert.match(returnBody,/menuSurface\.bringToFront\(\)/);
+assert.match(returnBody,/showMenuRendering\(\)/,
+  'Back must reopen the existing native menu rather than reconstruct it');
 assert.match(returnBody,/Continuar presentación/);
+const menuShow=nativeRouter.match(/private void showMenuRendering\(\)\{([\s\S]*?)\n    \}/)?.[1];
+const menuSuspend=nativeRouter.match(/private void suspendMenuRendering\(\)\{([\s\S]*?)\n    \}/)?.[1];
+assert.ok(menuShow&&menuSuspend,'Menu needs explicit show and suspend modes');
+assert.match(menuShow,/menuSurface\.bringToFront\(\)/);
+assert.match(menuSuspend,/menuSurface\.setVisibility\(View\.GONE\)/,
+  'Hidden menu must not be measured, drawn or receive focus while presenting');
+assert.match(menuSuspend,/open\.animate\(\)\.cancel\(\)/);
+assert.match(menuSuspend,/retry\.animate\(\)\.cancel\(\)/);
+assert.match(reopenBody,/suspendMenuRendering\(\)/,
+  'Entering slides must disable all menu rendering and focus animations');
 assert.match(reopenBody,/if\(!playerLoaded\)/,
   'The PowerPoint must only load once');
 assert.match(reopenBody,/window\.tvMenuResumed\?\.\(\)/,
@@ -106,6 +117,23 @@ assert.ok(nativeRouter.indexOf('if(inPlayer&&(event.getKeyCode()==KeyEvent.KEYCO
   nativeRouter.indexOf('if(introNativeActive)return handleNativeIntroKey(event)'),
   'Native Back must reach main menu even while introduction is playing');
 assert.match(tvScript,/window\.tvMenuResumed=\(\)=>/);
+// Native TV menu: pure Android Views, no WebView, animation loop or media
+// while presenting. The original brand vector is reused, with rounded cards.
+assert.match(nativeRouter,/brandIcon\.setImageResource\(R\.drawable\.tv_icon\)/);
+assert.match(nativeRouter,/menu\.setBackground\(panelBackground\(TV_PANEL,[^\n]*30\)\)/);
+assert.match(nativeRouter,/private GradientDrawable actionBackground\(/);
+assert.match(nativeRouter,/actionBackground\(v==open,hasFocus\)/);
+assert.match(nativeRouter,/setBackgroundTintList\(null\)/);
+assert.match(nativeRouter,/setStateListAnimator\(null\)/);
+assert.match(nativeRouter,/if\(inPlayer\|\|menuSurface\.getVisibility\(\)!=View\.VISIBLE\|\|/);
+assert.match(nativeRouter,/checkingPanel\.getVisibility\(\)!=View\.VISIBLE\)return/);
+assert.match(nativeRouter,/refresh\(false\)/,
+  'Automatic startup should prefer preloaded offline files');
+assert.match(nativeRouter,/refresh\(true\)/,
+  'Only the explicit menu action should check updates online');
+assert.match(assetStore,/public synchronized void refresh\(Listener listener,boolean checkUpdates\)/);
+assert.match(assetStore,/if\(bundled&&has\("presentation"\)&&has\("introduction"\)&&!checkUpdates\)/,
+  'Bundled APK should skip unnecessary network updates while presenting');
 
 assert.doesNotMatch(tvScript,/tv-slide-veil|beginSlideTransition|navigateSlide/,
   'Slide navigation must be instantaneous with no gradient overlay');

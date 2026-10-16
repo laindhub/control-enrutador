@@ -51,7 +51,7 @@ public final class TvAssetStore {
     private void finish(Listener l,String message) {
         ui.post(()->l.complete(has("presentation"),message));
     }
-    public synchronized void refresh(Listener listener){
+    public synchronized void refresh(Listener listener,boolean checkUpdates){
         if(updating)return;
         updating=true;
         new Thread(()->{
@@ -62,11 +62,16 @@ public final class TvAssetStore {
                 // The special large APK ships both SHA-256-pinned media assets.
                 // Restore them before any network access, so a new TV can start
                 // presenting immediately, including entirely offline.
-                if(restoreBundledAssets(listener)&&has("presentation")&&has("introduction")){
-                    finish(listener,"Presentación e introducción incluidas: listas sin conexión.");
+                boolean bundled=restoreBundledAssets(listener);
+                if(bundled&&has("presentation")&&has("introduction")&&!checkUpdates){
+                    // The full APK has everything it needs. Don't open sockets,
+                    // post extra progress or keep the updater running while
+                    // presenting. Online updates are user-initiated from menu.
+                    message="Presentación e introducción guardadas: listas sin conexión.";
+                    return; // finally delivers ONE completion and stops thread.
                 }
-                // Keep the existing Hostinger update protocol intact: after
-                // the initial local-ready callback, check for newer assets.
+                // Only the explicit menu action checks Hostinger for new media.
+                // Slim builds without bundled media still fetch on first launch.
                 JSONObject manifest=readJson(MANIFEST);
                 if(manifest.getInt("version")!=1)throw new IOException("Versión de manifiesto desconocida");
                 String[] kinds={"presentation","introduction"};

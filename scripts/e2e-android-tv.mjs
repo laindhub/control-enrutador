@@ -68,7 +68,9 @@ const tvScript=readFileSync(path.join(dir,'tv.js'),'utf8');
 // Browser tests must not serve an import that Android's real WebView rejects.
 // This previously caused production to freeze on the static loading screen
 // even though a permissive Chromium mock passed all presentation tests.
-const required=['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js'];
+const required=['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js','pptx-viewer-offline.js'];
+assert.ok(!tvScript.includes('https://esm.sh'),'PowerPoint engine must not require esm.sh');
+assert.match(tvScript,/const MODULE='\.\/pptx-viewer-offline\.js'/);
 for(const name of required){
   assert.ok(nativeRouter.includes('"/tv/'+name+'"'),
     'Android WebView must explicitly intercept '+name);
@@ -94,7 +96,7 @@ const server=http.createServer((req,res)=>{
     return;
   }
   const name=path.basename(pathName);
-  if(!['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js'].includes(name)){res.writeHead(404).end();return;}
+  if(!['index.html','tv.js','tv.css','presentation-media.js','presentation-timing.js','pptx-viewer-offline.js'].includes(name)){res.writeHead(404).end();return;}
   res.writeHead(200,{'content-type':mime[path.extname(name)]});
   res.end(readFileSync(path.join(dir,name)));
 });
@@ -157,7 +159,7 @@ try {
     status:200,contentType:'application/javascript',
     body:'export async function getTimedVideoSlide(){return null;}',
   }));
-  await page.route('https://esm.sh/pptx-vanilla-viewer@3.31.1?bundle',route=>route.fulfill({
+  await page.route('**/tv/pptx-viewer-offline.js',route=>route.fulfill({
     status:200,contentType:'application/javascript',
     headers:{'access-control-allow-origin':'*'},
     body:`export function createPptxViewer(host,opts){

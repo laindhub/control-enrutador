@@ -43,7 +43,19 @@ jobs:
       - name: Verify Android TV navigation
         run: node scripts/e2e-android-tv.mjs
       - name: Download official PPTX and MP4, verify each SHA-256
-        run: node scripts/package-tv-bundle.mjs
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            rm -rf android-tv/app/src/main/assets/bundle
+            if node scripts/package-tv-bundle.mjs; then
+              echo "SHA-256 verified both media assets on attempt $attempt"
+              exit 0
+            fi
+            echo "::warning::Hostinger transfer interrupted (attempt $attempt of 4). Retrying."
+            sleep $((attempt * 4))
+          done
+          echo "::error::Unable to verify both original media downloads after four retries."
+          exit 1
       - name: Pre-render the 40 slides into instant-display images
         run: node scripts/pre-render-tv-slides.mjs
       - name: Verify actual PowerPoint and cached slide navigation offline

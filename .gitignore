@@ -6,3 +6,11 @@ npm-debug.log*
 coverage/
 .DS_Store
 *.local
+
+# Never commit plaintext Android TV signing material
+android-tv/signing/*.p12
+android-tv/signing/*.jks
+android-tv/signing/*.keystore
+android-tv/signing/*.key
+android-tv/signing/*.pem
+android-tv/signing/*secret*

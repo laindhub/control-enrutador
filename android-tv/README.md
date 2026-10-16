@@ -216,3 +216,18 @@ automático. La pantalla "Preparando presentación" permanece hasta
 los primeros fotogramas de renderizado. Escape vuelve al menú nativo
 de archivos/actualizaciones sin pasar por la pantalla eliminada.
 El resto de los controles, vídeos, cache y navegación se conserva.
+
+## Versión 1.6.10 · firma persistente para actualizaciones sin reinstalar
+
+Desde esta versión, las APK destinadas a instalarse en Android TV son
+compilaciones **release** firmadas con la misma clave privada, sin usar
+la firma debug efímera de GitHub Actions. La clave privada se almacena exclusivamente como secreto de GitHub Actions. El workflow verifica siempre
+la huella SHA-256 del certificado; si el secreto falta o la huella cambia,
+NO publica una APK incompatible. Ver `android-tv/signing/README.md`.
+
+**Importante:** la primera vez que se pasa de una APK antigua con firma
+debug a 1.6.10 hará falta desinstalarla una vez. En todas las versiones
+posteriores firmadas con esta misma clave, la actualización será en el
+mismo paquete `io.laind.masduenos.tv` sin borrar archivos locales,
+siempre que se incremente `versionCode`.
+

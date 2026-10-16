@@ -61,9 +61,15 @@ jobs:
           signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
           "$signer" verify "$apk"
           ls -lh "$apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masduenos-android-tv-offline-complete-apk
+          path: android-tv/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
       - name: Publish the direct APK for TCL installation
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           direct="$RUNNER_TEMP/MasDuenosTV_1.6.13_Offline_Real.apk"
@@ -79,9 +85,3 @@ jobs:
               --notes "Instalador con las 40 diapositivas, video de introducción y motor PowerPoint incorporado. Validado sin Internet mediante navegador offline real. En TV basta instalar; no necesita red para abrir el PowerPoint."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets
-      - uses: actions/upload-artifact@v4
-        with:
-          name: masduenos-android-tv-offline-complete-apk
-          path: android-tv/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30

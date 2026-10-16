@@ -166,3 +166,19 @@ Al abandonar la diapositiva o regresar al menú se libera el reproductor
 y desaparece la vista previa. No se modifica el PPTX ni se generan
 imágenes mediante IA. Se conserva la solución de 1.6.5 para no reiniciar
 la presentación al reconectar el mando o teclado.
+
+## Versión 1.6.7 · transiciones suaves de diapositivas y Geraldine
+
+Al avanzar o retroceder con el control remoto, el visor aplica una máscara
+degradada liviana sobre el elemento de presentación activo (incluido fullscreen).
+Oculta el repintado progresivo por cuadrantes del motor PPTX y revela la nueva
+diapositiva con un fade de 185 ms. La máscara se limpia tras cada transición
+y no altera el contenido, los controles ni los archivos descargados. Los
+cambios de diapositiva siguen siendo inmediatos y todas las teclas conservan
+su función, incluso cuando se presionan rápidamente.
+
+El primer fotograma precargado de Geraldine continúa visible mientras
+arranca el decodificador. El TextureView entra con un degradé de 185 ms
+y, al finalizar el clip, se desvanece brevemente hacia el fotograma de espera.
+Salir o avanzar durante la reproducción cancela estas animaciones
+sin dejar superficies colgadas.

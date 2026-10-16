@@ -1,6 +1,7 @@
 package io.laind.masduenos.tv;
 
 import android.graphics.Matrix;
+import android.view.animation.DecelerateInterpolator;
 import android.graphics.SurfaceTexture;
 import android.graphics.Color;
 import android.graphics.Bitmap;
@@ -316,12 +317,25 @@ final class GeraldinePlayer {
             engine.setOnInfoListener((player,what,extra)->{
                 if(what==MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START){
                     Log.i(TAG,"Primer cuadro de Geraldine renderizado");
-                    if(active&&texture!=null)texture.animate().alpha(1f).setDuration(100).start();
+                    if(active&&texture!=null)texture.animate()
+                        .alpha(1f).setDuration(185)
+                        .setInterpolator(new DecelerateInterpolator()).start();
                 }
                 return false;
             });
             engine.setOnCompletionListener(player->{
-                if(player==media)stop(true,"");
+                if(player!=media)return;
+                // The already-visible preview sits behind this native surface.
+                // Dissolve back to the same real frame rather than abruptly
+                // removing the TextureView at completion.
+                if(previewLayer!=null&&layer!=null){
+                    final int sequence=generation;
+                    layer.animate().alpha(0f).setDuration(170)
+                        .setInterpolator(new DecelerateInterpolator())
+                        .withEndAction(()->{
+                            if(active&&generation==sequence)stop(true,"");
+                        }).start();
+                }else stop(true,"");
             });
             engine.setOnErrorListener((player,what,extra)->{
                 Log.e(TAG,"Error de decoder Geraldine: "+what+", "+extra);
@@ -349,8 +363,16 @@ final class GeraldinePlayer {
             try{engine.release();}catch(Exception ignored){}
         }
         if(surface!=null){surface.release();surface=null;}
-        if(texture!=null){texture.setSurfaceTextureListener(null);texture=null;}
-        if(layer!=null){frame.removeView(layer);layer=null;}
+        if(texture!=null){
+            texture.animate().cancel();
+            texture.setSurfaceTextureListener(null);
+            texture=null;
+        }
+        if(layer!=null){
+            layer.animate().cancel();
+            frame.removeView(layer);
+            layer=null;
+        }
         videoWidth=videoHeight=0;
         if(notifyWeb)listener.finished(error==null?"":error);
     }

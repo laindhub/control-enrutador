@@ -101,6 +101,60 @@ for(const type of ['touchstart','touchmove','touchend','pointerdown','pointerup'
 
 const host=$('slides');
 
+// A short gradient veil covers the PPTX viewer's progressive tiled redraw.
+// It is outside the slide tree, so it never causes the deck to re-render.
+// Use the current fullscreen root: top-layer elements sit above normal DOM.
+const SLIDE_REVEAL_MS=185;
+let transitionSurface=null,transitionTick=0,transitionTimer=0;
+let transitionFailsafeTimer=0,transitionToken=0;
+function cancelSlideTransition(){
+  transitionToken++;
+  clearTimeout(transitionTimer);
+  clearTimeout(transitionFailsafeTimer);
+  if(transitionTick)cancelAnimationFrame(transitionTick);
+  transitionTick=0;
+  if(transitionSurface){
+    transitionSurface.classList.remove('tv-slide-veil','tv-slide-reveal');
+    transitionSurface=null;
+  }
+}
+function beginSlideTransition(){
+  if(mode!=='slides')return;
+  cancelSlideTransition();
+  transitionSurface=document.fullscreenElement||host;
+  transitionSurface.classList.add('tv-slide-veil');
+  const token=transitionToken;
+  // RequestAnimationFrame may be suspended if a TV temporarily loses focus.
+  // The veil must never get stranded in front of the presentation.
+  transitionFailsafeTimer=setTimeout(()=>{
+    if(token===transitionToken)cancelSlideTransition();
+  },650);
+  // Force immediate application before the renderer starts replacing tiles.
+  transitionSurface.classList.remove('tv-slide-reveal');
+}
+function finishSlideTransition(){
+  if(!transitionSurface)return;
+  const token=transitionToken;
+  // Allow the viewer two compositor frames to finish its first set of tiles,
+  // then gently uncover the finished slide. No extra controls or assets.
+  transitionTick=requestAnimationFrame(()=>{
+    transitionTick=requestAnimationFrame(()=>{
+      transitionTimer=setTimeout(()=>{
+        if(token!==transitionToken||!transitionSurface)return;
+        transitionSurface.classList.add('tv-slide-reveal');
+        transitionTimer=setTimeout(()=>{
+          if(token===transitionToken)cancelSlideTransition();
+        },SLIDE_REVEAL_MS+35);
+      },75);
+    });
+  });
+}
+function navigateSlide(index){
+  if(!viewer||!total)return;
+  beginSlideTransition();
+  try{viewer.goToSlide(index);}
+  catch(error){cancelSlideTransition();throw error;}
+}
 function message(value){$('message').textContent=value;}
 async function deadline(promise,stage,ms=90000){
   let timeoutId;
@@ -275,6 +329,7 @@ function slideChanged(index){
   }
   host.dataset.slide=String(slide);
   if(mode==='slides'){
+    finishSlideTransition();
     // The APK 1.5.0 showed movie pixels immediately. The newer native
     // decoder must do likewise, instead of exposing the PowerPoint black
     // movie-placeholder while waiting for the remote's PageDown command.
@@ -362,6 +417,7 @@ function start(){
 }
 function closeIntro(){
   if(mode!=='intro')return;
+  cancelSlideTransition();
   const video=$('intro-video');
   video.pause();video.removeAttribute('src');video.load();
   $('intro').hidden=true;
@@ -423,9 +479,9 @@ function next(){
       return;
     }
   }
-  viewer?.goToSlide?.((slide+1)%total);
+  navigateSlide((slide+1)%total);
 }
-function previous(){viewer?.goToSlide?.((slide-1+total)%total);}
+function previous(){navigateSlide((slide-1+total)%total);}
 function handle(key,repeat=false){
   if(repeat)return;
   if(mode==='intro'){
@@ -450,6 +506,7 @@ function handle(key,repeat=false){
   }else if(['ArrowLeft','ArrowUp','PageUp'].includes(key))previous();
   else if(['ArrowRight','ArrowDown','PageDown',' '].includes(key))next();
   else if(key==='Escape'){
+    cancelSlideTransition();
     try{window.AndroidTv?.stopGeraldine?.();}catch{}
     mode='ready';
     chromeObserver?.disconnect();
@@ -485,6 +542,7 @@ window.tvNativeGeraldineEnded=detail=>{
 $('start').addEventListener('click',start);
 $('intro-video').addEventListener('ended',closeIntro);
 window.addEventListener('beforeunload',()=>{
+  cancelSlideTransition();
   try{window.AndroidTv?.stopGeraldine?.();}catch{}
   mediaObserver?.disconnect();
   chromeObserver?.disconnect();

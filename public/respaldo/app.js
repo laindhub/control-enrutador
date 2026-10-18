@@ -1,5 +1,5 @@
 const app = document.getElementById('app');
-const state = { user: null, users: [], visits: [], selectedUser: null, pin: '', view: '', current: null, answers: {}, chapter: 0, search: '' };
+const state = { user: null, users: [], visits: [], selectedUser: null, adminLogin: false, pin: '', view: '', current: null, answers: {}, chapter: 0, search: '' };
 const sources = ['Promotor con ruleta','Folleto','Recomendación','Redes sociales','Orgánico','Vino a ver a su asesor'];
 const exitReasons = ['Tenía poco tiempo','Ya es propietario','Solo quería el premio','No trabaja','No vive en Buenos Aires'];
 const speakers = ['Keren Botini','Nicolas Espinosa','Nicole Laquinta','Thomas Núñez','Katherine Puppo','Priscila Zajama'];
@@ -66,7 +66,7 @@ function header() {
 }
 function boardShell(content) {
   app.innerHTML=header()+'<section class="main">'+content+'</section>';
-  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch{}state.user=null; await loginScreen();});
+  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch{}state.user=null;state.adminLogin=false; await loginScreen();});
 }
 async function boot() {
   try { await api('/health'); } catch(e) {
@@ -81,11 +81,28 @@ async function loginScreen() {
   renderLogin();
 }
 function renderLogin() {
+  if (state.adminLogin) {
+    app.innerHTML='<section class="login"><div class="brand big"><span class="logo">⌂</span> Más<b>Dueños</b><small>Respaldo</small></div>'
+      +'<h1>Administración</h1><p>Ingresá las credenciales exclusivas del Respaldo configuradas en Hostinger.</p>'
+      +'<form id="admin-login-form">'+input('username','Usuario')+input('password','Contraseña','','password')
+      +'<button class="btn primary">Entrar</button></form>'+btn('← Volver a operadores','back-admin','ghost')+'</section>';
+    wire('back-admin',()=>{state.adminLogin=false;renderLogin();});
+    document.getElementById('admin-login-form').onsubmit=async event=>{
+      event.preventDefault();
+      const f=new FormData(event.currentTarget);
+      try {
+        state.user=await api('/login',{method:'POST',body:JSON.stringify({username:f.get('username'),password:f.get('password')})});
+        state.adminLogin=false;state.selectedUser=null;state.users=await api('/users');await home();
+      } catch(error) { status(error.message); }
+    };
+    return;
+  }
   app.innerHTML='<section class="login"><div class="brand big"><span class="logo">⌂</span> Más<b>Dueños</b><small>Respaldo</small></div>'
-    +(!state.selectedUser?'<h1>¿Quién sos?</h1><p>Tocá tu nombre. Después ponés tu PIN.</p><input id="search-user" placeholder="Buscá tu nombre" autocomplete="off"><div id="users"></div>'
+    +(!state.selectedUser?'<h1>¿Quién sos?</h1><p>Tocá tu nombre. Después ponés tu PIN.</p><input id="search-user" placeholder="Buscá tu nombre" autocomplete="off"><div id="users"></div>'+btn('Acceso Administración','admin-login','outline')
       :'<h1>'+esc(state.selectedUser.name)+'</h1><p>Ingresá tu PIN para continuar</p><form id="login-form"><input type="password" name="pin" inputmode="numeric" autocomplete="off" minlength="4" maxlength="80" autofocus placeholder="PIN" required><button class="btn primary">Entrar</button></form>'+btn('No soy yo','back-user','ghost'))
     +'</section>';
   if (!state.selectedUser) {
+    wire('admin-login',()=>{state.adminLogin=true;renderLogin();});
     const filter=document.getElementById('search-user');
     const renderUsers=()=>{const q=filter.value.toLowerCase();document.getElementById('users').innerHTML=state.users.filter(u=>u.name.toLowerCase().includes(q)).map(u=>
       '<button class="identity" data-user="'+u.id+'"><span class="avatar">'+esc(u.name.split(' ').map(x=>x[0]).slice(0,2).join(''))+'</span><span>'+esc(u.name)+'<small>'+esc(userRoles[u.role])+'</small></span></button>').join('');

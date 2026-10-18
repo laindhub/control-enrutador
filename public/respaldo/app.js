@@ -174,7 +174,7 @@ function adminHome() {
   return '<div class="stats"><div><b>'+v.length+'</b><small>Visitas recientes</small></div><div><b>'+pending+'</b><small>Por cargar en CRM empresarial</small></div></div>'
     +'<div class="panel"><h2>CRM propio — carga manual</h2><p>Ningún dato se envía automáticamente al CRM de la empresa.</p><div class="toolbar"><input id="search-leads" placeholder="Buscar por nombre o teléfono" value="'+esc(state.search)+'">'+btn('Buscar','search-leads-btn','outline')+'<a class="btn outline" href="/respaldo/api/export">Exportar JSON</a></div>'
     +v.map(x=>'<button class="visit" data-visit="'+esc(x.id)+'"><span><b>'+esc(x.visitor_name)+'</b><small>'+fmt(x.created_at)+' · '+esc(x.phase)+'</small></span>'+tag(x.crm_status)+'</button>').join('')
-    +'</div><div class="panel"><h2>Crear usuario de Respaldo</h2><form id="create-user">'+input('name','Nombre del operador')+select('role','Puesto',Object.keys(userRoles))+input('pin','PIN (mínimo 4 caracteres; 6 para admin)')+'<button class="btn primary">Crear usuario</button></form></div>';
+    +'</div><div class="panel"><h2>Crear usuario de Respaldo</h2><form id="create-user">'+input('name','Nombre del operador')+select('role','Puesto',Object.keys(userRoles).filter(r=>r!=='admin'))+input('pin','PIN (mínimo 4 caracteres; 6 para admin)')+'<button class="btn primary">Crear usuario</button></form></div>';
 }
 function bindAdmin() {
   wire('search-leads-btn',()=>{state.search=document.getElementById('search-leads').value;home();});

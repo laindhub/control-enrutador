@@ -72,7 +72,7 @@ async function boot() {
   try { await api('/health'); } catch(e) {
     app.innerHTML='<div class="center"><h1>Respaldo sin configurar</h1><p>'+esc(e.message)+'</p><p>Revisá las variables RESPALDO_DB_* y RESPALDO_ADMIN_* en Hostinger.</p></div>'; return;
   }
-  try { state.user=await api('/me'); await home(); }
+  try { state.user=await api('/me'); state.users=await api('/users'); await home(); }
   catch { await loginScreen(); }
 }
 async function loginScreen() {
@@ -117,6 +117,7 @@ function renderHome() {
   for (const role of Object.keys(userRoles)) wire('role-'+role,()=>{state.view=role;state.current=null;renderHome();});
   if (state.view==='recepcion') bindReception();
   if (state.view==='admin') bindAdmin();
+  wire('refresh',()=>home());
   document.querySelectorAll('[data-visit]').forEach(el=>el.onclick=()=>openVisit(el.dataset.visit));
 }
 function visitList() {
@@ -160,9 +161,9 @@ function adminHome() {
 }
 function bindAdmin() {
   wire('search-leads-btn',()=>{state.search=document.getElementById('search-leads').value;home();});
-  const form=document.getElementById('create-user');form.onsubmit=async e=>{
+  const form=document.getElementById('create-user');form.elements.pin.type='password';form.onsubmit=async e=>{
     e.preventDefault();const o=Object.fromEntries(new FormData(form));
-    try {await api('/users',{method:'POST',body:JSON.stringify(o)});status('Usuario creado.','success');form.reset();}
+    try {await api('/users',{method:'POST',body:JSON.stringify(o)});status('Usuario creado.','success');state.users=await api('/users');form.reset();}
     catch(e){status(e.message);}
   };
 }

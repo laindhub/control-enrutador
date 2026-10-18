@@ -305,6 +305,9 @@ const loginLimiter = rateLimit({
 });
 
 app.get('/login', (req, res, next) => {
+  // Preserve the SAME login page when an authenticated main-site user is
+  // switching to the independently authenticated backup.
+  if (req.query.respaldo === '1') return res.render('login', { title: 'Ingresar', error: null });
   if (req.session.user) {
     const destination = destinationForUser(req.session.user, { hasOperator: Boolean(req.session.operator) });
     if (destination === '/login') return invalidateSession(req, res, next);

@@ -23,7 +23,7 @@ Requiere una base MySQL exclusiva, un usuario MySQL exclusivo y las variables si
 
 Los nombres de tablas usan el prefijo `respaldo_` y se crean en esta base separada. No reutilizar `DB_NAME` ni el usuario principal. Las variables nunca deben subirse al repositorio.
 
-La app no arranca sin estas variables; el resto del sitio conserva su funcionamiento. Una vez creadas las tablas, crear desde Administración una cuenta por cada operador con su puesto. Los PIN se guardan mediante bcrypt. Recomendación: usar PIN distintos de los del sistema de la empresa y no reutilizar el PIN de prueba compartido.
+Si faltan estas variables, **solo /respaldo/api** responde 503; las demás funciones existentes del sitio conservan su comportamiento. El Respaldo está integrado en la MISMA aplicación Node y el MISMO repositorio main, pero usa una base diferente. Una vez creadas las tablas, ingresá con RESPALDO_USERNAME / RESPALDO_PASSWORD y creá desde Administración una cuenta por cada operador con su puesto. Los PIN y la contraseña administrativa se guardan mediante bcrypt. Recomendación: usar PIN distintos de los del sistema de la empresa y no reutilizar el PIN de prueba compartido.
 
 ## Rutas
 

@@ -1,0 +1,7 @@
+name: Check Respaldo online
+
+on:
+  push:
+    branches: ['feat/respaldo-online']
+    paths:
+      - 'src/respaldo

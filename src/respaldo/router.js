@@ -8,7 +8,7 @@ import { db, ready, configured, audit, json, parseJson, newVisitId } from './sto
 
 const router = express.Router();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/respaldo');
-const roles = ['admin', 'recepcion', 'pretest', 'fulltest', 'enrutador', 'asesor'];
+const roles = ['recepcion', 'pretest', 'fulltest', 'enrutador', 'asesor'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 
 router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
@@ -54,7 +54,7 @@ const allow = (...accepted) => (req, res, next) =>
 router.use('/api', (req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const origin = req.get('origin');
-  const expected = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+  const expected = `${req.protocol}://${req.get('host')}`;
   if (origin !== expected) return res.status(403).json({ error: 'Origen de solicitud no permitido.' });
   next();
 });
@@ -65,18 +65,27 @@ const loginLimiter = rateLimit({
 });
 router.get('/api/users', async (_req, res, next) => {
   try {
-    const [rows] = await db.query('SELECT id,name,role FROM respaldo_users WHERE active=1 ORDER BY name');
+    const [rows] = await db.query('SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name');
     res.json(rows);
   } catch (error) { next(error); }
 });
 router.post('/api/login', loginLimiter, async (req, res, next) => {
   try {
-    const id = Number(req.body.id);
-    const pin = String(req.body.pin || '');
-    if (!Number.isSafeInteger(id) || pin.length > 80 || !pin) return res.status(400).json({ error: 'Datos de ingreso inválidos.' });
-    const [[user]] = await db.execute('SELECT id,name,role,pin_hash FROM respaldo_users WHERE id=? AND active=1', [id]);
-    const valid = await bcrypt.compare(pin, user?.pin_hash || '$2b$12$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-    if (!valid) return res.status(401).json({ error: 'PIN incorrecto.' });
+    let user;
+    let credential;
+    if (typeof req.body.username === 'string') {
+      const username = String(req.body.username).trim();
+      credential = String(req.body.password || '');
+      if (!username || credential.length > 80 || !credential) return res.status(400).json({ error: 'Credenciales inválidas.' });
+      [[user]] = await db.execute("SELECT id,name,role,pin_hash FROM respaldo_users WHERE name=? AND role='admin' AND active=1", [username]);
+    } else {
+      const id = Number(req.body.id);
+      credential = String(req.body.pin || '');
+      if (!Number.isSafeInteger(id) || credential.length > 80 || !credential) return res.status(400).json({ error: 'Datos de ingreso inválidos.' });
+      [[user]] = await db.execute("SELECT id,name,role,pin_hash FROM respaldo_users WHERE id=? AND active=1 AND role<>'admin'", [id]);
+    }
+    const valid = await bcrypt.compare(credential, user?.pin_hash || '$2b$12$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    if (!valid) return res.status(401).json({ error: 'Usuario o contraseña/PIN incorrectos.' });
     const token = randomBytes(32).toString('hex');
     await db.execute('INSERT INTO respaldo_sessions (token_hash,user_id,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR))',
       [hash(token), user.id]);
@@ -100,7 +109,7 @@ router.post('/api/users', requireLogin, allow('admin'), async (req, res, next) =
     const name = String(req.body.name || '').trim();
     const role = String(req.body.role || '');
     const pin = String(req.body.pin || '');
-    if (!name || name.length > 160 || !roles.includes(role) || pin.length < 4 || pin.length > 80 || (role === 'admin' && pin.length < 6))
+    if (!name || name.length > 160 || !roles.includes(role) || pin.length < 4 || pin.length > 80)
       return res.status(400).json({ error: 'Nombre, rol o PIN inválidos.' });
     const [r] = await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)', [name, role, await bcrypt.hash(pin, 12)]);
     await audit(req.backupUser.id, 'user_created', null, { id: r.insertId, name, role });
@@ -136,6 +145,15 @@ async function visitFor(req, res) {
   if (!visit) { res.status(404).json({ error: 'Visita inexistente.' }); return null; }
   if (req.backupUser.role === 'asesor' && Number(visit.assigned_advisor_id) !== Number(req.backupUser.id)) {
     res.status(403).json({ error: 'La visita no está asignada a tu usuario.' }); return null;
+  }
+  if (req.method === 'GET' && !['admin', 'asesor'].includes(req.backupUser.role)) {
+    const rolePhase = { pretest: 'pretest', fulltest: 'fulltest', enrutador: 'enrutacion' };
+    const phase = rolePhase[req.backupUser.role];
+    if ((phase && visit.phase !== phase) ||
+        (req.backupUser.role === 'recepcion' && Number(visit.created_by) !== Number(req.backupUser.id))) {
+      res.status(403).json({ error: 'La visita no corresponde a tu puesto.' });
+      return null;
+    }
   }
   return visit;
 }

@@ -16,7 +16,7 @@ let startup;
 
 export async function ready() {
   if (!configured) {
-    const error = Error('Configuración independiente de Respaldo pendiente.');
+    const error = Error('Faltan variables de Respaldo: '+required.filter(name => !env[name]).join(', '));
     error.status = 503;
     throw error;
   }
@@ -83,8 +83,8 @@ async function initialize() {
   // Changes to username/password take effect on process restart and revoke old sessions.
   const name = String(env.RESPALDO_USERNAME || '').trim();
   const password = String(env.RESPALDO_PASSWORD || '');
-  if (name.length < 3 || name.length > 160 || password.length < 12 || Buffer.byteLength(password) > 72) {
-    const error = Error('RESPALDO_USERNAME debe tener 3-160 caracteres y RESPALDO_PASSWORD entre 12 y 72 bytes.');
+  if (name.length < 3 || name.length > 160 || password.length < 8 || Buffer.byteLength(password) > 72) {
+    const error = Error('RESPALDO_USERNAME debe tener 3-160 caracteres y RESPALDO_PASSWORD entre 8 y 72 bytes.');
     error.status = 503;
     throw error;
   }

@@ -18,8 +18,10 @@ Requiere una base MySQL exclusiva, un usuario MySQL exclusivo y las variables si
 - `RESPALDO_DB_PASSWORD`
 - `RESPALDO_DB_NAME`
 - `RESPALDO_DB_SSL` (opcional; `true` para un servidor que requiera TLS verificable)
-- `RESPALDO_ADMIN_NAME` (solo para el primer arranque, cuando la tabla de usuarios está vacía)
-- `RESPALDO_ADMIN_PIN` (solo para el primer arranque, **al menos seis caracteres**)
+- `RESPALDO_USERNAME` (usuario exclusivo del administrador, 3–160 caracteres)
+- `RESPALDO_PASSWORD` (contraseña exclusiva del administrador, 12–72 bytes)
+
+Las credenciales administrativas provienen de las variables de Hostinger. Al reiniciar el proceso se actualiza la cuenta de administración; si cambian, se invalidan sus sesiones anteriores. El resto del personal utiliza cuentas de operador con PIN configuradas dentro del Respaldo.
 
 Los nombres de tablas usan el prefijo `respaldo_` y se crean en esta base separada. No reutilizar `DB_NAME` ni el usuario principal. Las variables nunca deben subirse al repositorio.
 

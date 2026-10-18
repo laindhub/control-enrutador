@@ -110,6 +110,22 @@ async function initialize() {
   }
 }
 
+// No credentials, hostnames, raw SQL statements or environment values are exposed.
+export function respaldoErrorMessage(error) {
+  if (error?.status) return error.message;
+  const causes = {
+    ER_ACCESS_DENIED_ERROR: 'MySQL rechazó el usuario o la contraseña definidos en RESPALDO_DB_USER y RESPALDO_DB_PASSWORD.',
+    ER_BAD_DB_ERROR: 'La base de datos RESPALDO_DB_NAME no existe. Creala en Hostinger.',
+    ER_DBACCESS_DENIED_ERROR: 'El usuario MySQL no tiene permiso sobre RESPALDO_DB_NAME.',
+    ER_TABLEACCESS_DENIED_ERROR: 'El usuario MySQL no tiene permisos para crear o consultar las tablas del respaldo.',
+    ER_SPECIFIC_ACCESS_DENIED_ERROR: 'El usuario MySQL necesita permisos de creación y modificación de tablas.',
+    ENOTFOUND: 'No se pudo resolver RESPALDO_DB_HOST. Revisá el host de MySQL indicado en Hostinger.',
+    ECONNREFUSED: 'No se pudo conectar a MySQL. Revisá RESPALDO_DB_HOST y RESPALDO_DB_PORT.',
+    ETIMEDOUT: 'Se agotó el tiempo de espera para conectar con la base del Respaldo.',
+  };
+  return causes[error?.code] || 'Falló la inicialización de la base independiente. Revisá el log de Respaldo en Hostinger.';
+}
+
 export function newVisitId() { return randomUUID(); }
 export async function audit(actorId, action, visitId = null, details = null) {
   await db.execute('INSERT INTO respaldo_audit (actor_id,action,visit_id,details) VALUES (?,?,?,?)',

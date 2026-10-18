@@ -2,6 +2,31 @@ name: Check Respaldo online
 
 on:
   push:
-    branches: ['feat/respaldo-online']
+    branches:
+      - feat/respaldo-online
     paths:
-      - 'src/respaldo
+      - 'src/respaldo/**'
+      - 'public/respaldo/**'
+      - src/server.js
+      - .github/workflows/check-respaldo.yml
+  pull_request:
+    paths:
+      - 'src/respaldo/**'
+      - 'public/respaldo/**'
+      - src/server.js
+      - .github/workflows/check-respaldo.yml
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse server and Respaldo modules
+        run: |
+          node --check src/server.js
+          node --check src/respaldo/storage.js
+          node --check src/respaldo/router.js
+          node --check public/respaldo/app.js

@@ -3,8 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
-import { rateLimit } from 'express-rate-limit';
-import { db, ready, configured, audit, json, parseJson, newVisitId } from './storage.js';
+import { db, ready, audit, json, parseJson, newVisitId } from './storage.js';
 
 const router = express.Router();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/respaldo');
@@ -13,7 +12,8 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 
 router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 router.use('/static', express.static(root, { index: false, etag: true }));
-router.get(['/', '/login'], (_req, res) => res.type('html').send(`<!doctype html>
+router.get('/login', (_req, res) => res.redirect('/login'));
+router.get('/', (_req, res) => res.type('html').send(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Respaldo · Salón Más Dueños</title>
 <link rel="stylesheet" href="/respaldo/static/ui.css"></head>
@@ -59,41 +59,10 @@ router.use('/api', (req, res, next) => {
   next();
 });
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60_000, limit: 6, standardHeaders: 'draft-8', legacyHeaders: false,
-  message: { error: 'Demasiados intentos. Esperá 15 minutos.' },
-});
 router.get('/api/users', async (_req, res, next) => {
   try {
     const [rows] = await db.query("SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name");
     res.json(rows);
-  } catch (error) { next(error); }
-});
-router.post('/api/login', loginLimiter, async (req, res, next) => {
-  try {
-    let user;
-    let credential;
-    if (typeof req.body.username === 'string') {
-      const username = String(req.body.username).trim();
-      credential = String(req.body.password || '');
-      if (!username || credential.length > 80 || !credential) return res.status(400).json({ error: 'Credenciales inválidas.' });
-      [[user]] = await db.execute("SELECT id,name,role,pin_hash FROM respaldo_users WHERE name=? AND role='admin' AND active=1", [username]);
-    } else {
-      const id = Number(req.body.id);
-      credential = String(req.body.pin || '');
-      if (!Number.isSafeInteger(id) || credential.length > 80 || !credential) return res.status(400).json({ error: 'Datos de ingreso inválidos.' });
-      [[user]] = await db.execute("SELECT id,name,role,pin_hash FROM respaldo_users WHERE id=? AND active=1 AND role<>'admin'", [id]);
-    }
-    const valid = await bcrypt.compare(credential, user?.pin_hash || '$2b$12$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-    if (!valid) return res.status(401).json({ error: 'Usuario o contraseña/PIN incorrectos.' });
-    const token = randomBytes(32).toString('hex');
-    await db.execute('INSERT INTO respaldo_sessions (token_hash,user_id,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR))',
-      [hash(token), user.id]);
-    res.cookie('respaldo_sid', token, {
-      httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production',
-      path: '/respaldo', maxAge: 12 * 60 * 60_000,
-    });
-    res.json({ id: user.id, name: user.name, role: user.role });
   } catch (error) { next(error); }
 });
 router.get('/api/me', requireLogin, (req, res) => res.json(req.backupUser));

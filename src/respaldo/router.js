@@ -65,7 +65,7 @@ const loginLimiter = rateLimit({
 });
 router.get('/api/users', async (_req, res, next) => {
   try {
-    const [rows] = await db.query('SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name');
+    const [rows] = await db.query("SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name");
     res.json(rows);
   } catch (error) { next(error); }
 });

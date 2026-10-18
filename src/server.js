@@ -104,6 +104,11 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+// Preserve the independent login form nonce when the main login rerenders errors.
+app.use((req, res, next) => {
+  res.locals.respaldoLoginCsrf = String(req.body?._backup_csrf || '');
+  next();
+});
 
 // Respaldo is an isolated operational system: mount it before the main DB readiness gate
 // and before the main session middleware so a CRM outage cannot disable this service.

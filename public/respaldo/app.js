@@ -66,7 +66,7 @@ function header() {
 }
 function boardShell(content) {
   app.innerHTML=header()+'<section class="main">'+content+'</section>';
-  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch(error){status(error.message);return;}location.assign('/login');});
+  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch(error){status(error.message);return;}location.assign('/login?respaldo=1');});
 }
 async function boot() {
   try {
@@ -76,7 +76,7 @@ async function boot() {
     await home();
   } catch (error) {
     if (error.message === 'Iniciá sesión.') {
-      location.replace('/login');
+      location.replace('/login?respaldo=1');
       return;
     }
     app.innerHTML='<div class="center"><h1>Respaldo sin configurar</h1><p>'

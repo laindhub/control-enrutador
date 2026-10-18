@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
-import { db, ready, audit, json, parseJson, newVisitId } from './storage.js';
+import { db, ready, audit, json, parseJson, newVisitId, respaldoErrorMessage } from './storage.js';
 
 const router = express.Router();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/respaldo');
@@ -247,7 +247,7 @@ router.get('/api/export', requireLogin, allow('admin'), async (req, res, next) =
 router.use('/api', (error, _req, res, _next) => {
   console.error('[respaldo]', error?.code || error?.message);
   if (error?.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe un usuario con ese nombre.' });
-  res.status(error?.status || 503).json({ error: error?.status ? error.message : 'Respaldo no pudo completar la operación. Revisá su base de datos independiente.' });
+  res.status(error?.status || 503).json({ error: respaldoErrorMessage(error) });
 });
 
 export function createRespaldoRouter() { return router; }

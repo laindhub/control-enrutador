@@ -45,6 +45,7 @@ import { resolveOfficialPresentation } from './official-presentation.js';
 import { resolveIntroVideo } from './intro-video.js';
 import { createTvMediaStore } from './tv-media.js';
 import { createRespaldoRouter } from './respaldo/router.js';
+import { prepareRespaldoLogin, loginWhenPrimaryOffline, tryRespaldoLogin } from './respaldo/login.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -107,6 +108,12 @@ app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 // Respaldo is an isolated operational system: mount it before the main DB readiness gate
 // and before the main session middleware so a CRM outage cannot disable this service.
 app.use('/respaldo', createRespaldoRouter());
+
+// Same public /login UI for both independent systems.
+// Backup authentication does NOT use the main app's session database.
+app.get('/login', prepareRespaldoLogin, loginWhenPrimaryOffline(() => startupState));
+app.post('/login', tryRespaldoLogin);
+
 
 // Public installation/download page. Independent from CRM/database startup.
 const impressionZip = path.join(publicRoot,'assets','impresion','Impresion_Mas_Duenos_2.3.1.zip');

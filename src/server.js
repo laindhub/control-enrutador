@@ -45,6 +45,7 @@ import { resolveOfficialPresentation } from './official-presentation.js';
 import { resolveIntroVideo } from './intro-video.js';
 import { createTvMediaStore } from './tv-media.js';
 import { createRespaldoRouter } from './respaldo/router.js';
+import { prepareRespaldoLogin, loginWhenPrimaryOffline, tryRespaldoLogin } from './respaldo/login.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -103,10 +104,37 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+// Preserve the independent login form nonce when the main login rerenders errors.
+app.use(function preserveRespaldoCsrf(req, res, next) {
+  res.locals.respaldoLoginCsrf = String(req.body?._backup_csrf || '');
+  next();
+});
 
 // Respaldo is an isolated operational system: mount it before the main DB readiness gate
 // and before the main session middleware so a CRM outage cannot disable this service.
+// Public assets must stay available when the main MySQL fails,
+// so the shared login page can still load its official CSS and logo.
+app.use('/assets', express.static(publicRoot, {
+  maxAge: '1y',
+  etag: true,
+  immutable: true,
+  setHeaders: (res) => {
+    const version = String(res.req.query.v || '');
+    if (/^[a-f0-9]{12}$/.test(version)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  },
+}));
+
 app.use('/respaldo', createRespaldoRouter());
+
+// Same public /login UI for both independent systems.
+// Backup authentication does NOT use the main app's session database.
+app.get('/login', prepareRespaldoLogin, loginWhenPrimaryOffline(() => startupState));
+app.post('/login', tryRespaldoLogin);
+
 
 // Public installation/download page. Independent from CRM/database startup.
 const impressionZip = path.join(publicRoot,'assets','impresion','Impresion_Mas_Duenos_2.3.1.zip');
@@ -266,19 +294,6 @@ app.use(sessionMiddleware);
 app.use(enableSalonSession);
 app.use(validateSessionUser);
 app.use(attachLocals);
-app.use('/assets', express.static(publicRoot, {
-  maxAge: '1y',
-  etag: true,
-  immutable: true,
-  setHeaders: (res) => {
-    const version = String(res.req.query.v || '');
-    if (/^[a-f0-9]{12}$/.test(version)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
-      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
-    }
-  },
-}));
 app.use((_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
@@ -293,6 +308,9 @@ const loginLimiter = rateLimit({
 });
 
 app.get('/login', (req, res, next) => {
+  // Preserve the SAME login page when an authenticated main-site user is
+  // switching to the independently authenticated backup.
+  if (req.query.respaldo === '1') return res.render('login', { title: 'Ingresar', error: null });
   if (req.session.user) {
     const destination = destinationForUser(req.session.user, { hasOperator: Boolean(req.session.operator) });
     if (destination === '/login') return invalidateSession(req, res, next);

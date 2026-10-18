@@ -23,6 +23,7 @@
           <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
           <form method="post" action="/login" class="stack-form">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="_backup_csrf" value="<%= respaldoLoginCsrf || '' %>">
             <label>Usuario<input name="username" autocomplete="username" required></label>
             <label>Contraseña<input type="password" name="password" autocomplete="current-password"></label>
             <button class="button button-primary button-block" type="submit">Ingresar</button>

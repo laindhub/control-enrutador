@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - feat/respaldo-online
+      - fix/respaldo-hostinger-diagnostics
+      - main
     paths:
       - 'src/respaldo/**'
       - 'public/respaldo/**'
       - src/server.js
       - test/respaldo-scoring.test.js
+      - test/respaldo-unified-login.test.js
+      - views/login.ejs
       - .github/workflows/check-respaldo.yml
   pull_request:
     paths:
@@ -29,7 +33,8 @@ jobs:
         run: |
           node --check src/server.js
           node --check src/respaldo/storage.js
+          node --check src/respaldo/login.js
           node --check src/respaldo/router.js
           node --check public/respaldo/app.js
           node --check src/respaldo/scoring.js
-          node --test test/respaldo-scoring.test.js
+          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js

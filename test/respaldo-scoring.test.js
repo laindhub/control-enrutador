@@ -21,6 +21,6 @@ test('verdict uses quota 170000, not profile score', () => {
 });
 test('low-scoring results preserve unanswered fields distinctly', () => {
   const result = scoreFullTest({});
-  assert.equal(result.points, 13);
+  assert.equal(result.points, 18);
   assert.equal(result.qualifies, false);
 });

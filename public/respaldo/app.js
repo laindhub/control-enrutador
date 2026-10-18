@@ -66,56 +66,22 @@ function header() {
 }
 function boardShell(content) {
   app.innerHTML=header()+'<section class="main">'+content+'</section>';
-  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch{}state.user=null;state.adminLogin=false; await loginScreen();});
+  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch(error){status(error.message);return;}location.assign('/login');});
 }
 async function boot() {
-  try { await api('/health'); } catch(e) {
-    app.innerHTML='<div class="center"><h1>Respaldo sin configurar</h1><p>'+esc(e.message)+'</p><p>Revisá las variables RESPALDO_DB_* y RESPALDO_ADMIN_* en Hostinger.</p></div>'; return;
-  }
-  try { state.user=await api('/me'); state.users=await api('/users'); await home(); }
-  catch { await loginScreen(); }
-}
-async function loginScreen() {
-  state.user=null;
-  try { state.users=await api('/users'); } catch(e) { status(e.message); return; }
-  renderLogin();
-}
-function renderLogin() {
-  if (state.adminLogin) {
-    app.innerHTML='<section class="login"><div class="brand big"><span class="logo">⌂</span> Más<b>Dueños</b><small>Respaldo</small></div>'
-      +'<h1>Administración</h1><p>Ingresá las credenciales exclusivas del Respaldo configuradas en Hostinger.</p>'
-      +'<form id="admin-login-form">'+input('username','Usuario')+input('password','Contraseña','','password')
-      +'<button class="btn primary">Entrar</button></form>'+btn('← Volver a operadores','back-admin','ghost')+'</section>';
-    wire('back-admin',()=>{state.adminLogin=false;renderLogin();});
-    document.getElementById('admin-login-form').onsubmit=async event=>{
-      event.preventDefault();
-      const f=new FormData(event.currentTarget);
-      try {
-        state.user=await api('/login',{method:'POST',body:JSON.stringify({username:f.get('username'),password:f.get('password')})});
-        state.adminLogin=false;state.selectedUser=null;state.users=await api('/users');await home();
-      } catch(error) { status(error.message); }
-    };
-    return;
-  }
-  app.innerHTML='<section class="login"><div class="brand big"><span class="logo">⌂</span> Más<b>Dueños</b><small>Respaldo</small></div>'
-    +(!state.selectedUser?'<h1>¿Quién sos?</h1><p>Tocá tu nombre. Después ponés tu PIN.</p><input id="search-user" placeholder="Buscá tu nombre" autocomplete="off"><div id="users"></div>'+btn('Acceso Administración','admin-login','outline')
-      :'<h1>'+esc(state.selectedUser.name)+'</h1><p>Ingresá tu PIN para continuar</p><form id="login-form"><input type="password" name="pin" inputmode="numeric" autocomplete="off" minlength="4" maxlength="80" autofocus placeholder="PIN" required><button class="btn primary">Entrar</button></form>'+btn('No soy yo','back-user','ghost'))
-    +'</section>';
-  if (!state.selectedUser) {
-    wire('admin-login',()=>{state.adminLogin=true;renderLogin();});
-    const filter=document.getElementById('search-user');
-    const renderUsers=()=>{const q=filter.value.toLowerCase();document.getElementById('users').innerHTML=state.users.filter(u=>u.name.toLowerCase().includes(q)).map(u=>
-      '<button class="identity" data-user="'+u.id+'"><span class="avatar">'+esc(u.name.split(' ').map(x=>x[0]).slice(0,2).join(''))+'</span><span>'+esc(u.name)+'<small>'+esc(userRoles[u.role])+'</small></span></button>').join('');
-      document.querySelectorAll('[data-user]').forEach(b=>b.onclick=()=>{state.selectedUser=state.users.find(u=>u.id===Number(b.dataset.user));renderLogin();});
-    }; filter.oninput=renderUsers;renderUsers();
-  } else {
-    wire('back-user',()=>{state.selectedUser=null; renderLogin();});
-    document.getElementById('login-form').onsubmit=async e=>{
-      e.preventDefault();
-      const pin=new FormData(e.target).get('pin');
-      try { state.user=await api('/login',{method:'POST',body:JSON.stringify({id:state.selectedUser.id,pin})});state.selectedUser=null;await home(); }
-      catch(error){status(error.message);}
-    };
+  try {
+    await api('/health');
+    state.user = await api('/me');
+    state.users = await api('/users');
+    await home();
+  } catch (error) {
+    if (error.message === 'Iniciá sesión.') {
+      location.replace('/login');
+      return;
+    }
+    app.innerHTML='<div class="center"><h1>Respaldo sin configurar</h1><p>'
+      +esc(error.message)+'</p><p>Revisá RESPALDO_DB_* y RESPALDO_USERNAME / RESPALDO_PASSWORD en Hostinger.</p>'
+      +'<a class="btn outline" href="/login">Volver al login principal</a></div>';
   }
 }
 async function home() {
@@ -174,7 +140,7 @@ function adminHome() {
   return '<div class="stats"><div><b>'+v.length+'</b><small>Visitas recientes</small></div><div><b>'+pending+'</b><small>Por cargar en CRM empresarial</small></div></div>'
     +'<div class="panel"><h2>CRM propio — carga manual</h2><p>Ningún dato se envía automáticamente al CRM de la empresa.</p><div class="toolbar"><input id="search-leads" placeholder="Buscar por nombre o teléfono" value="'+esc(state.search)+'">'+btn('Buscar','search-leads-btn','outline')+'<a class="btn outline" href="/respaldo/api/export">Exportar JSON</a></div>'
     +v.map(x=>'<button class="visit" data-visit="'+esc(x.id)+'"><span><b>'+esc(x.visitor_name)+'</b><small>'+fmt(x.created_at)+' · '+esc(x.phase)+'</small></span>'+tag(x.crm_status)+'</button>').join('')
-    +'</div><div class="panel"><h2>Crear usuario de Respaldo</h2><form id="create-user">'+input('name','Nombre del operador')+select('role','Puesto',Object.keys(userRoles).filter(r=>r!=='admin'))+input('pin','PIN (mínimo 4 caracteres; 6 para admin)')+'<button class="btn primary">Crear usuario</button></form></div>';
+    +'</div><div class="panel"><h2>Crear usuario de Respaldo</h2><p>Ingresá al login principal con el usuario <strong>respaldo:Nombre del operador</strong> y su PIN como contraseña.</p><form id="create-user">'+input('name','Nombre del operador')+select('role','Puesto',Object.keys(userRoles).filter(r=>r!=='admin'))+input('pin','PIN del operador (mínimo 4 caracteres)')+'<button class="btn primary">Crear usuario</button></form></div>';
 }
 function bindAdmin() {
   wire('search-leads-btn',()=>{state.search=document.getElementById('search-leads').value;home();});

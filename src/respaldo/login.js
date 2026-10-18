@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
-import { db, ready } from './storage.js';
+import { db, ready, respaldoErrorMessage } from './storage.js';
 
 const CSRF_COOKIE = 'respaldo_login_csrf';
 const PREFIX = 'respaldo:';
@@ -114,9 +114,7 @@ export function tryRespaldoLogin(req, res, next) {
       return res.redirect(303, '/respaldo');
     } catch (error) {
       console.error('[respaldo:login]', error?.code || error?.message || 'unknown');
-      return renderError(req, res, 503, error?.status
-        ? error.message
-        : 'El Respaldo todavía no puede conectarse a su base de datos independiente.');
+      return renderError(req, res, 503, respaldoErrorMessage(error));
     }
   });
 }

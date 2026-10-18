@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
 
 const env = process.env;
-const required = ['RESPALDO_DB_HOST','RESPALDO_DB_USER','RESPALDO_DB_PASSWORD','RESPALDO_DB_NAME'];
+const required = ['RESPALDO_DB_HOST','RESPALDO_DB_USER','RESPALDO_DB_PASSWORD','RESPALDO_DB_NAME','RESPALDO_USERNAME','RESPALDO_PASSWORD'];
 export const configured = required.every(name => Boolean(env[name]));
 export const db = configured ? mysql.createPool({
   host: env.RESPALDO_DB_HOST, port: Number(env.RESPALDO_DB_PORT || 3306),
@@ -79,17 +79,34 @@ async function initialize() {
     INDEX ix_respaldo_audit_visit (visit_id),
     INDEX ix_respaldo_audit_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-  const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM respaldo_users');
-  if (Number(total) === 0) {
-    const name = String(env.RESPALDO_ADMIN_NAME || '').trim();
-    const pin = String(env.RESPALDO_ADMIN_PIN || '');
-    if (!name || pin.length < 6) {
-      const error = Error('Configurá RESPALDO_ADMIN_NAME y un RESPALDO_ADMIN_PIN de al menos 6 caracteres.');
-      error.status = 503;
-      throw error;
+  // The primary administrator is controlled only by Hostinger environment variables.
+  // Changes to username/password take effect on process restart and revoke old sessions.
+  const name = String(env.RESPALDO_USERNAME || '').trim();
+  const password = String(env.RESPALDO_PASSWORD || '');
+  if (name.length < 3 || name.length > 160 || password.length < 12 || Buffer.byteLength(password) > 72) {
+    const error = Error('RESPALDO_USERNAME debe tener 3-160 caracteres y RESPALDO_PASSWORD entre 12 y 72 bytes.');
+    error.status = 503;
+    throw error;
+  }
+  const [admins] = await db.query("SELECT id,name,pin_hash FROM respaldo_users WHERE role='admin' ORDER BY id ASC");
+  if (!admins.length) {
+    await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)',
+      [name, 'admin', await bcrypt.hash(password, 12)]);
+  } else {
+    const primary = admins[0];
+    const matches = await bcrypt.compare(password, primary.pin_hash);
+    if (primary.name !== name || !matches) {
+      await db.execute('UPDATE respaldo_users SET name=?,pin_hash=?,active=1 WHERE id=?',
+        [name, await bcrypt.hash(password, 12), primary.id]);
+      await db.execute('DELETE FROM respaldo_sessions WHERE user_id=?', [primary.id]);
     }
-    await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?, ?, ?)',
-      [name, 'admin', await bcrypt.hash(pin, 12)]);
+    if (admins.length > 1) {
+      const extraIds = admins.slice(1).map(row => row.id);
+      for (const extraId of extraIds) {
+        await db.execute('UPDATE respaldo_users SET active=0 WHERE id=?', [extraId]);
+        await db.execute('DELETE FROM respaldo_sessions WHERE user_id=?', [extraId]);
+      }
+    }
   }
 }
 

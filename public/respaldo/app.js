@@ -51,7 +51,10 @@ const select = (key, label, options, value='', empty='Seleccionar') => '<label c
 const btn = (text,id,style='')=>'<button type="button" class="btn '+style+'" data-action="'+id+'">'+esc(text)+'</button>';
 const userRoles = {admin:'Administración',recepcion:'Recepción',pretest:'Pre-test',fulltest:'Full-test',enrutador:'Enrutación',asesor:'Conversión'};
 async function api(url, options={}) {
-  const r = await fetch('/respaldo/api'+url,{credentials:'same-origin',...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+  const write = !['GET', 'HEAD', 'OPTIONS'].includes(String(options.method || 'GET').toUpperCase());
+  const headers = { 'Content-Type':'application/json', ...(options.headers || {}) };
+  if (write && state.user?.csrf) headers['X-Respaldo-CSRF'] = state.user.csrf;
+  const r = await fetch('/respaldo/api'+url,{credentials:'same-origin',...options,headers});
   let data; try { data = await r.json(); } catch { data = {}; }
   if (!r.ok) throw Error(data.error || 'Solicitud fallida ('+r.status+')');
   return data;

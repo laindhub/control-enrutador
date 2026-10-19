@@ -8,6 +8,7 @@ on:
       - fix/respaldo-origin-hostinger
       - main
       - feat/respaldo-clon-salon-sin-pin
+      - feat/respaldo-fiel-html-css-v2
       - fix/respaldo-csrf-login-stable
     paths:
       - 'src/respaldo/**'
@@ -18,6 +19,7 @@ on:
       - test/respaldo-login-csrf.test.js
       - test/respaldo-login-http.test.js
       - test/respaldo-salon-interface.test.js
+      - test/respaldo-original-ui.test.js
       - test/respaldo-db-flow.test.js
       - views/login.ejs
       - .github/workflows/check-respaldo.yml
@@ -47,7 +49,7 @@ jobs:
           node --check src/respaldo/router.js
           node --check public/respaldo/app.js
           node --check src/respaldo/scoring.js
-          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js test/respaldo-login-csrf.test.js test/respaldo-login-http.test.js test/respaldo-salon-interface.test.js
+          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js test/respaldo-login-csrf.test.js test/respaldo-login-http.test.js test/respaldo-salon-interface.test.js test/respaldo-original-ui.test.js
 
   integration:
     runs-on: ubuntu-latest

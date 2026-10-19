@@ -21,10 +21,10 @@ const fields = [
     ['miedo_estafas','¿Tenés miedo de que te estafen?',['Sí, ya fui estafado','Sí, aunque nunca fui estafado','Un poco','No me preocupa','No contestó']],
     ['motivos','¿Por qué querés ser Dueño?', ['Sentirme segura y tranquila','Dejar algo a mi familia','Ahorrar para el futuro','Dejar de pagar alquiler','Tener mi propio espacio'],'multi'],
     ['frenos','¿Qué te frena hoy?',['Creo que no puedo ser dueño','Los precios están muy altos','No tengo ahorros suficientes','No califico para un crédito','Tengo miedo de endeudarme','Tengo miedo que me estafen','No encuentro la propiedad que me guste','No sé ni por dónde empezar','No vale la pena ser dueño','Ninguna'],'multi'],
-    ['vivienda_actual','¿Dónde vivís actualmente?',['Departamento','PH','Casa','No contestó']]
+    ['vivienda_tipo','¿Dónde vivís actualmente?',['Departamento','PH','Casa','No contestó']]
   ]},
   {title:'La propiedad soñada',questions:[
-    ['ubicaciones','¿Dónde te gustaría tener tu propiedad? (localidades separadas por coma)','text'],
+    ['ubicacion_sonada','¿Dónde te gustaría tener tu propiedad?','locations'],
     ['tipo_propiedad','¿Cómo te gustaría que fuera tu propiedad?',['Departamento','Casa','PH','No contestó']],
     ['dormitorios','Dormitorios',['Monoambiente','1 dormitorio','2 dormitorios','3 dormitorios','4 dormitorios o más','No contestó']],
     ['servicios','¿Qué servicios te gustaría tener?',['Cochera','Gimnasio','Lavadero','Parrilla','Pileta','Sala de juegos','Salón de fiestas','Ninguna'],'multi']
@@ -50,6 +50,41 @@ const input = (key, label, value='',type='text') => '<label class="field">'+esc(
 const select = (key, label, options, value='', empty='Seleccionar') => '<label class="field">'+esc(label)+'<select name="'+esc(key)+'"><option value="">'+esc(empty)+'</option>'+options.map(o=>'<option '+(String(o)===String(value)?'selected':'')+'>'+esc(o)+'</option>').join('')+'</select></label>';
 const btn = (text,id,style='')=>'<button type="button" class="btn '+style+'" data-action="'+id+'">'+esc(text)+'</button>';
 const userRoles = {admin:'Administración',recepcion:'Recepción',pretest:'Pre-test',fulltest:'Full-test',enrutador:'Enrutación',asesor:'Conversión'};
+
+/* Clases y estructura de las capturas originales de Liniers.
+ * original.css es el Tailwind compilado recuperado de la aplicación; estas
+ * clases se aplican directamente al DOM en vez de simularlas con un tema nuevo. */
+const uiOriginal = Object.freeze({
+  main:'mx-auto w-full max-w-lg flex-1 px-4 py-6',
+  login:'mx-auto flex min-h-screen w-full max-w-lg flex-col px-4 py-8',
+  h1:'text-3xl leading-tight font-medium tracking-tight',
+  h2:'text-lg font-medium',
+  muted:'text-muted-foreground text-lg leading-snug',
+  meta:'text-muted-foreground text-salon-meta leading-snug',
+  label:'text-muted-foreground flex flex-wrap gap-x-2 text-salon-meta',
+  input:'w-full rounded-field-mobile border border-border bg-surface px-4 py-3 text-salon-option outline-none caret-brand placeholder:text-muted-foreground focus:border-foreground aria-[invalid=true]:border-alert disabled:bg-pressed disabled:text-muted-foreground h-14',
+  choice:'rounded-field-mobile flex cursor-pointer items-center border transition-colors min-h-11 gap-1.5 px-1.5 py-0.5 text-[13px] leading-tight active:bg-pressed border-border bg-surface',
+  choiceLarge:'rounded-field-mobile flex cursor-pointer items-center border transition-colors min-h-[58px] gap-3 px-4 py-2.5 text-salon-option active:bg-pressed border-border bg-surface',
+  person:'rounded-card-mobile bg-surface border shadow-card active:bg-pressed flex w-full items-center gap-4 p-4 text-left transition-colors duration-150',
+  avatar:'bg-id-red-tint text-id-red-text rounded-pill flex size-12 shrink-0 items-center justify-center text-[19px] font-medium',
+  submit:'rounded-field-mobile inline-flex w-full items-center justify-center gap-2.5 text-center transition-colors duration-150 outline-none select-none bg-brand-deep text-on-brand shadow-lift min-h-[52px] px-4 font-medium',
+  chapter:'bg-background -mx-4 sticky top-12 z-10 flex items-center justify-center gap-1 border-b px-4 py-1',
+});
+const locationGroups = Object.freeze({
+  CABA: ['Belgrano','Coghlan','Colegiales','Núñez','Palermo','Recoleta','Retiro','Saavedra','Villa Urquiza',
+    'Almagro','Balvanera','Boedo','Caballito','Chacarita','Monserrat','Parque Chas','San Cristóbal','San Nicolás',
+    'San Telmo','Villa Crespo','Villa General Mitre','Villa Santa Rita','Agronomía','Flores','Floresta','La Paternal',
+    'Liniers','Monte Castro','Parque Avellaneda','Parque Chacabuco','Vélez Sársfield','Versalles','Villa del Parque',
+    'Villa Devoto','Villa Luro','Villa Ortúzar','Villa Pueyrredón','Villa Real','Barracas','Constitución','La Boca',
+    'Mataderos','Nueva Pompeya','Parque Patricios','Puerto Madero','Villa Lugano','Villa Riachuelo','Villa Soldati'],
+  GBA: ['Escobar','José C. Paz','Malvinas Argentinas','Pilar','San Fernando','San Isidro','San Miguel','Tigre',
+    'Vicente López','Hurlingham','Ituzaingó','La Matanza','Merlo','Moreno','Morón','Ramos Mejía',
+    '(Caseros) Tres de Febrero','Almirante Brown','Avellaneda','Berazategui','Esteban Echeverría','Ezeiza',
+    'Florencio Varela','Lanús','Lomas de Zamora','Quilmes']
+});
+const salonHomeIcon='<svg aria-hidden="true" class="shrink-0 size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.5"></rect><path d="M7 15.4V9.9l5-3.4 5 3.4v5.5" stroke-linejoin="round"></path></svg>';
+const checkMark='<svg aria-hidden="true" class="size-3" viewBox="0 0 12 12" fill="none"><path d="M2 6.5 4.8 9 10 3.5" stroke="var(--on-brand)" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>';
+
 async function api(url, options = {}) {
   const headers = {'Content-Type':'application/json',...(options.headers||{})};
   const write = !['GET','HEAD','OPTIONS'].includes(String(options.method||'GET').toUpperCase());
@@ -96,45 +131,64 @@ async function showRoster() {
   catch(error){showSetupError(error);}
 }
 function renderRoster() {
-  app.innerHTML='<main class="salon-page"><div class="salon-content">'
-    +'<div class="salon-wordmark"><strong>Más Dueños</strong><span>Salón · Respaldo</span></div>'
-    +'<div class="salon-intro"><h1>¿Quién sos?</h1><p>Tocá tu nombre para entrar al salón.</p></div>'
-    +'<div class="searchbox"><span aria-hidden="true">⌕</span><input id="roster-search" type="search" placeholder="Buscá tu nombre" autocomplete="off"></div>'
-    +'<ul class="salon-roster" id="roster-results"></ul>'
-    +'<p class="salon-footnote">Elegí únicamente tu nombre. El administrador gestiona los puestos y las personas habilitadas.</p>'
-    +'<a class="salon-back" href="/login">← Volver al inicio</a>'
+  app.innerHTML='<main class="'+uiOriginal.login+'">'
+    +'<div class="mb-8 flex items-center gap-2.5"><span class="inline-flex items-center gap-2 text-h2">'
+    +salonHomeIcon+'<span class="wordmark leading-none"><span class="font-normal">Más</span> Dueños</span></span>'
+    +'<span class="text-muted-foreground text-small">Salón · Respaldo</span></div>'
+    +'<div class="space-y-6"><div class="space-y-1.5"><h1 class="'+uiOriginal.h1+'">¿Quién sos?</h1>'
+    +'<p class="'+uiOriginal.muted+'">Tocá tu nombre para entrar.</p></div>'
+    +'<div class="relative salon-search"><svg aria-hidden="true" class="lucide text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>'
+    +'<input id="roster-search" class="'+uiOriginal.input+' pl-12" type="search" placeholder="Buscá tu nombre" aria-label="Buscá tu nombre" autocomplete="off"></div>'
+    +'<ul class="space-y-3" id="roster-results" aria-label="Personal de Liniers"></ul>'
+    +'<p class="text-muted-foreground text-salon-meta">Elegí únicamente tu nombre. Administración gestiona los puestos habilitados.</p>'
+    +'<a href="/login" class="text-muted-foreground hover:text-foreground text-small underline underline-offset-4">Volver al inicio</a>'
     +'</div></main>';
-  const search=document.getElementById('roster-search'), list=document.getElementById('roster-results');
+  const search=document.getElementById('roster-search');
+  const list=document.getElementById('roster-results');
   function draw(){
-    const query=search.value.trim().toLocaleLowerCase('es');
-    const rows=roster.filter(p=>p.name.toLocaleLowerCase('es').includes(query));
-    list.innerHTML=rows.length?rows.map(p=>'<li><button class="salon-person" data-person="'+p.id+'">'
-      +'<span class="salon-avatar">'+esc(initials(p.name))+'</span>'
-      +'<span class="salon-person-details"><b>'+esc(p.name)+'</b><small>Liniers · '+esc(userRoles[p.role]||p.role)+'</small></span>'
-      +'<span class="salon-chevron">›</span></button></li>').join(''):'<li class="salon-empty">No encontramos a esa persona.</li>';
-    list.querySelectorAll('[data-person]').forEach(el=>el.onclick=async()=>{
-      el.disabled=true;
+    const query=search.value.toLocaleLowerCase('es').trim();
+    const people=roster.filter(person=>person.name.toLocaleLowerCase('es').includes(query));
+    list.innerHTML=people.map(person=>'<li><button type="button" class="'+uiOriginal.person+'" data-person="'+person.id+'">'
+      +'<span aria-hidden="true" class="'+uiOriginal.avatar+'">'+esc(initials(person.name))+'</span>'
+      +'<span class="min-w-0 flex-1"><span class="block text-salon-row leading-snug font-medium">'+esc(person.name)+'</span>'
+      +'<span class="text-muted-foreground block truncate text-salon-meta leading-snug">Liniers</span></span>'
+      +'</button></li>').join('') || '<li class="salon-empty">No encontramos a esa persona.</li>';
+    list.querySelectorAll('[data-person]').forEach(button=>button.onclick=async()=>{
+      button.disabled=true;
       try{
-        await api('/enter',{method:'POST',body:JSON.stringify({id:Number(el.dataset.person),nonce:rosterNonce})});
-        state.user=await api('/me');state.users=await api('/users');state.view=state.user.role;
-        await home();
+        await api('/enter',{method:'POST',body:JSON.stringify({id:Number(button.dataset.person),nonce:rosterNonce})});
+        state.user=await api('/me');state.users=await api('/users');
+        state.view=state.user.role;await home();
       }catch(error){status(error.message);await showRoster();}
     });
   }
   search.addEventListener('input',draw);draw();
 }
 function header() {
-  return '<header class="salon-header"><div class="salon-header-inner"><div class="salon-brand">⌂ <strong>Salón</strong></div>'
-    +'<div class="salon-current"><span class="salon-avatar mini">'+esc(initials(state.user.name))+'</span>'
-    +'<span>'+esc(state.user.name.split(' ')[0])+' · Liniers</span></div>'
-    +actionButton('Salir','logout','link')+'</div></header>';
+  return '<header class="bg-background border-border-row sticky top-0 z-10 border-b salon-top">'
+    +'<div class="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4 py-2.5">'
+    +'<span class="inline-flex items-center gap-2 text-h2">'+salonHomeIcon
+    +'<span class="font-medium">Salón</span></span>'
+    +'<span class="text-muted-foreground inline-flex min-w-0 flex-1 items-center justify-end gap-2 text-small">'
+    +'<span class="rounded-pill bg-id-red-tint text-id-red-text inline-flex size-8 shrink-0 items-center justify-center text-small font-medium">'+esc(initials(state.user.name))+'</span>'
+    +'<span class="truncate">'+esc(state.user.name.split(' ')[0])+' · Liniers</span></span>'
+    +'<button type="button" class="text-muted-foreground hover:text-foreground flex min-h-11 items-center px-1 text-small" data-action="logout">Salir</button>'
+    +'</div></header>';
 }
 function page(content,wide=false) {
-  app.innerHTML=header()+'<main class="salon-page '+(wide?'salon-wide':'')+'"><div class="salon-content">'+content+'</div></main>';
+  const operator=state.user.role!=='admin';
+  app.innerHTML='<div class="salon-layout">'+header()
+    +'<main class="'+uiOriginal.main+(wide?' salon-wide':'')+'">'+content+'</main>'
+    +(operator?'<nav class="bg-background border-border sticky bottom-0 z-10 order-last grid auto-cols-fr grid-flow-col border-t pb-[env(safe-area-inset-bottom)] salon-bottomnav" aria-label="Navegación del salón">'
+      +[['Puestos','puestos'],['Hoy','hoy'],['Yo','yo']].map(([label,screen])=>'<button type="button" class="salon-navitem'+((state.secondaryView||'puestos')===screen?' current':'')+'" data-screen="'+screen+'">'+label+'</button>').join('')
+      +'</nav>':'')+'</div>';
   wire('logout',async()=>{
     try{await api('/logout',{method:'POST',body:'{}'});}
     catch(error){status(error.message);return;}
-    state.user=null;state.current=null;state.view='';await showRoster();
+    state.user=null;state.current=null;state.view='';state.secondaryView='puestos';await showRoster();
+  });
+  document.querySelectorAll('[data-screen]').forEach(el=>el.onclick=()=>{
+    state.secondaryView=el.dataset.screen;renderHome();
   });
 }
 async function home() {
@@ -146,37 +200,73 @@ async function home() {
 }
 function renderHome() {
   if(state.view==='admin'){renderAdmin();return;}
+  if(state.secondaryView==='yo'){renderActivity();return;}
+  if(state.secondaryView==='hoy'){renderToday();return;}
   if(state.view==='recepcion'){renderReception();return;}
-  page('<div class="salon-intro"><h1>'+esc(roleLabels[state.view])+'</h1>'
-    +'<p>'+({pretest:'Tomar el pre-test',fulltest:'Tomar el Test del Dueño',enrutador:'Charla y derivación',asesor:'Confirmar si la persona se sentó'}[state.view]||'')+'</p></div>'
+  page('<div class="space-y-1.5 salon-intro"><h1 class="text-salon-anden leading-tight font-medium tracking-[-0.01em]">'
+    +esc(roleLabels[state.view])+'</h1>'
+    +'<p class="text-muted-foreground text-lg leading-snug">'+esc(({pretest:'Tomar el pre-test',fulltest:'Tomar el Test del Dueño',enrutador:'Charla y derivación',asesor:'Confirmar si la persona se sentó'}[state.view]||''))+'</p></div>'
     +pendingList());
   wire('refresh',()=>home());
   document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));
 }
 function pendingList() {
   const role=state.view;
-  const wait=state.visits.filter(v=>role==='pretest'?v.phase==='pretest':role==='fulltest'?v.phase==='fulltest':
-    role==='enrutador'?v.phase==='enrutacion':role==='asesor'?v.phase==='asesor':false);
-  return '<div class="salon-counters"><span><strong>'+wait.length+'</strong> En espera</span>'
-    +'<span><strong>0</strong> Perdidos</span><span><strong>0</strong> Atendidas</span></div>'
+  const wait=state.visits.filter(v=>
+    role==='pretest'?v.phase==='pretest':
+    role==='fulltest'?v.phase==='fulltest':
+    role==='enrutador'?v.phase==='enrutacion':
+    role==='asesor'?v.phase==='asesor':false);
+  return '<div class="salon-counters"><span><strong>'+wait.length+'</strong> En espera</span></div>'
     +'<div class="salon-list-heading"><h2>En espera</h2>'+actionButton('Actualizar lista','refresh','link')+'</div>'
-    +(wait.length?'<ul class="salon-visit-list">'+wait.map(v=>'<li><button class="salon-visit" data-visit="'+esc(v.id)+'">'
-    +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
-    +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'+esc(v.source||'')+' · '+esc(v.promoter||'Liniers')+'</small></span>'
-    +'<span class="salon-chevron">›</span></button></li>').join('')+'</ul>':
-    '<p class="salon-empty">No hay personas en espera por el momento.</p>');
+    +(wait.length?'<ul class="salon-visit-list">'+wait.map(v=>
+      '<li><button type="button" class="salon-visit" data-visit="'+esc(v.id)+'">'
+      +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
+      +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong>'
+      +'<small>'+esc(v.source||'')+' · '+esc(v.promoter||'Liniers')+'</small></span>'
+      +'<span class="salon-chevron">›</span></button></li>').join('')+'</ul>'
+      :'<p class="salon-empty">No hay personas en espera por el momento.</p>');
+}
+function renderToday() {
+  page('<div class="space-y-1.5 salon-intro"><h1 class="'+uiOriginal.h1+'">Hoy</h1>'
+    +'<p class="'+uiOriginal.muted+'">Personas visibles para tu puesto en Liniers.</p></div>'
+    +'<div class="salon-list-heading"><h2>En curso</h2>'+actionButton('Actualizar','refresh','link')+'</div>'
+    +(state.visits.length?'<ul class="salon-visit-list">'+state.visits.map(v=>
+      '<li>'+(state.view==='recepcion'?'<div class="salon-visit">':'<button type="button" class="salon-visit" data-visit="'+esc(v.id)+'">')
+      +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
+      +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'
+      +esc(v.source)+' · '+fmt(v.created_at)+'</small></span>'
+      +(state.view==='recepcion'?'</div>':'<span class="salon-chevron">›</span></button>')+'</li>'
+    ).join('')+'</ul>':'<p class="salon-empty">No hay personas en tu lista actual.</p>'));
+  wire('refresh',()=>home());
+  document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));
+}
+function renderActivity() {
+  const relevant=state.visits.filter(v=>
+    state.view==='pretest'?v.phase==='pretest':
+    state.view==='fulltest'?v.phase==='fulltest':
+    state.view==='enrutador'?v.phase==='enrutacion':
+    state.view==='asesor'?v.phase==='asesor':true);
+  page('<div class="space-y-1.5 salon-intro"><h1 class="'+uiOriginal.h1+'">Mi actividad</h1>'
+    +'<p class="'+uiOriginal.muted+'">Tu puesto en esta sucursal.</p></div>'
+    +'<div class="salon-counters"><span><strong>'+relevant.length+'</strong> Personas en la lista actual</span></div>'
+    +'<section class="admin-section"><h2 class="'+uiOriginal.h2+'">Mi puesto</h2>'
+    +'<p>Operando como <strong>'+esc(state.user.name)+'</strong> · '+esc(userRoles[state.user.role])+' · Liniers.</p>'
+    +'<p>Los indicadores históricos se incorporarán cuando el respaldo registre las operaciones completas de cada turno.</p></section>');
 }
 function renderReception() {
-  page('<button class="salon-back" data-action="home-tools">← Herramientas</button>'
-    +'<h1 class="salon-h1">Ingreso</h1><form id="checkin-form" class="salon-form">'
+  page('<div class="space-y-6"><button type="button" class="text-muted-foreground hover:text-foreground -ml-2 flex min-h-11 w-fit items-center gap-2 px-2 text-base" data-action="home-tools">← Herramientas</button>'
+    +'<h1 class="text-2xl leading-tight font-medium tracking-tight">Ingreso</h1>'
+    +'<form id="checkin-form" class="scroll-mt-20 space-y-7">'
     +formField('visitor_name','Nombre','','text','Nombre de la persona')
     +choices('source','¿Por dónde entró?',sources,'Promotor con ruleta',false,true)
-    +'<div id="source-person" class="salon-fieldset"><h2 id="source-person-title">¿Quién la trajo?</h2>'
-    +'<input id="source-filter" class="salon-input" type="search" placeholder="Filtrar personal…" autocomplete="off">'
-    +'<div class="salon-choices two salon-person-options" id="source-options"></div></div>'
+    +'<section id="source-person" class="space-y-3"><div class="flex items-center justify-between gap-3">'
+    +'<h2 class="text-lg font-medium" id="source-person-title">¿Quién la trajo?</h2>'
+    +'<input id="source-filter" class="h-9 w-36 shrink-0 rounded-field-mobile border border-border bg-surface px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground" type="search" placeholder="Filtrar…" autocomplete="off">'
+    +'</div><div class="grid grid-cols-2 gap-1.5 salon-choices two" id="source-options"></div></section>'
     +choices('continues','¿Siguió adelante?',['Sí, sigue el recorrido',...exitReasons],'Sí, sigue el recorrido',false,false)
-    +'<div class="salon-sticky-save"><p>Se va a guardar a tu nombre: <strong>'+esc(state.user.name)+'</strong>.</p>'
-    +'<button class="salon-primary" type="submit" id="checkin-submit">Registrar el ingreso</button></div></form>');
+    +'<div class="space-y-2"><p class="text-muted-foreground text-[13px] leading-snug">Se va a guardar a tu nombre: <strong>'+esc(state.user.name)+'</strong>.</p>'
+    +'<button class="'+uiOriginal.submit+'" type="submit" id="checkin-submit">Registrar el ingreso</button></div></form></div>');
   const form=document.getElementById('checkin-form');
   const personSearch=document.getElementById('source-filter');
   let selectedPerson='';
@@ -188,8 +278,8 @@ function renderReception() {
       ? '¿A quién vino a ver?' : '¿Quién la trajo?';
     const query=personSearch.value.trim().toLowerCase();
     document.getElementById('source-options').innerHTML=names.filter(name=>name.toLowerCase().includes(query))
-      .map(name=>'<label class="salon-choice"><input type="radio" name="promoter" value="'+esc(name)+'"'
-        +(selectedPerson===name?' checked':'')+'><span class="salon-choice-circle">✓</span><span>'+esc(name)+'</span></label>').join('');
+      .map(name=>'<label class="'+uiOriginal.choice+' salon-choice"><input class="sr-only" type="radio" name="promoter" value="'+esc(name)+'"'
+        +(selectedPerson===name?' checked':'')+'><span aria-hidden="true" class="flex size-[22px] shrink-0 items-center justify-center rounded-pill border salon-choice-indicator">'+checkMark+'</span><span class="min-w-0">'+esc(name)+'</span></label>').join('');
   }
   function update(){
     const channel=new FormData(form).get('source');
@@ -208,6 +298,10 @@ function renderReception() {
   form.onsubmit=async e=>{
     e.preventDefault();const f=new FormData(form);
     const continues=f.get('continues')==='Sí, sigue el recorrido';
+    const source=f.get('source');
+    if(['Promotor con ruleta','Vino a ver a su asesor'].includes(source) && !f.get('promoter')){
+      status('Seleccioná quién trajo a la persona.');return;
+    }
     try{
       await api('/visits',{method:'POST',body:JSON.stringify({visitor_name:String(f.get('visitor_name')||'').trim(),
         source:f.get('source'),promoter:f.get('promoter')||'',continues,
@@ -218,21 +312,37 @@ function renderReception() {
   wire('home-tools',()=>renderTools());
 }
 function renderTools() {
-  page('<h1>Herramientas</h1><p>Recepción · Liniers</p>'
-    +'<button class="salon-person" data-action="start-reception">Ingreso <span>›</span></button>');
+  page('<div class="space-y-1.5 salon-intro"><h1 class="'+uiOriginal.h1+'">Herramientas</h1>'
+    +'<p class="'+uiOriginal.muted+'">Recepción · Liniers</p></div>'
+    +'<button type="button" class="'+uiOriginal.person+'" data-action="start-reception">'
+    +'<span class="'+uiOriginal.avatar+'">↳</span>'
+    +'<span class="min-w-0 flex-1"><strong class="block text-salon-row font-medium">Ingreso</strong>'
+    +'<small class="text-muted-foreground">Registrar una persona que llegó al salón</small></span></button>');
   wire('start-reception',renderReception);
 }
 function formField(key,title,value='',type='text',placeholder='—'){
-  return '<label class="salon-field"><span class="salon-label">'+esc(title)+'</span>'
-    +'<input class="salon-input" autocomplete="off" type="'+esc(type)+'" name="'+esc(key)+'" placeholder="'+esc(placeholder)+'"'
-    +' value="'+esc(value??'')+'"'+(type==='number'?' min="0" step="1"':'')+'></label>';
+  return '<div class="space-y-1.5 salon-field">'
+    +(title?'<label for="input-'+esc(key)+'" class="'+uiOriginal.label+'">'+esc(title)+'</label>':'')
+    +'<input class="'+uiOriginal.input+'" id="input-'+esc(key)+'" autocomplete="off"'
+    +' type="'+esc(type)+'" name="'+esc(key)+'" placeholder="'+esc(placeholder)+'"'
+    +' value="'+esc(value??'')+'"'+(type==='number'?' min="0" step="1" inputmode="numeric"':'')+'></div>';
 }
-function choices(key,title,values,current=null,multi=false,columns=false){
-  return '<fieldset class="salon-fieldset"><legend>'+esc(title)+'</legend><div class="salon-choices '+(columns?'two':'')+'">'
-    +values.map(v=>'<label class="salon-choice"><input type="'+(multi?'checkbox':'radio')+'" name="'+esc(key)+'" value="'+esc(v)+'"'
-    +(multi?(Array.isArray(current)&&current.includes(v)?' checked':''):(current===v?' checked':''))+'>'
-    +'<span class="salon-choice-circle">✓</span><span>'+esc(v)+'</span></label>').join('')
-    +'</div></fieldset>';
+function choices(key,title,values,current=null,multi=false,columns=false,description=''){
+  const listClass=columns?'grid grid-cols-2 gap-1.5':'flex flex-wrap gap-2';
+  const wide=!columns&&values.length<=4&&String(key)==='outcome';
+  const optionClass=wide?uiOriginal.choiceLarge:uiOriginal.choice;
+  return '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset"><legend class="space-y-1">'
+    +'<span class="block text-lg leading-snug font-medium">'+esc(title)+'</span>'
+    +(description?'<small class="text-muted-foreground text-salon-meta">'+esc(description)+'</small>':'')
+    +'</legend><div class="'+listClass+' salon-options">'
+    +values.map(value=>{
+      const checked=multi?Array.isArray(current)&&current.includes(value):current===value;
+      return '<label class="'+optionClass+' salon-choice'+(checked?' is-checked':'')+'">'
+        +'<input class="sr-only" type="'+(multi?'checkbox':'radio')+'" name="'+esc(key)+'" value="'+esc(value)+'"'+(checked?' checked':'')+'>'
+        +'<span aria-hidden="true" class="flex size-[22px] shrink-0 items-center justify-center rounded-pill border transition-colors border-border bg-surface salon-choice-indicator">'+checkMark+'</span>'
+        +'<span class="min-w-0"><span class="block leading-snug">'+esc(value)+'</span></span>'
+        +'</label>';
+    }).join('')+'</div></fieldset>';
 }
 async function openVisit(id) {
   try{
@@ -257,8 +367,10 @@ function renderVisit() {
   if(state.view==='asesor')bindConversion(v);
 }
 function personTitle(title,v,detail) {
-  return '<div class="salon-intro"><h1>'+esc(title)+'</h1><p>Con '+esc(v.visitor_name)+'. '+esc(detail)+'</p>'
-    +timeline(v)+'</div>';
+  const first=String(v.visitor_name||'').split(' ')[0];
+  return '<div class="space-y-1 salon-intro"><h1 class="'+uiOriginal.h1+'">'+esc(title)+'</h1>'
+    +'<p class="'+uiOriginal.muted+'">Con '+esc(first)+'. '+esc(detail)+'</p>'
+    +'<p class="'+uiOriginal.meta+'">'+timeline(v)+'</p></div>';
 }
 function pretestPage(v) {
   const a=v.pretest_json||{},parts=v.visitor_name.trim().split(/\s+/);
@@ -267,7 +379,7 @@ function pretestPage(v) {
     +'<form class="salon-form" id="pretest-form"><div class="salon-grid">'
     +formField('given','Nombre',given,'text','Nombre')
     +formField('family','Apellido',last,'text','Apellido')+'</div>'
-    +formField('phone','Teléfono · se puede dejar vacío',v.phone||'','tel','+54')
+    +formField('phone','Teléfono',v.phone||'','tel','+54 — se puede dejar vacío')
     +pretest.map(q=>choices(q.key,q.label,q.options,a[q.key])).join('')
     +'<div class="salon-sticky-save"><p>Queda tomado por <b>'+esc(state.user.name)+'</b> → visita de '+esc(v.visitor_name)+'.</p>'
     +'<button class="salon-primary" type="submit">Guardar el pre-test</button></div></form>';
@@ -285,16 +397,42 @@ function bindPretest(v){
     }catch(error){status(error.message);}
   };
 }
-function fulltestQuestion(q, a) {
+function locationPicker() {
+  const current=Array.isArray(state.answers.ubicacion_sonada)?state.answers.ubicacion_sonada:
+    String(state.answers.ubicacion_sonada||state.answers.ubicaciones||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const currentValue=state.locationFilter||'todo';
+  const nav=['Todo','CABA','Gran Buenos Aires'].map((name,i)=>{
+    const value=['todo','CABA','GBA'][i];
+    return '<button type="button" data-location-group="'+value+'" class="salon-location-tab'+(currentValue===value?' is-active':'')+'">'+name+'</button>';
+  }).join('');
+  const groups=Object.entries(locationGroups).filter(([key])=>currentValue==='todo'||currentValue===key);
+  return '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset">'
+    +'<legend class="space-y-1"><span class="block text-lg leading-snug font-medium">¿Dónde te gustaría tener tu propiedad?</span>'
+    +'<span class="text-muted-foreground text-salon-meta">Elegí todas las zonas que te interesan.</span></legend>'
+    +'<div class="salon-location-tabs" role="group" aria-label="Filtrar ubicaciones">'+nav+'</div>'
+    +'<div class="salon-locations">'+groups.map(([region,places])=>
+      '<section class="salon-location-group"><h3 class="text-[15px] leading-snug font-medium">'
+      +(region==='CABA'?'Ciudad Autónoma de Buenos Aires (CABA)':'Gran Buenos Aires')+'</h3>'
+      +'<div class="salon-location-grid">'+places.map(place=>'<label class="salon-location">'
+      +'<input type="checkbox" name="ubicacion_sonada" value="'+esc(place)+'"'
+      +(current.includes(place)?' checked':'')+'><span>'+esc(place)+'</span></label>').join('')
+      +'</div></section>').join('')+'</div>'
+    +'<p class="text-muted-foreground text-salon-meta" id="location-total">'+current.length+' zonas seleccionadas</p></fieldset>';
+}
+function fulltestQuestion(q,a) {
   const [key,title,options,mode]=q;
+  if(key==='ubicacion_sonada') return locationPicker();
   return Array.isArray(options)?choices(key,title,options,a[key],mode==='multi'):
-    formField(key,title,a[key]??'',options==='number'?'number':options==='email'?'email':'text');
+    '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset"><legend class="space-y-1">'
+    +'<span class="block text-lg leading-snug font-medium">'+esc(title)+'</span></legend>'
+    +formField(key,'',a[key]??'',options==='number'?'number':options==='email'?'email':'text')
+    +'</fieldset>';
 }
 function optionalQuestions(a){
   const x=[];
   if(a.tiene_ahorros==='Sí')x.push(['ahorro_efectivo_ars','Efectivo en pesos','number'],['ahorro_efectivo_usd','Efectivo en dólares','number'],['ahorro_vehiculos_usd','Vehículos en dólares','number'],['ahorro_propiedades_usd','Propiedades en dólares','number']);
   if(['Casa','PH'].includes(a.tipo_propiedad))x.push(['viviria_en_departamento','¿Podrías vivir en un departamento?',['Sí, totalmente.','Sí, podría ser.','No creo.','No, ni loco.']]);
-  if(['Relación de dependencia','Independiente'].includes(a.situacion_laboral))x.push(['trabajo_en_blanco','¿Estás en blanco?',['Sí','No','En parte','No contestó']],['trabajo','¿De qué trabajás?','text']);
+  if(['Relación de dependencia','Independiente'].includes(a.situacion_laboral))x.push(['en_blanco','¿Estás en blanco?',['Sí','No','En parte','No contestó']],['de_que_trabajas','¿De qué trabajás?','text']);
   if(a.quien_decide==='Yo y alguien más')x.push(['acompanante_presente','¿Está presente la otra persona?',yesNoUnknown]);
   return x;
 }
@@ -303,30 +441,60 @@ function chapterQuestions(){
   const extra=optionalQuestions(state.answers).filter(q=>
     (n===1&&q[0]==='viviria_en_departamento')||
     (n===2&&q[0].startsWith('ahorro_'))||
-    (n===3&&['trabajo_en_blanco','trabajo','acompanante_presente'].includes(q[0])));
+    (n===3&&['en_blanco','de_que_trabajas','acompanante_presente'].includes(q[0])));
   return [...fields[n].questions,...extra];
 }
-function fulltestPage(v){
-  const names=['Conociendo a la persona','La propiedad soñada','Punto de partida','¿Disponible para ser dueño/a?','Últimas preguntas'];
-  const tally=fields.flatMap(c=>c.questions).filter(q=>{
-    const a=state.answers[q[0]];
-    return a!==null&&a!==undefined&&a!==''&&(!Array.isArray(a)||a.length>0);
+function fulltestPage(v) {
+  const titles=['Quién es','La propiedad soñada','Punto de partida','¿Disponible para ser dueño/a?','Últimas preguntas'];
+  const done=fields.flatMap(chapter=>chapter.questions).filter(q=>{
+    const answer=state.answers[q[0]];
+    return answer!==null&&answer!==undefined&&answer!==''&&(!Array.isArray(answer)||answer.length>0);
   }).length;
-  return '<div class="salon-operated">Operando: <strong>'+esc(state.user.name)+'</strong></div>'
+  const chapter=state.chapter;
+  const counter='<nav class="'+uiOriginal.chapter+' salon-chapters" aria-label="Capítulos">'
+    +'<button type="button" class="text-muted-foreground/60 hover:text-muted-foreground flex size-11 items-center justify-center"'
+    +' data-action="previous-step" aria-label="Capítulo anterior"'+(chapter===0?' disabled':'')+'>←</button>'
+    +'<ol class="flex items-center gap-3">'+titles.map((name,index)=>
+      '<li class="tabular-nums text-[12px] font-medium '+(chapter===index?'text-foreground/70':'text-muted-foreground/50')+'"'
+      +(index===chapter?' aria-current="step"':'')+' title="'+esc(name)+'" aria-label="Capítulo '+(index+1)+': '+esc(name)+'">'+(index+1)+'</li>').join('')
+    +'</ol><button type="button" class="text-muted-foreground/60 hover:text-muted-foreground flex size-11 items-center justify-center"'
+    +' data-action="next-step" aria-label="Capítulo siguiente"'+(chapter===4?' disabled':'')+'>→</button></nav>';
+  const side=' <span class="text-muted-foreground text-salon-meta">'+done+' de 23 preguntas contestadas</span>';
+  const cuota=Number(state.answers.cuota_posible_ars)||0;
+  const total=chapter===3?'<section class="salon-total"><p class="text-[17px] leading-snug font-medium">Cuota total que podrías pagar para convertirte en Dueño:</p>'
+    +'<p class="cifra text-brand text-3xl font-semibold">Total: '+new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(cuota)+'</p></section>':'';
+  return '<div class="space-y-6 salon-test">'
+    +'<div class="text-muted-foreground text-small">Operando: <strong class="text-foreground">'+esc(state.user.name)+'</strong></div>'
     +personTitle('Full-test',v,'El Test del Dueño. Ninguna pregunta es obligatoria.')
-    +'<form id="fulltest-form" class="salon-form">'
-    +'<nav class="salon-chapters" aria-label="Capítulos">'+names.map((name,i)=>'<span class="salon-chapter '+(i===state.chapter?'current':i<state.chapter?'past':'')+'" title="'+esc(name)+'">'+(i+1)+'</span>').join('')+'</nav>'
-    +'<div class="salon-chapter-title"><small>Capítulo '+(state.chapter+1)+' de 5</small><h2>'+esc(names[state.chapter])+'</h2><small>'+tally+' de 23 preguntas contestadas</small></div>'
-    +chapterQuestions().map(q=>fulltestQuestion(q,state.answers)).join('')
-    +'<div class="salon-sticky-save salon-form-actions">'
-    +actionButton('Descartar','cancel-test','text')+actionButton('No terminó','save-draft','outline')
-    +'<button class="salon-primary" type="submit">'+(state.chapter===4?'Enviar':'Siguiente paso: '+esc(names[state.chapter+1]))+'</button></div></form>';
+    +'<button type="button" class="text-muted-foreground hover:text-foreground text-small underline underline-offset-4" data-action="correct-contact">Corregir nombre o teléfono</button>'
+    +'<form id="contact-form" class="salon-contact-correction" hidden>'
+    +formField('name','Nombre y apellido',v.visitor_name)
+    +formField('phone','Teléfono',v.phone||'','tel','Opcional')
+    +'<div class="salon-contact-actions"><button class="salon-primary" type="submit">Guardar corrección</button>'
+    +actionButton('Cancelar','close-contact','outline')+'</div></form>'
+    +'<form id="fulltest-form" class="scroll-mt-20 space-y-6">'+counter
+    +'<div class="flex flex-wrap items-center justify-between gap-3">'
+    +'<h2 class="text-lg font-medium">'+esc(titles[chapter])+'</h2>'+side+'</div>'
+    +'<div class="grid gap-x-10 gap-y-7 lg:grid-cols-2 salon-questions">'
+    +chapterQuestions().map(q=>fulltestQuestion(q,state.answers)).join('')+'</div>'+total
+    +'<div class="salon-test-actions">'
+    +actionButton('Descartar','cancel-test','text')
+    +actionButton('No terminó','save-draft','outline')
+    +'<button type="submit" class="'+uiOriginal.submit+'">'
+    +(chapter===4?'Siguiente paso: Enviar':'Siguiente paso: '+titles[chapter+1])+'</button></div>'
+    +'</form></div>';
 }
 function collectAnswers(){
   const form=document.getElementById('fulltest-form');if(!form)return;
   const f=new FormData(form);
   for(const q of chapterQuestions()){
-    if(q[3]==='multi')state.answers[q[0]]=f.getAll(q[0]);
+    if(q[0]==='ubicacion_sonada'){
+      const previous=Array.isArray(state.answers.ubicacion_sonada)?state.answers.ubicacion_sonada:[];
+      const visibleGroups=Object.entries(locationGroups).filter(([region])=>(state.locationFilter||'todo')==='todo'||region===state.locationFilter);
+      const visible=new Set(visibleGroups.flatMap(([,items])=>items));
+      state.answers.ubicacion_sonada=[...previous.filter(x=>!visible.has(x)),...f.getAll('ubicacion_sonada')];
+    }
+    else if(q[3]==='multi')state.answers[q[0]]=f.getAll(q[0]);
     else {
       const v=f.get(q[0]);
       if(v!==null)state.answers[q[0]]=q[2]==='number'?(v===''?null:Number(v)):(v||null);
@@ -335,10 +503,33 @@ function collectAnswers(){
 }
 function bindFulltest(v){
   const form=document.getElementById('fulltest-form');
+  form.querySelectorAll('[data-location-group]').forEach(button=>button.addEventListener('click',()=>{
+    collectAnswers();state.locationFilter=button.dataset.locationGroup;renderVisit();
+  }));
+  form.querySelectorAll('input[name="ubicacion_sonada"]').forEach(el=>el.addEventListener('change',()=>{
+    const total=document.getElementById('location-total');
+    if(total)total.textContent=form.querySelectorAll('input[name="ubicacion_sonada"]:checked').length+' zonas seleccionadas';
+  }));
   form.querySelectorAll('input').forEach(el=>{
     if(['tiene_ahorros','tipo_propiedad','situacion_laboral','quien_decide'].includes(el.name))
       el.addEventListener('change',()=>{collectAnswers();renderVisit();});
   });
+  wire('previous-step',()=>{collectAnswers();if(state.chapter>0){state.chapter--;renderVisit();}});
+  wire('next-step',async()=>{collectAnswers();if(state.chapter<4){if(await save(false)){state.chapter++;renderVisit();}}});
+  const contact=document.getElementById('contact-form');
+  wire('correct-contact',()=>{collectAnswers();contact.hidden=false;contact.querySelector('input').focus();});
+  wire('close-contact',()=>{contact.hidden=true;});
+  contact.onsubmit=async event=>{
+    event.preventDefault();
+    const values=new FormData(contact);
+    try{
+      const data=await api('/visits/'+v.id+'/contact',{method:'PATCH',body:JSON.stringify({
+        name:values.get('name'),phone:values.get('phone')
+      })});
+      v.visitor_name=data.name;v.phone=data.phone;
+      status('Datos actualizados.','success');renderVisit();
+    }catch(error){status(error.message);}
+  };
   wire('cancel-test',()=>{if(confirm('¿Descartar los cambios no guardados?'))home();});
   const save=async complete=>{
     collectAnswers();
@@ -355,36 +546,61 @@ function bindFulltest(v){
   };
 }
 const speakersRoster=['Keren Botini','Nicolas Espinosa','Nicole Laquinta','Thomas Nuñez','Katherine Puppo','Priscila Zajama'];
-function routingPage(v){
-  const advisor=state.users.filter(u=>u.role==='asesor');
-  return personTitle('Charla y derivación',v,'Registrá cómo le fue en la charla y, si corresponde, elegí el asesor que la va a atender.')
-    +'<form class="salon-form" id="route-form">'
+function routingPage(v) {
+  const advisors=state.users.filter(user=>user.role==='asesor');
+  const advisorList=advisors.map(user=>
+    '<label class="'+uiOriginal.choice+' salon-choice" data-advisor-name="'+esc(user.name.toLocaleLowerCase('es'))+'">'
+    +'<input class="sr-only" type="radio" name="advisor_id" value="'+user.id+'">'
+    +'<span aria-hidden="true" class="flex size-[22px] shrink-0 items-center justify-center rounded-pill border salon-choice-indicator">'+checkMark+'</span>'
+    +'<span class="min-w-0">'+esc(user.name)+'<small class="block text-muted-foreground">PAI</small></span></label>'
+  ).join('');
+  return '<div class="space-y-6"><div class="mb-4">'+personTitle('Charla y derivación',v,
+    'Registrá cómo le fue en la charla y, si corresponde, elegí el asesor que la va a atender.')+'</div>'
+    +'<form class="space-y-6" id="route-form">'
     +choices('outcome','¿Cómo le fue en la charla?',['La vio entera','La vio entera, pero no se deriva','Se fue en medio de la charla','No se quedó'])
-    +choices('speaker','¿Quién dio la charla?',speakersRoster)
-    +choices('product','¿Qué producto?',['PAI','Pozo'],'PAI')
-    +'<fieldset class="salon-fieldset"><legend>¿A qué asesor la derivás?</legend><input class="salon-input" id="advisor-filter" placeholder="Filtrar asesores…" type="search">'
-    +'<div id="advisor-list" class="salon-choices advisor-choices">'+advisor.map(u=>'<label class="salon-choice" data-advisor-name="'+esc(u.name.toLowerCase())+'">'
-    +'<input type="radio" name="advisor_id" value="'+u.id+'"><span class="salon-choice-circle">✓</span><span>'+esc(u.name)+'</span></label>').join('')+'</div></fieldset>'
+    +'<div id="route-speaker">'+choices('speaker','¿Quién dio la charla?',speakersRoster,null,false,true)+'</div>'
+    +'<div id="route-product">'+choices('product','¿Qué producto?',['PAI','Pozo'],'PAI')+'</div>'
+    +'<fieldset id="route-advisor" class="space-y-3 salon-fieldset"><legend class="block text-lg leading-snug font-medium">¿A qué asesor la derivás?</legend>'
+    +'<input class="h-9 w-full rounded-field-mobile border border-border bg-surface px-3 text-[13px] outline-none"'
+    +' id="advisor-filter" type="search" autocomplete="off" placeholder="Buscá un asesor">'
+    +'<div id="advisor-list" class="grid grid-cols-2 gap-2 salon-advisor-list">'+advisorList+'</div></fieldset>'
     +'<div id="reason-list">'+choices('reason','¿Por qué no continuó?',exitReasons)+'</div>'
-    +'<p class="salon-meta">Lo firma tu sesión: <strong>'+esc(state.user.name)+'</strong>, sobre la visita de '+esc(v.visitor_name)+'.</p>'
-    +'<button class="salon-primary" type="submit">Confirmar derivación</button></form>';
+    +'<p class="text-muted-foreground text-center text-[15px] leading-snug">No se puede deshacer desde acá.</p>'
+    +'<button class="'+uiOriginal.submit+'" type="submit">Confirmar derivación</button></form></div>';
 }
-function bindRouting(v){
-  const form=document.getElementById('route-form'),filter=document.getElementById('advisor-filter');
-  function toggle(){const x=new FormData(form).get('outcome');document.getElementById('reason-list').hidden=x==='La vio entera';}
+function bindRouting(v) {
+  const form=document.getElementById('route-form');
+  const filter=document.getElementById('advisor-filter');
+  function toggle(){
+    const outcome=new FormData(form).get('outcome');
+    const complete=outcome==='La vio entera';
+    const whole=outcome==='La vio entera, pero no se deriva';
+    const partial=outcome==='Se fue en medio de la charla';
+    document.getElementById('route-speaker').hidden=!(complete||whole||partial);
+    document.getElementById('route-product').hidden=!complete;
+    document.getElementById('route-advisor').hidden=whole||!outcome;
+    document.getElementById('reason-list').hidden=complete||!outcome;
+    document.querySelector('#route-form button[type="submit"]').disabled=!outcome;
+  }
   form.addEventListener('change',toggle);toggle();
   filter.addEventListener('input',()=>{
-    const q=filter.value.toLowerCase();
-    form.querySelectorAll('[data-advisor-name]').forEach(x=>x.hidden=!x.dataset.advisorName.includes(q));
+    const q=filter.value.toLocaleLowerCase('es');
+    form.querySelectorAll('[data-advisor-name]').forEach(element=>element.hidden=!element.dataset.advisorName.includes(q));
   });
-  form.onsubmit=async e=>{
-    e.preventDefault();const f=new FormData(form);
-    const outcomes={'La vio entera':'entera','La vio entera, pero no se deriva':'entera_no_deriva',
-      'Se fue en medio de la charla':'se_fue','No se quedó':'no_se_quedo'};
+  form.onsubmit=async event=>{
+    event.preventDefault();const fields=new FormData(form);
+    const outcomes={
+      'La vio entera':'entera',
+      'La vio entera, pero no se deriva':'entera_no_deriva',
+      'Se fue en medio de la charla':'se_fue',
+      'No se quedó':'no_se_quedo'
+    };
+    const choice=fields.get('outcome');
     try{
       await api('/visits/'+v.id+'/route',{method:'PUT',body:JSON.stringify({
-        outcome:outcomes[f.get('outcome')],advisor_id:f.get('advisor_id')||null,
-        speaker:f.get('speaker'),product:f.get('product'),reason:f.get('reason')||'',
+        outcome:outcomes[choice],advisor_id:fields.get('advisor_id')||null,
+        speaker:fields.get('speaker'),product:choice==='La vio entera'?fields.get('product'):null,
+        reason:choice==='La vio entera'?null:fields.get('reason')
       })});
       status('Derivación registrada.','success');await home();
     }catch(error){status(error.message);}

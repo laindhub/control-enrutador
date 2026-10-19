@@ -404,11 +404,26 @@ function renderAdmin(){
     +'<label class="salon-field"><span class="salon-label">Puesto</span><select class="salon-input" name="role">'
     +Object.keys(userRoles).filter(k=>k!=='admin').map(k=>'<option value="'+k+'">'+esc(userRoles[k])+'</option>').join('')+'</select></label>'
     +'<button class="salon-primary">Agregar empleado</button></form>'
-    +'<div id="staff-list" class="salon-staff-list">'+state.users.filter(u=>u.role!=='admin').map(u=>'<div class="salon-staff-row">'
-    +'<b>'+esc(u.name)+'</b><small>'+esc(userRoles[u.role]||u.role)+'</small></div>').join('')+'</div>'
+    +'<div id="staff-list" class="salon-staff-list">'+state.users.filter(u=>u.role!=='admin').map(u=>'<div class="salon-staff-row" data-staff="'+u.id+'">'
+    +'<label class="salon-field"><span class="salon-label">Empleado</span><input class="salon-input" name="name" value="'+esc(u.name)+'"></label>'
+    +'<label class="salon-field"><span class="salon-label">Puesto</span><select class="salon-input" name="role">'
+    +Object.keys(userRoles).filter(k=>k!=='admin').map(k=>'<option value="'+k+'"'+(u.role===k?' selected':'')+'>'+esc(userRoles[k])+'</option>').join('')+'</select></label>'
+    +'<label class="salon-toggle"><input name="active" type="checkbox"'+(u.active?' checked':'')+'> Habilitado</label>'
+    +'<button class="salon-button" type="button" data-save-staff="'+u.id+'">Guardar cambios</button>'
+    +'</div>').join('')+'</div>'
     +'</section></div>',true);
   wire('search-leads',()=>{state.search=document.getElementById('search-leads').value;home();});
   document.querySelectorAll('[data-crm]').forEach(el=>el.onclick=()=>openCrm(el.dataset.crm));
+  document.querySelectorAll('[data-save-staff]').forEach(button=>button.onclick=async()=>{
+    const row=button.closest('[data-staff]');
+    const payload={name:row.querySelector('[name=name]').value.trim(),
+      role:row.querySelector('[name=role]').value,
+      active:row.querySelector('[name=active]').checked};
+    try{
+      await api('/users/'+button.dataset.saveStaff,{method:'PATCH',body:JSON.stringify(payload)});
+      state.users=await api('/users');status('Empleado actualizado.','success');renderAdmin();
+    }catch(error){status(error.message);}
+  });
   document.getElementById('operator-form').onsubmit=async e=>{
     e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));
     try{await api('/users',{method:'POST',body:JSON.stringify(data)});state.users=await api('/users');

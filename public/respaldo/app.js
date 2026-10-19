@@ -265,18 +265,29 @@ function renderTools() {
   wire('start-reception',renderReception);
 }
 function formField(key,title,value='',type='text',placeholder='—'){
-  return '<label class="salon-field"><span class="salon-label">'+esc(title)+'</span>'
-    +'<input class="salon-input" autocomplete="off" type="'+esc(type)+'" name="'+esc(key)+'" placeholder="'+esc(placeholder)+'"'
-    +' value="'+esc(value??'')+'"'+(type==='number'?' min="0" step="1"':'')+'></label>';
+  return '<div class="space-y-1.5 salon-field"><label for="input-'+esc(key)+'" class="'+uiOriginal.label+'">'+esc(title)+'</label>'
+    +'<input class="'+uiOriginal.input+'" id="input-'+esc(key)+'" autocomplete="off"'
+    +' type="'+esc(type)+'" name="'+esc(key)+'" placeholder="'+esc(placeholder)+'"'
+    +' value="'+esc(value??'')+'"'+(type==='number'?' min="0" step="1" inputmode="numeric"':'')+'></div>';
 }
-function choices(key,title,values,current=null,multi=false,columns=false){
-  return '<fieldset class="salon-fieldset"><legend>'+esc(title)+'</legend><div class="salon-choices '+(columns?'two':'')+'">'
-    +values.map(v=>'<label class="salon-choice"><input type="'+(multi?'checkbox':'radio')+'" name="'+esc(key)+'" value="'+esc(v)+'"'
-    +(multi?(Array.isArray(current)&&current.includes(v)?' checked':''):(current===v?' checked':''))+'>'
-    +'<span class="salon-choice-circle">✓</span><span>'+esc(v)+'</span></label>').join('')
-    +'</div></fieldset>';
+function choices(key,title,values,current=null,multi=false,columns=false,description=''){
+  const listClass=columns?'grid grid-cols-2 gap-1.5':'flex flex-wrap gap-2';
+  const wide=!columns&&values.length<=4&&String(key)==='outcome';
+  const optionClass=wide?uiOriginal.choiceLarge:uiOriginal.choice;
+  return '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset"><legend class="space-y-1">'
+    +'<span class="block text-lg leading-snug font-medium">'+esc(title)+'</span>'
+    +(description?'<small class="text-muted-foreground text-salon-meta">'+esc(description)+'</small>':'')
+    +'</legend><div class="'+listClass+' salon-options">'
+    +values.map(value=>{
+      const checked=multi?Array.isArray(current)&&current.includes(value):current===value;
+      return '<label class="'+optionClass+' salon-choice'+(checked?' is-checked':'')+'">'
+        +'<input class="sr-only" type="'+(multi?'checkbox':'radio')+'" name="'+esc(key)+'" value="'+esc(value)+'"'+(checked?' checked':'')+'>'
+        +'<span aria-hidden="true" class="flex size-[22px] shrink-0 items-center justify-center rounded-pill border transition-colors border-border bg-surface salon-choice-indicator">'+checkMark+'</span>'
+        +'<span class="min-w-0"><span class="block leading-snug">'+esc(value)+'</span></span>'
+        +'</label>';
+    }).join('')+'</div></fieldset>';
 }
-async function openVisit(id) {
+function openVisit(id) {
   try{
     state.current=await api('/visits/'+encodeURIComponent(id));
     state.answers=state.current.fulltest_json||{};
@@ -299,8 +310,10 @@ function renderVisit() {
   if(state.view==='asesor')bindConversion(v);
 }
 function personTitle(title,v,detail) {
-  return '<div class="salon-intro"><h1>'+esc(title)+'</h1><p>Con '+esc(v.visitor_name)+'. '+esc(detail)+'</p>'
-    +timeline(v)+'</div>';
+  const first=String(v.visitor_name||'').split(' ')[0];
+  return '<div class="space-y-1 salon-intro"><h1 class="'+uiOriginal.h1+'">'+esc(title)+'</h1>'
+    +'<p class="'+uiOriginal.muted+'">Con '+esc(first)+'. '+esc(detail)+'</p>'
+    +'<p class="'+uiOriginal.meta+'">'+timeline(v)+'</p></div>';
 }
 function pretestPage(v) {
   const a=v.pretest_json||{},parts=v.visitor_name.trim().split(/\s+/);

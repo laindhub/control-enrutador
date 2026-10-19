@@ -136,3 +136,9 @@ button:disabled {opacity:.45;cursor:not-allowed}
  .salon-test-actions .salon-button {flex:1}
  .salon-questions .salon-options {gap:7px}
 }
+
+.salon-contact-correction {padding:18px;border:1px solid var(--border);border-radius:var(--radius-card-mobile);background:var(--surface);display:grid;gap:14px}
+.salon-contact-correction[hidden] {display:none}
+.salon-contact-actions {display:flex;gap:8px;flex-wrap:wrap}
+.salon-contact-actions .salon-primary {width:auto;flex:1}
+@media(max-width:440px){.salon-contact-actions .salon-primary {flex-basis:100%}}

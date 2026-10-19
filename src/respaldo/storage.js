@@ -14,6 +14,26 @@ export const db = configured ? mysql.createPool({
 }) : null;
 let startup;
 
+// Initial employee catalog grounded in the extracted Liniers screens.
+// Admin can extend the roster and set the correct role without modifying source.
+// Do not assume roles for names seen only in the original login listing.
+const initialOperators = [
+  ['Camila Basiukevitz', 'recepcion'],
+  ['Enzo Roble', 'pretest'],
+  ['Camila Sanabria', 'fulltest'],
+  ['Nahuel Lind', 'enrutador'],
+];
+const initialAdvisors = [
+  'Nadia Abregu','Nicolás Artaza','Zair Baltazar','Milagros Blanquicet',
+  'Nicolás Calvino','Federico Correa','Agustín Cristaldo','Matias Fernandez',
+  'Diana Florentin','Patricio Galeano','Belén Galvan','Matias Gomez',
+  'Camila Gonzalez','Eliana González','Ivon Guzmán','Samuel Lee',
+  'Milena Lezcano','Perdidos Liniers','Marina Mendoza','Gabriel Molina',
+  'Pablo Moreira','Thomas Nuñez','Sebastian Paglia','Mariela Palenque',
+  'Nuria Pereyra','Tamara Pereyra','Jackeline Pernambuco','Matias Picallo',
+  'Rocio Ureña','Melina Zorondo'
+];
+
 export async function ready() {
   if (!configured) {
     const error = Error('Faltan variables de Respaldo: '+required.filter(name => !env[name]).join(', '));
@@ -107,6 +127,19 @@ async function initialize() {
         await db.execute('DELETE FROM respaldo_sessions WHERE user_id=?', [extraId]);
       }
     }
+  }
+
+  // Operators are selected by name rather than authenticated with a PIN.
+  // pin_hash is kept only for backward-compatible schema deployments.
+  const unusableHash = await bcrypt.hash(randomUUID(), 10);
+  for (const [operator, role] of [
+    ...initialOperators,
+    ...initialAdvisors.map(name => [name, 'asesor']),
+  ]) {
+    await db.execute(
+      'INSERT IGNORE INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)',
+      [operator, role, unusableHash],
+    );
   }
 }
 

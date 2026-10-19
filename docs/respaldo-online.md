@@ -28,31 +28,25 @@ Los nombres de tablas usan el prefijo `respaldo_` y se crean en esta base separa
 Si faltan estas variables, **solo /respaldo/api** responde 503; las demás funciones existentes del sitio conservan su comportamiento. El Respaldo está integrado en la MISMA aplicación Node y el MISMO repositorio main, pero usa una base diferente. Una vez creadas las tablas, ingresá con RESPALDO_USERNAME / RESPALDO_PASSWORD y creá desde Administración una cuenta por cada operador con su puesto. Los PIN y la contraseña administrativa se guardan mediante bcrypt. Recomendación: usar PIN distintos de los del sistema de la empresa y no reutilizar el PIN de prueba compartido.
 
 
-## Un único login para toda la aplicación
+## Dos accesos, una misma aplicación
 
-Accedé desde `https://masduenos.laind.io/login` con `RESPALDO_USERNAME` y `RESPALDO_PASSWORD`. El sistema inicia una sesión separada en la base de Respaldo y redirige automáticamente a `/respaldo`.
+- **Personal del salón**: entra desde el botón «Entrar al sistema de respaldo» en la pantalla principal de `https://masduenos.laind.io/login`, que lleva a `/respaldo`. No existe formulario ni PIN: se elige el nombre en un listado igual al salón original, se obtiene una sesión operacional y se abre exclusivamente el puesto asignado.
+- **Administración**: usa `RESPALDO_USERNAME` y `RESPALDO_PASSWORD` en el login principal. Entra a `/respaldo` con un panel propio (CRM, alta y edición del personal), sin pestañas operativas.
+- **Permisos**: solamente la sesión administrativa tiene facultades para modificar personal, leer todas las fichas, exportar leads y marcar cargas manuales al CRM empresarial. El personal solo ve las visitas pertinentes a su puesto; el asesor solo puede indicar si se sentó.
+- **Datos**: cada visita se registra en la base MySQL independiente; nunca se envían leads automáticamente al servidor original.
 
-El personal con cuentas individuales creadas dentro de Respaldo también ingresa a esa misma página. Su nombre de usuario es `respaldo:<Nombre exacto del operador>` (con espacio si el nombre incluye espacio) y la contraseña es el PIN definido por Administración. **No existe un segundo formulario de ingreso dentro de /respaldo.**
+**Importante — acceso sin identificación comprobable:** elegir un nombre sin contraseña/PIN no autentica la identidad de esa persona. Como la URL es pública, terceros que la conozcan podrían seleccionar el nombre de un operador. Antes de almacenar datos personales reales hay que limitar el acceso operativo a una red corporativa/VPN o aplicar un control de acceso equivalente a nivel de infraestructura. El token de sesión protege contra modificaciones externas de otras páginas web, pero **no** sustituye una comprobación de identidad.
 
-La pantalla principal de login conserva el inicio de sesión de los usuarios tradicionales; las credenciales de Respaldo no crean usuarios en la base de datos principal. En caso de fallo de arranque del MySQL principal, el mismo login permanece accesible para las cuentas de respaldo.
-
-Si el login indica que faltan variables, revisar `RESPALDO_DB_USER` especialmente. Los errores de conexión a MySQL se muestran sin revelar contraseñas ni usuarios reales.
-
-## Login único y protección CSRF en Hostinger
-
-Se inicia sesión exclusivamente desde `https://masduenos.laind.io/login`, donde conviven las cuentas existentes y las cuentas independientes de Respaldo.
-
-Para que el proxy HTTPS de Hostinger no bloquee los formularios legítimos, la autenticación de Respaldo valida el nonce aleatorio del formulario con su cookie `HttpOnly` y `SameSite=Strict`, sin reconstruir ni comparar `Origin` a través de los encabezados internos del proxy. El acceso sigue limitado por usuario y contraseña/PIN, y por la tasa de intentos.
-
-Las operaciones de escritura de `/respaldo/api` requieren el encabezado `X-Respaldo-CSRF`, con un token de sesión recibido únicamente mediante `GET /respaldo/api/me` tras la autenticación. La sesión se conserva en la base propia de Respaldo.
-
-**No se necesita `RESPALDO_PUBLIC_ORIGIN` ni cambiar variables de Hostinger**.
+El CSS original extraído de Liniers está guardado en `public/respaldo/original.css`. Los componentes recreados usan las mismas variables y criterios visuales; los recursos WOFF2 de la instancia original no están incluidos.
 
 ## Rutas
 
 - `/respaldo` — interfaz autónoma.
 - `/respaldo/api/health` — comprueba solo la base del respaldo.
-- `/respaldo/api/users`, `/me`, `/logout` — identidades y cierre de sesión; el login está en `/login`.
+- `/respaldo/api/people` — listado de personas del salón, nunca Administración.
+- `/respaldo/api/enter` — selección de nombre (sin PIN) y sesión operativa.
+- `/respaldo/api/users` y `/api/users/:id` — gestión de personal, solo Administración.
+- `/respaldo/api/me`, `/logout` — sesión y cierre.
 - `/respaldo/api/visits` — consulta/ingreso de visitas.
 - `/respaldo/api/visits/:id/pretest` — cuestionario inicial.
 - `/respaldo/api/visits/:id/fulltest` — guardado por capítulos y finalización.

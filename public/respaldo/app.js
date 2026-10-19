@@ -50,255 +50,437 @@ const input = (key, label, value='',type='text') => '<label class="field">'+esc(
 const select = (key, label, options, value='', empty='Seleccionar') => '<label class="field">'+esc(label)+'<select name="'+esc(key)+'"><option value="">'+esc(empty)+'</option>'+options.map(o=>'<option '+(String(o)===String(value)?'selected':'')+'>'+esc(o)+'</option>').join('')+'</select></label>';
 const btn = (text,id,style='')=>'<button type="button" class="btn '+style+'" data-action="'+id+'">'+esc(text)+'</button>';
 const userRoles = {admin:'Administración',recepcion:'Recepción',pretest:'Pre-test',fulltest:'Full-test',enrutador:'Enrutación',asesor:'Conversión'};
-async function api(url, options={}) {
-  const write = !['GET', 'HEAD', 'OPTIONS'].includes(String(options.method || 'GET').toUpperCase());
-  const headers = { 'Content-Type':'application/json', ...(options.headers || {}) };
-  if (write && state.user?.csrf) headers['X-Respaldo-CSRF'] = state.user.csrf;
-  const r = await fetch('/respaldo/api'+url,{credentials:'same-origin',...options,headers});
-  let data; try { data = await r.json(); } catch { data = {}; }
-  if (!r.ok) throw Error(data.error || 'Solicitud fallida ('+r.status+')');
+async function api(url, options = {}) {
+  const headers = {'Content-Type':'application/json',...(options.headers||{})};
+  const write = !['GET','HEAD','OPTIONS'].includes(String(options.method||'GET').toUpperCase());
+  if(write && state.user?.csrf) headers['X-Respaldo-CSRF'] = state.user.csrf;
+  const res = await fetch('/respaldo/api'+url,{credentials:'same-origin',...options,headers});
+  let data={};try{data=await res.json()}catch{}
+  if(!res.ok) {const error=new Error(data.error||('Error '+res.status));error.status=res.status;throw error;}
   return data;
 }
-function status(message, kind='error') {
-  const n=document.createElement('div'); n.className='notice '+kind; n.textContent=message;
-  document.body.append(n); setTimeout(()=>n.remove(),5000);
+function status(message,type='error') {
+  const notice=document.createElement('div');notice.className='notice '+type;
+  notice.textContent=message;document.body.appendChild(notice);
+  setTimeout(()=>notice.remove(),5000);
 }
-function wire(id,callback) { const el=document.querySelector('[data-action="'+id+'"]'); if (el) el.onclick=callback; }
-function header() {
-  return '<header class="top"><div class="brand"><span class="logo">⌂</span> <span>Más<b>Dueños</b></span><small>Respaldo</small></div><div class="operator">'+esc(state.user.name)+' · '+esc(userRoles[state.user.role])+'</div>'+btn('Salir','logout','ghost')+'</header>';
+function wire(id,callback) {
+  const button=document.querySelector('[data-action="'+id+'"]');
+  if(button)button.addEventListener('click',callback);
 }
-function boardShell(content) {
-  app.innerHTML=header()+'<section class="main">'+content+'</section>';
-  wire('logout',async()=>{try{await api('/logout',{method:'POST',body:'{}'});}catch(error){status(error.message);return;}location.assign('/login?respaldo=1');});
-}
+const roleLabels={admin:'Administración',recepcion:'Ingreso',pretest:'Pre-test',fulltest:'Full-test',enrutador:'Enrutador',asesor:'Conversión'};
+const promoterRoster=['Ariel Mendez','Nicolas Jimenez','Camila Basiukevitz','Prueba T 1','Hanna Mendez','Prueba T2','Karina Acosta','Prueba T3','Laura Zangaro','Prueba T4','Luciano Barraza','Prueba T5','Luz Vigliano','Samira Morales','Martina Montiel','Sofia Mitre','Melina Acuña','Trinidad Silva','Nadia Chavez'];
+const actionButton=(label,id,kind='')=>'<button type="button" class="salon-button '+kind+'" data-action="'+esc(id)+'">'+esc(label)+'</button>';
+const initials=name=>String(name||'').trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+const timeline=v=>'<p class="salon-meta">Entró '+fmt(v.created_at)+' · '+esc(v.source||'')+(v.promoter?' · la trajo '+esc(v.promoter):'')+'</p>';
+let rosterNonce='';
+let roster=[];
 async function boot() {
-  try {
-    await api('/health');
-    state.user = await api('/me');
-    state.users = await api('/users');
+  try {await api('/health');}catch(error){showSetupError(error);return;}
+  try{
+    state.user=await api('/me');
+    state.users=await api('/users');
     await home();
-  } catch (error) {
-    if (error.message === 'Iniciá sesión.') {
-      location.replace('/login?respaldo=1');
-      return;
-    }
-    app.innerHTML='<div class="center"><h1>Respaldo sin configurar</h1><p>'
-      +esc(error.message)+'</p><p>Revisá RESPALDO_DB_* y RESPALDO_USERNAME / RESPALDO_PASSWORD en Hostinger.</p>'
-      +'<a class="btn outline" href="/login">Volver al login principal</a></div>';
+  }catch(error){
+    if(error.status===401) {state.user=null;await showRoster();return;}
+    showSetupError(error);
   }
 }
+function showSetupError(error) {
+  app.innerHTML='<main class="salon-page"><div class="salon-content"><div class="salon-wordmark">Más <strong>Dueños</strong><span>Salón</span></div>'
+  +'<h1>Respaldo no disponible</h1><p>'+esc(error.message)+'</p>'
+  +'<a class="salon-button" href="/login">Volver al inicio</a></div></main>';
+}
+async function showRoster() {
+  try {const result=await api('/people'); roster=result.people;rosterNonce=result.nonce;renderRoster();}
+  catch(error){showSetupError(error);}
+}
+function renderRoster() {
+  app.innerHTML='<main class="salon-page"><div class="salon-content">'
+    +'<div class="salon-wordmark"><strong>Más Dueños</strong><span>Salón · Respaldo</span></div>'
+    +'<div class="salon-intro"><h1>¿Quién sos?</h1><p>Tocá tu nombre para entrar al salón.</p></div>'
+    +'<div class="searchbox"><span aria-hidden="true">⌕</span><input id="roster-search" type="search" placeholder="Buscá tu nombre" autocomplete="off"></div>'
+    +'<ul class="salon-roster" id="roster-results"></ul>'
+    +'<p class="salon-footnote">Elegí únicamente tu nombre. El administrador gestiona los puestos y las personas habilitadas.</p>'
+    +'<a class="salon-back" href="/login">← Volver al inicio</a>'
+    +'</div></main>';
+  const search=document.getElementById('roster-search'), list=document.getElementById('roster-results');
+  function draw(){
+    const query=search.value.trim().toLocaleLowerCase('es');
+    const rows=roster.filter(p=>p.name.toLocaleLowerCase('es').includes(query));
+    list.innerHTML=rows.length?rows.map(p=>'<li><button class="salon-person" data-person="'+p.id+'">'
+      +'<span class="salon-avatar">'+esc(initials(p.name))+'</span>'
+      +'<span class="salon-person-details"><b>'+esc(p.name)+'</b><small>Liniers · '+esc(userRoles[p.role]||p.role)+'</small></span>'
+      +'<span class="salon-chevron">›</span></button></li>').join(''):'<li class="salon-empty">No encontramos a esa persona.</li>';
+    list.querySelectorAll('[data-person]').forEach(el=>el.onclick=async()=>{
+      el.disabled=true;
+      try{
+        await api('/enter',{method:'POST',body:JSON.stringify({id:Number(el.dataset.person),nonce:rosterNonce})});
+        state.user=await api('/me');state.users=await api('/users');state.view=state.user.role;
+        await home();
+      }catch(error){status(error.message);await showRoster();}
+    });
+  }
+  search.addEventListener('input',draw);draw();
+}
+function header() {
+  return '<header class="salon-header"><div class="salon-header-inner"><div class="salon-brand">⌂ <strong>Salón</strong></div>'
+    +'<div class="salon-current"><span class="salon-avatar mini">'+esc(initials(state.user.name))+'</span>'
+    +'<span>'+esc(state.user.name.split(' ')[0])+' · Liniers</span></div>'
+    +actionButton('Salir','logout','link')+'</div></header>';
+}
+function page(content,wide=false) {
+  app.innerHTML=header()+'<main class="salon-page '+(wide?'salon-wide':'')+'"><div class="salon-content">'+content+'</div></main>';
+  wire('logout',async()=>{
+    try{await api('/logout',{method:'POST',body:'{}'});}
+    catch(error){status(error.message);return;}
+    state.user=null;state.current=null;state.view='';await showRoster();
+  });
+}
 async function home() {
-  try { state.visits=await api('/visits'+(state.search?'?search='+encodeURIComponent(state.search):'')); }
-  catch(e){status(e.message);return;}
-  if (!state.view || (state.user.role!=='admin' && state.view!==state.user.role)) state.view=state.user.role;
+  try{state.visits=await api('/visits'+(state.search?'?search='+encodeURIComponent(state.search):''));}
+  catch(error){if(error.status===401){state.user=null;await showRoster();return;}showSetupError(error);return;}
+  state.view=state.user.role;
+  state.current=null;
   renderHome();
 }
 function renderHome() {
-  let content='<div class="heading"><div><h1>'+esc(userRoles[state.view])+'</h1><p>Salón Más Dueños · respaldo operativo independiente</p></div></div>';
-  if (state.user.role==='admin') content+='<nav class="tabs">'+Object.keys(userRoles).map(r=>btn(userRoles[r], 'role-'+r,state.view===r?'selected':'ghost')).join('')+'</nav>';
-  if (state.view==='recepcion') content+=receptionForm();
-  if (state.view==='admin') content+=adminHome();
-  if (state.view!=='recepcion' && state.view!=='admin') content+=visitList();
-  boardShell(content);
-  for (const role of Object.keys(userRoles)) wire('role-'+role,()=>{state.view=role;state.current=null;renderHome();});
-  if (state.view==='recepcion') bindReception();
-  if (state.view==='admin') bindAdmin();
+  if(state.view==='admin'){renderAdmin();return;}
+  if(state.view==='recepcion'){renderReception();return;}
+  page('<div class="salon-intro"><h1>'+esc(roleLabels[state.view])+'</h1>'
+    +'<p>'+({pretest:'Tomar el pre-test',fulltest:'Tomar el Test del Dueño',enrutador:'Charla y derivación',asesor:'Confirmar si la persona se sentó'}[state.view]||'')+'</p></div>'
+    +pendingList());
   wire('refresh',()=>home());
-  document.querySelectorAll('[data-visit]').forEach(el=>el.onclick=()=>openVisit(el.dataset.visit));
+  document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));
 }
-function visitList() {
+function pendingList() {
   const role=state.view;
-  const relevant=state.visits.filter(v=>{
-    if (role==='pretest') return v.phase==='pretest';
-    if (role==='fulltest') return v.phase==='fulltest';
-    if (role==='enrutador') return v.phase==='enrutacion';
-    if (role==='asesor') return v.phase==='asesor' && (state.user.role!=='asesor' || Number(v.assigned_advisor_id)===state.user.id);
-    return true;
-  });
-  return '<div class="listhead"><h2>Personas pendientes ('+relevant.length+')</h2>'+btn('Actualizar','refresh','outline')+'</div>'
-    +(relevant.length?relevant.map(v=>'<button class="visit" data-visit="'+esc(v.id)+'"><span><b>'+esc(v.visitor_name)+'</b><small>'+esc(v.source||'')+' · '+fmt(v.created_at)+'</small></span><span>Continuar →</span></button>').join(''):'<div class="empty">No hay personas pendientes en este puesto.</div>');
+  const wait=state.visits.filter(v=>role==='pretest'?v.phase==='pretest':role==='fulltest'?v.phase==='fulltest':
+    role==='enrutador'?v.phase==='enrutacion':role==='asesor'?v.phase==='asesor':false);
+  return '<div class="salon-counters"><span><strong>'+wait.length+'</strong> En espera</span>'
+    +'<span><strong>0</strong> Perdidos</span><span><strong>0</strong> Atendidas</span></div>'
+    +'<div class="salon-list-heading"><h2>En espera</h2>'+actionButton('Actualizar lista','refresh','link')+'</div>'
+    +(wait.length?'<ul class="salon-visit-list">'+wait.map(v=>'<li><button class="salon-visit" data-visit="'+esc(v.id)+'">'
+    +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
+    +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'+esc(v.source||'')+' · '+esc(v.promoter||'Liniers')+'</small></span>'
+    +'<span class="salon-chevron">›</span></button></li>').join('')+'</ul>':
+    '<p class="salon-empty">No hay personas en espera por el momento.</p>');
 }
-function receptionForm() {
-  return '<div class="panel"><h2>Registrar ingreso</h2><form id="checkin-form">'
-    +input('visitor_name','Nombre de la persona')
-    +select('source','¿Por dónde entró?',sources,'Promotor con ruleta')
-    +input('promoter','¿Quién la trajo? (si corresponde)')
-    +select('continues','¿Siguió adelante?',['Sí, sigue el recorrido','No continuó'],'Sí, sigue el recorrido')
-    +'<div id="reason-wrap">'+select('exit_reason','Motivo por el que no continuó',exitReasons)+'</div>'
-    +'<button class="btn primary">Registrar ingreso</button></form></div>';
-}
-function bindReception(){
+function renderReception() {
+  page('<button class="salon-back" data-action="home-tools">← Herramientas</button>'
+    +'<h1 class="salon-h1">Ingreso</h1><form id="checkin-form" class="salon-form">'
+    +formField('visitor_name','Nombre','','text','Nombre de la persona')
+    +choices('source','¿Por dónde entró?',sources,'Promotor con ruleta',false,true)
+    +'<div id="source-person" class="salon-fieldset"><h2 id="source-person-title">¿Quién la trajo?</h2>'
+    +'<input id="source-filter" class="salon-input" type="search" placeholder="Filtrar personal…" autocomplete="off">'
+    +'<div class="salon-choices two salon-person-options" id="source-options"></div></div>'
+    +choices('continues','¿Siguió adelante?',['Sí, sigue el recorrido',...exitReasons],'Sí, sigue el recorrido',false,false)
+    +'<div class="salon-sticky-save"><p>Se va a guardar a tu nombre: <strong>'+esc(state.user.name)+'</strong>.</p>'
+    +'<button class="salon-primary" type="submit" id="checkin-submit">Registrar el ingreso</button></div></form>');
   const form=document.getElementById('checkin-form');
-  const r=document.getElementById('reason-wrap');
-  const toggle=()=>{r.hidden=form.elements.continues.value==='Sí, sigue el recorrido';form.elements.promoter.closest('.field').hidden=!['Promotor con ruleta','Vino a ver a su asesor'].includes(form.elements.source.value);};
-  form.elements.continues.onchange=toggle;form.elements.source.onchange=toggle;toggle();
+  const personSearch=document.getElementById('source-filter');
+  let selectedPerson='';
+  function showPersonOptions(){
+    const channel=new FormData(form).get('source');
+    const names=channel==='Vino a ver a su asesor'
+      ? state.users.filter(u=>u.role==='asesor').map(u=>u.name) : promoterRoster;
+    document.getElementById('source-person-title').textContent=channel==='Vino a ver a su asesor'
+      ? '¿A quién vino a ver?' : '¿Quién la trajo?';
+    const query=personSearch.value.trim().toLowerCase();
+    document.getElementById('source-options').innerHTML=names.filter(name=>name.toLowerCase().includes(query))
+      .map(name=>'<label class="salon-choice"><input type="radio" name="promoter" value="'+esc(name)+'"'
+        +(selectedPerson===name?' checked':'')+'><span class="salon-choice-circle">✓</span><span>'+esc(name)+'</span></label>').join('');
+  }
+  function update(){
+    const channel=new FormData(form).get('source');
+    document.getElementById('source-person').hidden=!['Promotor con ruleta','Vino a ver a su asesor'].includes(channel);
+    showPersonOptions();
+    const next=new FormData(form).get('continues')==='Sí, sigue el recorrido';
+    document.getElementById('checkin-submit').textContent=next?'Registrar el ingreso':'Registrar que no pasó';
+  }
+  form.addEventListener('change',event=>{
+    if(event.target.name==='promoter') selectedPerson=event.target.value;
+    if(event.target.name==='source') {selectedPerson='';personSearch.value='';}
+    update();
+  });
+  personSearch.addEventListener('input',showPersonOptions);
+  update();
   form.onsubmit=async e=>{
-    e.preventDefault();const f=new FormData(form);const yes=f.get('continues')==='Sí, sigue el recorrido';
-    try {await api('/visits',{method:'POST',body:JSON.stringify({visitor_name:f.get('visitor_name'),source:f.get('source'),promoter:f.get('promoter')||'',continues:yes,exit_reason:yes?'':f.get('exit_reason')})});status('Ingreso registrado correctamente.','success');await home();}
-    catch(e){status(e.message);}
+    e.preventDefault();const f=new FormData(form);
+    const continues=f.get('continues')==='Sí, sigue el recorrido';
+    try{
+      await api('/visits',{method:'POST',body:JSON.stringify({visitor_name:String(f.get('visitor_name')||'').trim(),
+        source:f.get('source'),promoter:f.get('promoter')||'',continues,
+        exit_reason:continues?'':f.get('continues')})});
+      status('Ingreso registrado.','success');await home();
+    }catch(error){status(error.message);}
   };
+  wire('home-tools',()=>renderTools());
 }
-function adminHome() {
-  const v=state.visits; const pending=v.filter(x=>x.crm_status==='pendiente').length;
-  return '<div class="stats"><div><b>'+v.length+'</b><small>Visitas recientes</small></div><div><b>'+pending+'</b><small>Por cargar en CRM empresarial</small></div></div>'
-    +'<div class="panel"><h2>CRM propio — carga manual</h2><p>Ningún dato se envía automáticamente al CRM de la empresa.</p><div class="toolbar"><input id="search-leads" placeholder="Buscar por nombre o teléfono" value="'+esc(state.search)+'">'+btn('Buscar','search-leads-btn','outline')+'<a class="btn outline" href="/respaldo/api/export">Exportar JSON</a></div>'
-    +v.map(x=>'<button class="visit" data-visit="'+esc(x.id)+'"><span><b>'+esc(x.visitor_name)+'</b><small>'+fmt(x.created_at)+' · '+esc(x.phase)+'</small></span>'+tag(x.crm_status)+'</button>').join('')
-    +'</div><div class="panel"><h2>Crear usuario de Respaldo</h2><p>Ingresá al login principal con el usuario <strong>respaldo:Nombre del operador</strong> y su PIN como contraseña.</p><form id="create-user">'+input('name','Nombre del operador')+select('role','Puesto',Object.keys(userRoles).filter(r=>r!=='admin'))+input('pin','PIN del operador (mínimo 4 caracteres)')+'<button class="btn primary">Crear usuario</button></form></div>';
+function renderTools() {
+  page('<h1>Herramientas</h1><p>Recepción · Liniers</p>'
+    +'<button class="salon-person" data-action="start-reception">Ingreso <span>›</span></button>');
+  wire('start-reception',renderReception);
 }
-function bindAdmin() {
-  wire('search-leads-btn',()=>{state.search=document.getElementById('search-leads').value;home();});
-  const form=document.getElementById('create-user');form.elements.pin.type='password';form.onsubmit=async e=>{
-    e.preventDefault();const o=Object.fromEntries(new FormData(form));
-    try {await api('/users',{method:'POST',body:JSON.stringify(o)});status('Usuario creado.','success');state.users=await api('/users');form.reset();}
-    catch(e){status(e.message);}
-  };
+function formField(key,title,value='',type='text',placeholder='—'){
+  return '<label class="salon-field"><span class="salon-label">'+esc(title)+'</span>'
+    +'<input class="salon-input" autocomplete="off" type="'+esc(type)+'" name="'+esc(key)+'" placeholder="'+esc(placeholder)+'"'
+    +' value="'+esc(value??'')+'"'+(type==='number'?' min="0" step="1"':'')+'></label>';
+}
+function choices(key,title,values,current=null,multi=false,columns=false){
+  return '<fieldset class="salon-fieldset"><legend>'+esc(title)+'</legend><div class="salon-choices '+(columns?'two':'')+'">'
+    +values.map(v=>'<label class="salon-choice"><input type="'+(multi?'checkbox':'radio')+'" name="'+esc(key)+'" value="'+esc(v)+'"'
+    +(multi?(Array.isArray(current)&&current.includes(v)?' checked':''):(current===v?' checked':''))+'>'
+    +'<span class="salon-choice-circle">✓</span><span>'+esc(v)+'</span></label>').join('')
+    +'</div></fieldset>';
 }
 async function openVisit(id) {
-  try {
+  try{
     state.current=await api('/visits/'+encodeURIComponent(id));
-    state.answers=state.view==='fulltest'?(state.current.fulltest_json||{}):{};
-    state.chapter=0;renderVisit();
-  } catch(e){status(e.message);}
+    state.answers=state.current.fulltest_json||{};
+    state.chapter=0;
+    renderVisit();
+  }catch(error){status(error.message);}
 }
 function renderVisit() {
   const v=state.current;if(!v)return home();
-  let content='<div class="back">'+btn('← Volver','go-home','ghost')+'</div><h1>'+esc(v.visitor_name)+'</h1><p>Visita '+fmt(v.created_at)+'</p>';
-  if(state.view==='pretest') content+=pretestForm(v);
-  if(state.view==='fulltest') content+=fulltestForm(v);
-  if(state.view==='enrutador') content+=routingForm(v);
-  if(state.view==='asesor') content+=conversionForm(v);
-  if(state.view==='admin') content+=crmForm(v);
-  boardShell(content);
-  wire('go-home',()=>{state.current=null;home();});
-  if(state.view==='pretest') bindPretest(v);
-  if(state.view==='fulltest') bindFulltest(v);
-  if(state.view==='enrutador') bindRouting(v);
-  if(state.view==='asesor') bindConversion(v);
-  if(state.view==='admin') bindCrm(v);
+  let content='<button class="salon-back" data-action="back-queue">← '+esc(roleLabels[state.view])+'</button>';
+  if(state.view==='pretest')content+=pretestPage(v);
+  if(state.view==='fulltest')content+=fulltestPage(v);
+  if(state.view==='enrutador')content+=routingPage(v);
+  if(state.view==='asesor')content+=conversionPage(v);
+  page(content,state.view==='fulltest');
+  wire('back-queue',()=>{state.current=null;home();});
+  if(state.view==='pretest')bindPretest(v);
+  if(state.view==='fulltest')bindFulltest(v);
+  if(state.view==='enrutador')bindRouting(v);
+  if(state.view==='asesor')bindConversion(v);
 }
-function choiceMarkup(key,label,options,current='',multi=false){
-  return '<fieldset class="choice-group"><legend>'+esc(label)+'</legend><div class="choices">'+options.map(o=>'<label class="option"><input type="'+(multi?'checkbox':'radio')+'" name="'+esc(key)+'" value="'+esc(o)+'" '+(multi?(Array.isArray(current)&&current.includes(o)?'checked':''):(current===o?'checked':''))+'> '+esc(o)+'</label>').join('')+'</div></fieldset>';
+function personTitle(title,v,detail) {
+  return '<div class="salon-intro"><h1>'+esc(title)+'</h1><p>Con '+esc(v.visitor_name)+'. '+esc(detail)+'</p>'
+    +timeline(v)+'</div>';
 }
-function pretestForm(v) {
-  const a=v.pretest_json||{};
-  return '<form class="panel" id="pretest-form">'+input('visitor_name','Nombre y apellido',v.visitor_name)+input('phone','Teléfono (+54)',v.phone||'','tel')
-    +pretest.map(q=>choiceMarkup(q.key,q.label,q.options,a[q.key])).join('')
-    +'<p class="muted">Todas las respuestas del cuestionario son opcionales.</p><button class="btn primary">Guardar Pre-test</button></form>';
+function pretestPage(v) {
+  const a=v.pretest_json||{},parts=v.visitor_name.trim().split(/\s+/);
+  const given=parts[0]||'',last=parts.slice(1).join(' ');
+  return personTitle('Pre-test',v,'Ninguna pregunta es obligatoria.')
+    +'<form class="salon-form" id="pretest-form"><div class="salon-grid">'
+    +formField('given','Nombre',given,'text','Nombre')
+    +formField('family','Apellido',last,'text','Apellido')+'</div>'
+    +formField('phone','Teléfono · se puede dejar vacío',v.phone||'','tel','+54')
+    +pretest.map(q=>choices(q.key,q.label,q.options,a[q.key])).join('')
+    +'<div class="salon-sticky-save"><p>Queda tomado por <b>'+esc(state.user.name)+'</b> → visita de '+esc(v.visitor_name)+'.</p>'
+    +'<button class="salon-primary" type="submit">Guardar el pre-test</button></div></form>';
 }
-function bindPretest(v) {
+function bindPretest(v){
   document.getElementById('pretest-form').onsubmit=async e=>{
-    e.preventDefault();const form=e.currentTarget,f=new FormData(form),answers={};
+    e.preventDefault();const f=new FormData(e.currentTarget),answers={};
     pretest.forEach(q=>answers[q.key]=f.get(q.key)||null);
-    try {await api('/visits/'+v.id+'/pretest',{method:'PUT',body:JSON.stringify({visitor_name:f.get('visitor_name'),phone:f.get('phone'),answers})});status('Pre-test guardado.','success');state.current=null;await home();}
-    catch(e){status(e.message);}
+    const name=[f.get('given'),f.get('family')].filter(Boolean).join(' ').trim();
+    try {
+      await api('/visits/'+v.id+'/pretest',{method:'PUT',body:JSON.stringify({
+        visitor_name:name,phone:f.get('phone')||'',answers,
+      })});
+      status('Pre-test guardado.','success');await home();
+    }catch(error){status(error.message);}
   };
 }
-function questionMarkup(q,a){
-  const [key,label,options,kind]=q;
-  const val=a[key];
-  return Array.isArray(options)?choiceMarkup(key,label,options,val,kind==='multi'):
-    input(key,label,val??'',options==='number'?'number':options==='email'?'email':'text');
+function fulltestQuestion(q, a) {
+  const [key,title,options,mode]=q;
+  return Array.isArray(options)?choices(key,title,options,a[key],mode==='multi'):
+    formField(key,title,a[key]??'',options==='number'?'number':options==='email'?'email':'text');
 }
-function optionalQuestions(a) {
-  let result=[];
-  if(a.tiene_ahorros==='Sí') result.push(['ahorro_efectivo_ars','Efectivo en pesos','number'],['ahorro_efectivo_usd','Efectivo en dólares','number'],['ahorro_vehiculos_usd','Vehículos (USD)','number'],['ahorro_propiedades_usd','Propiedades (USD)','number']);
-  if(['Casa','PH'].includes(a.tipo_propiedad))result.push(['viviria_en_departamento','¿Vivirías en departamento?',['Sí, totalmente.','Sí, podría ser.','No creo.','No, ni loco.']]);
-  if(['Relación de dependencia','Independiente'].includes(a.situacion_laboral))result.push(['trabajo_en_blanco','¿Estás en blanco?',['Sí','No','En parte','No contestó']],['trabajo','¿De qué trabajás?','text']);
-  if(a.quien_decide==='Yo y alguien más')result.push(['acompanante_presente','¿Esa persona está presente?',yesNoUnknown]);
-  return result;
+function optionalQuestions(a){
+  const x=[];
+  if(a.tiene_ahorros==='Sí')x.push(['ahorro_efectivo_ars','Efectivo en pesos','number'],['ahorro_efectivo_usd','Efectivo en dólares','number'],['ahorro_vehiculos_usd','Vehículos en dólares','number'],['ahorro_propiedades_usd','Propiedades en dólares','number']);
+  if(['Casa','PH'].includes(a.tipo_propiedad))x.push(['viviria_en_departamento','¿Podrías vivir en un departamento?',['Sí, totalmente.','Sí, podría ser.','No creo.','No, ni loco.']]);
+  if(['Relación de dependencia','Independiente'].includes(a.situacion_laboral))x.push(['trabajo_en_blanco','¿Estás en blanco?',['Sí','No','En parte','No contestó']],['trabajo','¿De qué trabajás?','text']);
+  if(a.quien_decide==='Yo y alguien más')x.push(['acompanante_presente','¿Está presente la otra persona?',yesNoUnknown]);
+  return x;
 }
-function fulltestForm(v) {
-  const c=fields[state.chapter];
-  const dynamic=optionalQuestions(state.answers).filter(q=>{
-    const i=state.chapter;
-    return (i===1 && q[0]==='viviria_en_departamento')||(i===2&&q[0].startsWith('ahorro_'))||
-      (i===3&&['trabajo_en_blanco','trabajo','acompanante_presente'].includes(q[0]));
-  });
-  return '<div class="progress">Capítulo '+(state.chapter+1)+' de 5 <div class="bar"><span style="width:'+((state.chapter+1)*20)+'%"></span></div></div>'
-    +'<form id="fulltest-form" class="panel"><h2>'+esc(c.title)+'</h2><p>Ninguna pregunta es obligatoria.</p>'
-    +c.questions.concat(dynamic).map(q=>questionMarkup(q,state.answers)).join('')
-    +'<div class="actions">'+btn('Volver','previous-step','outline')+btn('Guardar y salir','save-draft','outline')+'<button class="btn primary">'+(state.chapter===4?'Enviar Full-test':'Siguiente paso →')+'</button></div></form>';
+function chapterQuestions(){
+  const n=state.chapter;
+  const extra=optionalQuestions(state.answers).filter(q=>
+    (n===1&&q[0]==='viviria_en_departamento')||
+    (n===2&&q[0].startsWith('ahorro_'))||
+    (n===3&&['trabajo_en_blanco','trabajo','acompanante_presente'].includes(q[0])));
+  return [...fields[n].questions,...extra];
+}
+function fulltestPage(v){
+  const names=['Conociendo a la persona','La propiedad soñada','Punto de partida','¿Disponible para ser dueño/a?','Últimas preguntas'];
+  const tally=fields.flatMap(c=>c.questions).filter(q=>{
+    const a=state.answers[q[0]];
+    return a!==null&&a!==undefined&&a!==''&&(!Array.isArray(a)||a.length>0);
+  }).length;
+  return '<div class="salon-operated">Operando: <strong>'+esc(state.user.name)+'</strong></div>'
+    +personTitle('Full-test',v,'El Test del Dueño. Ninguna pregunta es obligatoria.')
+    +'<form id="fulltest-form" class="salon-form">'
+    +'<nav class="salon-chapters" aria-label="Capítulos">'+names.map((name,i)=>'<span class="salon-chapter '+(i===state.chapter?'current':i<state.chapter?'past':'')+'" title="'+esc(name)+'">'+(i+1)+'</span>').join('')+'</nav>'
+    +'<div class="salon-chapter-title"><small>Capítulo '+(state.chapter+1)+' de 5</small><h2>'+esc(names[state.chapter])+'</h2><small>'+tally+' de 23 preguntas contestadas</small></div>'
+    +chapterQuestions().map(q=>fulltestQuestion(q,state.answers)).join('')
+    +'<div class="salon-sticky-save salon-form-actions">'
+    +actionButton('Descartar','cancel-test','text')+actionButton('No terminó','save-draft','outline')
+    +'<button class="salon-primary" type="submit">'+(state.chapter===4?'Enviar':'Siguiente paso: '+esc(names[state.chapter+1]))+'</button></div></form>';
 }
 function collectAnswers(){
   const form=document.getElementById('fulltest-form');if(!form)return;
   const f=new FormData(form);
-  const questions=fields[state.chapter].questions.concat(optionalQuestions(state.answers));
-  for (const q of questions) {
-    const key=q[0], val=f.get(key);
-    if (q[3]==='multi') state.answers[key]=f.getAll(key);
-    else if (val!==null)state.answers[key]=q[2]==='number' ? (val===''?null:Number(val)) : (val||null);
+  for(const q of chapterQuestions()){
+    if(q[3]==='multi')state.answers[q[0]]=f.getAll(q[0]);
+    else {
+      const v=f.get(q[0]);
+      if(v!==null)state.answers[q[0]]=q[2]==='number'?(v===''?null:Number(v)):(v||null);
+    }
   }
 }
-function bindFulltest(v) {
+function bindFulltest(v){
   const form=document.getElementById('fulltest-form');
   form.querySelectorAll('input').forEach(el=>{
-    if (['tiene_ahorros','tipo_propiedad','situacion_laboral','quien_decide'].includes(el.name)) {
-      el.onchange=()=>{ collectAnswers();renderVisit(); };
-    }
+    if(['tiene_ahorros','tipo_propiedad','situacion_laboral','quien_decide'].includes(el.name))
+      el.addEventListener('change',()=>{collectAnswers();renderVisit();});
   });
-  wire('previous-step',()=>{collectAnswers();if(state.chapter>0){state.chapter--;renderVisit();}else{state.current=null;home();}});
-  async function save(complete){
+  wire('cancel-test',()=>{if(confirm('¿Descartar los cambios no guardados?'))home();});
+  const save=async complete=>{
     collectAnswers();
-    try {await api('/visits/'+v.id+'/fulltest',{method:'PUT',body:JSON.stringify({answers:state.answers,complete})});return true;}
-    catch(e){status(e.message);return false;}
-  }
-  wire('save-draft',async()=>{if(await save(false)){status('Borrador guardado.','success');state.current=null;await home();}});
+    try{await api('/visits/'+v.id+'/fulltest',{method:'PUT',body:JSON.stringify({answers:state.answers,complete})});return true;}
+    catch(error){status(error.message);return false;}
+  };
+  wire('save-draft',async()=>{if(await save(false)){status('Borrador guardado.','success');await home();}});
   form.onsubmit=async e=>{
-    e.preventDefault();
-    const last=state.chapter===4;
-    if(await save(last)){
-      if(last){status('Full-test enviado.','success');state.current=null;await home();}
+    e.preventDefault();const complete=state.chapter===4;
+    if(await save(complete)){
+      if(complete){status('Full-test enviado.','success');await home();}
       else{state.chapter++;renderVisit();}
     }
   };
 }
-function routingForm(v) {
-  const advisorOptions=state.users.filter(u=>u.role==='asesor');
-  return '<form id="routing-form" class="panel"><h2>¿Cómo le fue en la charla?</h2>'
-    +select('outcome','Resultado',['entera','entera_no_deriva','se_fue','no_se_quedo'])
-    +select('speaker','¿Quién dio la charla?',speakers)
-    +select('product','¿Qué producto?',['PAI','Pozo'])
-    +'<label class="field">Asesor (si corresponde)<select name="advisor_id"><option value="">Sin asesor</option>'
-    +advisorOptions.map(u=>'<option value="'+u.id+'">'+esc(u.name)+'</option>').join('')+'</select></label>'
-    +select('reason','Motivo, si no continúa',exitReasons)
-    +'<button class="btn primary">Confirmar derivación</button></form>';
+const speakersRoster=['Keren Botini','Nicolas Espinosa','Nicole Laquinta','Thomas Nuñez','Katherine Puppo','Priscila Zajama'];
+function routingPage(v){
+  const advisor=state.users.filter(u=>u.role==='asesor');
+  return personTitle('Charla y derivación',v,'Registrá cómo le fue en la charla y, si corresponde, elegí el asesor que la va a atender.')
+    +'<form class="salon-form" id="route-form">'
+    +choices('outcome','¿Cómo le fue en la charla?',['La vio entera','La vio entera, pero no se deriva','Se fue en medio de la charla','No se quedó'])
+    +choices('speaker','¿Quién dio la charla?',speakersRoster)
+    +choices('product','¿Qué producto?',['PAI','Pozo'],'PAI')
+    +'<fieldset class="salon-fieldset"><legend>¿A qué asesor la derivás?</legend><input class="salon-input" id="advisor-filter" placeholder="Filtrar asesores…" type="search">'
+    +'<div id="advisor-list" class="salon-choices advisor-choices">'+advisor.map(u=>'<label class="salon-choice" data-advisor-name="'+esc(u.name.toLowerCase())+'">'
+    +'<input type="radio" name="advisor_id" value="'+u.id+'"><span class="salon-choice-circle">✓</span><span>'+esc(u.name)+'</span></label>').join('')+'</div></fieldset>'
+    +'<div id="reason-list">'+choices('reason','¿Por qué no continuó?',exitReasons)+'</div>'
+    +'<p class="salon-meta">Lo firma tu sesión: <strong>'+esc(state.user.name)+'</strong>, sobre la visita de '+esc(v.visitor_name)+'.</p>'
+    +'<button class="salon-primary" type="submit">Confirmar derivación</button></form>';
 }
 function bindRouting(v){
-  document.getElementById('routing-form').onsubmit=async e=>{
-    e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));
-    try{await api('/visits/'+v.id+'/route',{method:'PUT',body:JSON.stringify(f)});status('Resultado registrado.','success');state.current=null;await home();}
-    catch(e){status(e.message);}
+  const form=document.getElementById('route-form'),filter=document.getElementById('advisor-filter');
+  function toggle(){const x=new FormData(form).get('outcome');document.getElementById('reason-list').hidden=x==='La vio entera';}
+  form.addEventListener('change',toggle);toggle();
+  filter.addEventListener('input',()=>{
+    const q=filter.value.toLowerCase();
+    form.querySelectorAll('[data-advisor-name]').forEach(x=>x.hidden=!x.dataset.advisorName.includes(q));
+  });
+  form.onsubmit=async e=>{
+    e.preventDefault();const f=new FormData(form);
+    const outcomes={'La vio entera':'entera','La vio entera, pero no se deriva':'entera_no_deriva',
+      'Se fue en medio de la charla':'se_fue','No se quedó':'no_se_quedo'};
+    try{
+      await api('/visits/'+v.id+'/route',{method:'PUT',body:JSON.stringify({
+        outcome:outcomes[f.get('outcome')],advisor_id:f.get('advisor_id')||null,
+        speaker:f.get('speaker'),product:f.get('product'),reason:f.get('reason')||'',
+      })});
+      status('Derivación registrada.','success');await home();
+    }catch(error){status(error.message);}
   };
 }
-function conversionForm(v) {
-  return '<div class="panel"><h2>¿La persona se sentó con vos?</h2><p>Solo se registra la conversión a atención. No implica venta ni reserva.</p><div class="actions">'
-    +btn('Sí, se sentó','converted','primary')+btn('No se sentó','not-converted','outline')+'</div></div>';
+function conversionPage(v){
+  return personTitle('Conversión',v,'Confirmá únicamente si la persona se sentó con el asesor.')
+    +'<div class="salon-fieldset"><h2>¿La persona se sentó con vos?</h2>'
+    +'<div class="salon-choices two">'
+    +actionButton('Sí, se sentó','seated-yes','salon-convert-yes')
+    +actionButton('No se sentó','seated-no','salon-convert-no')
+    +'</div><p class="salon-meta">Esta confirmación no registra ventas ni reservas.</p></div>';
 }
-function bindConversion(v) {
-  for (const [k,seated] of [['converted',true],['not-converted',false]])wire(k,async()=>{
-    if(!confirm('¿Confirmás este resultado?'))return;
-    try{await api('/visits/'+v.id+'/conversion',{method:'PUT',body:JSON.stringify({seated})});status('Conversión registrada.','success');state.current=null;await home();}
-    catch(e){status(e.message);}
+function bindConversion(v){
+  for(const [name,value] of [['seated-yes',true],['seated-no',false]])
+    wire(name,async()=>{
+      if(!confirm('¿Confirmás que '+v.visitor_name+(value?' sí se sentó':' no se sentó')+'?'))return;
+      try{await api('/visits/'+v.id+'/conversion',{method:'PUT',body:JSON.stringify({seated:value})});
+        status('Conversión guardada.','success');await home();}
+      catch(error){status(error.message);}
+    });
+}
+function renderAdmin(){
+  const results=state.visits, pending=results.filter(x=>x.crm_status==='pendiente').length;
+  page('<div class="salon-admin"><div class="salon-intro"><h1>Administración del respaldo</h1>'
+    +'<p>Consulta y carga manual de leads. La atención del salón se realiza desde la selección de personas.</p></div>'
+    +'<div class="salon-stats"><div><strong>'+results.length+'</strong><small>Visitas registradas</small></div>'
+    +'<div><strong>'+pending+'</strong><small>Pendientes de cargar en CRM empresarial</small></div></div>'
+    +'<section class="admin-section"><h2>CRM propio</h2>'
+    +'<p>No existe ningún envío automático al CRM de Más Dueños.</p>'
+    +'<div class="salon-search-tools"><input id="search-leads" class="salon-input" placeholder="Buscar por nombre o teléfono" value="'+esc(state.search)+'">'
+    +actionButton('Buscar','search-leads')+'<a class="salon-button" href="/respaldo/api/export">Exportar JSON</a></div>'
+    +'<div class="salon-visit-list">'+results.map(x=>'<button class="salon-visit" data-crm="'+esc(x.id)+'">'
+    +'<span class="salon-avatar">'+esc(initials(x.visitor_name))+'</span><span class="salon-visit-details"><strong>'+esc(x.visitor_name)+'</strong>'
+    +'<small>'+fmt(x.created_at)+' · '+esc(x.phase)+'</small></span>'+tag(x.crm_status)+'</button>').join('')
+    +'</div></section>'
+    +'<section class="admin-section"><h2>Personal habilitado</h2><p>El personal entra al respaldo seleccionando su nombre. No se utilizan PIN.</p>'
+    +'<form id="operator-form" class="salon-form">'
+    +formField('name','Nombre del empleado','','text','Nombre y apellido')
+    +'<label class="salon-field"><span class="salon-label">Puesto</span><select class="salon-input" name="role">'
+    +Object.keys(userRoles).filter(k=>k!=='admin').map(k=>'<option value="'+k+'">'+esc(userRoles[k])+'</option>').join('')+'</select></label>'
+    +'<button class="salon-primary">Agregar empleado</button></form>'
+    +'<div id="staff-list" class="salon-staff-list">'+state.users.filter(u=>u.role!=='admin').map(u=>'<div class="salon-staff-row" data-staff="'+u.id+'">'
+    +'<label class="salon-field"><span class="salon-label">Empleado</span><input class="salon-input" name="name" value="'+esc(u.name)+'"></label>'
+    +'<label class="salon-field"><span class="salon-label">Puesto</span><select class="salon-input" name="role">'
+    +Object.keys(userRoles).filter(k=>k!=='admin').map(k=>'<option value="'+k+'"'+(u.role===k?' selected':'')+'>'+esc(userRoles[k])+'</option>').join('')+'</select></label>'
+    +'<label class="salon-toggle"><input name="active" type="checkbox"'+(u.active?' checked':'')+'> Habilitado</label>'
+    +'<button class="salon-button" type="button" data-save-staff="'+u.id+'">Guardar cambios</button>'
+    +'</div>').join('')+'</div>'
+    +'</section></div>',true);
+  wire('search-leads',()=>{state.search=document.getElementById('search-leads').value;home();});
+  document.querySelectorAll('[data-crm]').forEach(el=>el.onclick=()=>openCrm(el.dataset.crm));
+  document.querySelectorAll('[data-save-staff]').forEach(button=>button.onclick=async()=>{
+    const row=button.closest('[data-staff]');
+    const payload={name:row.querySelector('[name=name]').value.trim(),
+      role:row.querySelector('[name=role]').value,
+      active:row.querySelector('[name=active]').checked};
+    try{
+      await api('/users/'+button.dataset.saveStaff,{method:'PATCH',body:JSON.stringify(payload)});
+      state.users=await api('/users');status('Empleado actualizado.','success');renderAdmin();
+    }catch(error){status(error.message);}
   });
+  document.getElementById('operator-form').onsubmit=async e=>{
+    e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));
+    try{await api('/users',{method:'POST',body:JSON.stringify(data)});state.users=await api('/users');
+      status('Empleado agregado.','success');renderAdmin();}
+    catch(error){status(error.message);}
+  };
 }
-function crmForm(v){
-  return '<div class="panel"><h2>Ficha del lead</h2><p><b>Ingreso:</b> '+fmt(v.created_at)+' · <b>Canal:</b> '+esc(v.source)+' · <b>Promotor:</b> '+esc(v.promoter)+'</p>'
-    +'<p><b>Teléfono:</b> '+esc(v.phone||'No informado')+' · <b>Estado:</b> '+esc(v.phase)+'</p>'
-    +'<details><summary>Respuestas Pre-test</summary><pre>'+esc(JSON.stringify(v.pretest_json||{},null,2))+'</pre></details>'
-    +'<details><summary>Respuestas Full-test</summary><pre>'+esc(JSON.stringify(v.fulltest_json||{},null,2))+'</pre></details>'
-    +'<details><summary>Enrutación</summary><pre>'+esc(JSON.stringify(v.routing_json||{},null,2))+'</pre></details>'
-    +'<p><b>¿Se sentó con el asesor?</b> '+(v.seated===null?'Pendiente':v.seated?'Sí':'No')+'</p>'
-    +'</div><form class="panel" id="crm-form"><h2>Control de carga en el CRM empresarial</h2>'
-    +select('status','Estado',['pendiente','cargado','no_cargar'],v.crm_status,'Seleccionar')
-    +'<label class="field">Notas internas<textarea name="note" rows="3">'+esc(v.crm_note||'')+'</textarea></label>'
-    +'<p class="muted">Marcar como cargado es una constancia manual; esta acción no transmite información al CRM de la empresa.</p>'
-    +'<button class="btn primary">Guardar estado</button></form>';
+async function openCrm(id){
+  try{state.current=await api('/visits/'+id);renderCrm();}
+  catch(error){status(error.message);}
 }
-function bindCrm(v) {
+function renderCrm(){
+  const v=state.current;if(!v){renderAdmin();return;}
+  const printable=(key,obj)=>'<details class="salon-details"><summary>'+esc(key)+'</summary>'
+    +'<dl>'+Object.entries(obj||{}).map(([k,val])=>'<dt>'+esc(k)+'</dt><dd>'+esc(Array.isArray(val)?val.join(', '):(val??'—'))+'</dd>').join('')+'</dl></details>';
+  page('<button class="salon-back" data-action="back-admin">← Administración</button>'
+    +'<div class="salon-intro"><h1>'+esc(v.visitor_name)+'</h1>'+timeline(v)+'</div>'
+    +'<section class="admin-section"><h2>Ficha completa del lead</h2>'
+    +'<p><strong>Teléfono:</strong> '+esc(v.phone||'No informado')+' · <strong>Promotor:</strong> '+esc(v.promoter||'—')+'</p>'
+    +printable('Pre-test',v.pretest_json)+printable('Test del Dueño',v.fulltest_json)
+    +printable('Enrutación',v.routing_json)
+    +'<p><strong>¿Se sentó con el asesor?</strong> '+(v.seated==null?'Pendiente':v.seated?'Sí':'No')+'</p></section>'
+    +'<form id="crm-form" class="admin-section"><h2>Carga manual al CRM empresarial</h2>'
+    +'<label class="salon-field"><span class="salon-label">Estado</span><select name="status" class="salon-input">'
+    +['pendiente','cargado','no_cargar'].map(s=>'<option value="'+s+'"'+(v.crm_status===s?' selected':'')+'>'+esc(s==='no_cargar'?'No cargar':s[0].toUpperCase()+s.slice(1))+'</option>').join('')+'</select></label>'
+    +'<label class="salon-field"><span class="salon-label">Nota interna</span><textarea class="salon-input" name="note">'+esc(v.crm_note||'')+'</textarea></label>'
+    +'<p>Esta acción solo marca el estado. Administración carga el lead manualmente fuera del respaldo.</p>'
+    +'<button class="salon-primary">Guardar estado</button></form>',true);
+  wire('back-admin',()=>{state.current=null;renderAdmin();});
   document.getElementById('crm-form').onsubmit=async e=>{
-    e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));
-    try{await api('/visits/'+v.id+'/crm',{method:'PUT',body:JSON.stringify(f)});status('Estado actualizado.','success');state.current=null;await home();}
-    catch(e){status(e.message);}
+    e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));
+    try{await api('/visits/'+v.id+'/crm',{method:'PUT',body:JSON.stringify(data)});
+      status('Estado actualizado.','success');await home();}
+    catch(error){status(error.message);}
   };
 }
 boot();

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
@@ -25,6 +25,7 @@ router.get('/login', (_req, res) => res.redirect('/login'));
 router.get('/', (_req, res) => res.type('html').send(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Respaldo · Salón Más Dueños</title>
+<link rel="stylesheet" href="/respaldo/static/original.css">
 <link rel="stylesheet" href="/respaldo/static/ui.css"></head>
 <body><main id="app"><p>Preparando Respaldo…</p></main>
 <script defer src="/respaldo/static/app.js"></script></body></html>`));
@@ -64,16 +65,63 @@ const allow = (...accepted) => (req, res, next) =>
 // Hostinger. The token is made available only through an authenticated
 // same-origin GET /api/me.
 router.use('/api', (req, res, next) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/enter') return next();
   if (!req.backupUser || !req.backupToken) return res.status(401).json({ error: 'Iniciá sesión.' });
   if (!validRespaldoCsrf(req.backupToken, req.get('x-respaldo-csrf')))
     return res.status(403).json({ error: 'La sesión de seguridad venció. Volvé a ingresar.' });
   next();
 });
 
-router.get('/api/users', async (_req, res, next) => {
+router.get('/api/people', async (_req, res, next) => {
   try {
     const [rows] = await db.query("SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name");
+    const nonce = randomBytes(32).toString('hex');
+    res.cookie('respaldo_entry', nonce, {
+      httpOnly: true, sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/respaldo', maxAge: 15 * 60_000,
+    });
+    res.json({ people: rows, nonce });
+  } catch (error) { next(error); }
+});
+router.post('/api/enter', async (req, res, next) => {
+  try {
+    const stored = (req.headers.cookie || '').split(';').map(s => s.trim())
+      .find(s => s.startsWith('respaldo_entry='))?.slice('respaldo_entry='.length);
+    const submitted = req.body?.nonce;
+    if (typeof submitted !== 'string' || typeof stored !== 'string'
+      || !/^[a-f0-9]{64}$/.test(submitted) || !/^[a-f0-9]{64}$/.test(stored)
+      || !timingSafeEqual(Buffer.from(submitted), Buffer.from(stored))) {
+      return res.status(403).json({ error: 'La selección de persona venció. Actualizá la página.' });
+    }
+    const id = Number(req.body?.id);
+    if (!Number.isSafeInteger(id) || id < 1)
+      return res.status(400).json({ error: 'Seleccioná una persona de la lista.' });
+    const [[user]] = await db.execute(
+      "SELECT id,name,role FROM respaldo_users WHERE id=? AND role<>'admin' AND active=1 LIMIT 1", [id],
+    );
+    if (!user) return res.status(404).json({ error: 'Esta persona no está habilitada.' });
+    const token = randomBytes(32).toString('hex');
+    await db.execute(
+      'INSERT INTO respaldo_sessions (token_hash,user_id,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR))',
+      [hash(token), user.id],
+    );
+    res.clearCookie('respaldo_entry', { path: '/respaldo' });
+    res.cookie('respaldo_sid', token, {
+      httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production',
+      path: '/respaldo', maxAge: 12 * 60 * 60_000,
+    });
+    await audit(user.id, 'operator_selected', null, { role: user.role });
+    res.status(201).json({ id: user.id, name: user.name, role: user.role });
+  } catch (error) { next(error); }
+});
+
+router.get('/api/users', requireLogin, async (req, res, next) => {
+  try {
+    const query = req.backupUser.role === 'admin'
+      ? "SELECT id,name,role,active FROM respaldo_users WHERE role<>'admin' ORDER BY name"
+      : "SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name";
+    const [rows] = await db.query(query);
     res.json(rows);
   } catch (error) { next(error); }
 });
@@ -89,15 +137,32 @@ router.post('/api/users', requireLogin, allow('admin'), async (req, res, next) =
   try {
     const name = String(req.body.name || '').trim();
     const role = String(req.body.role || '');
-    const pin = String(req.body.pin || '');
-    if (!name || name.length > 160 || !roles.includes(role) || pin.length < 4 || pin.length > 80)
-      return res.status(400).json({ error: 'Nombre, rol o PIN inválidos.' });
-    const [r] = await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)', [name, role, await bcrypt.hash(pin, 12)]);
+    if (!name || name.length > 160 || !roles.includes(role))
+      return res.status(400).json({ error: 'Nombre o puesto inválido.' });
+    const inaccessibleCredential = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
+    const [r] = await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)', [name, role, inaccessibleCredential]);
     await audit(req.backupUser.id, 'user_created', null, { id: r.insertId, name, role });
     res.status(201).json({ id: r.insertId, name, role });
   } catch (error) { next(error); }
 });
 
+router.patch('/api/users/:id', requireLogin, allow('admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const name = String(req.body?.name || '').trim();
+    const role = String(req.body?.role || '');
+    const active = req.body?.active === true || req.body?.active === 1;
+    if (!Number.isSafeInteger(id) || id < 1 || !name || name.length > 160 || !roles.includes(role))
+      return res.status(400).json({ error: 'Empleado, nombre o puesto inválido.' });
+    const [result] = await db.execute(
+      "UPDATE respaldo_users SET name=?,role=?,active=? WHERE id=? AND role<>'admin'",
+      [name, role, Number(active), id],
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: 'Empleado inexistente.' });
+    await audit(req.backupUser.id, 'operator_updated', null, { id, name, role, active });
+    res.json({ id, name, role, active });
+  } catch (error) { next(error); }
+});
 router.get('/api/visits', requireLogin, async (req, res, next) => {
   try {
     const actor = req.backupUser;
@@ -176,7 +241,7 @@ router.put('/api/visits/:id/pretest', requireLogin, allow('pretest'), async (req
       return res.status(400).json({ error: 'Respuestas inválidas.' });
     const name = String(req.body.visitor_name || v.visitor_name).trim().slice(0, 200);
     const phone = String(req.body.phone || v.phone || '').slice(0, 50);
-    if (!name || !phone) return res.status(400).json({ error: 'Completá nombre y teléfono.' });
+    if (!name) return res.status(400).json({ error: 'Completá el nombre.' });
     await db.execute("UPDATE respaldo_visits SET visitor_name=?,phone=?,pretest_json=?,phase='fulltest' WHERE id=?",
       [name, phone, json(answers), v.id]);
     await audit(req.backupUser.id, 'pretest_completed', v.id);

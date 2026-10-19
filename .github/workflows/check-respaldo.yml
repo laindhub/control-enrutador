@@ -7,6 +7,7 @@ on:
       - fix/respaldo-hostinger-diagnostics
       - fix/respaldo-origin-hostinger
       - main
+      - feat/respaldo-clon-salon-sin-pin
       - fix/respaldo-csrf-login-stable
     paths:
       - 'src/respaldo/**'
@@ -16,6 +17,8 @@ on:
       - test/respaldo-unified-login.test.js
       - test/respaldo-login-csrf.test.js
       - test/respaldo-login-http.test.js
+      - test/respaldo-salon-interface.test.js
+      - test/respaldo-db-flow.test.js
       - views/login.ejs
       - .github/workflows/check-respaldo.yml
   pull_request:
@@ -44,4 +47,40 @@ jobs:
           node --check src/respaldo/router.js
           node --check public/respaldo/app.js
           node --check src/respaldo/scoring.js
-          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js test/respaldo-login-csrf.test.js test/respaldo-login-http.test.js
+          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js test/respaldo-login-csrf.test.js test/respaldo-login-http.test.js test/respaldo-salon-interface.test.js
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_test_only
+          MYSQL_DATABASE: respaldo_ci
+          MYSQL_USER: respaldo_ci
+          MYSQL_PASSWORD: ci_password_1234
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pci_root_test_only"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    env:
+      NODE_ENV: test
+      RESPALDO_USERNAME: ci_respaldo
+      RESPALDO_PASSWORD: ci_password_1234
+      RESPALDO_DB_HOST: 127.0.0.1
+      RESPALDO_DB_PORT: '3306'
+      RESPALDO_DB_USER: respaldo_ci
+      RESPALDO_DB_PASSWORD: ci_password_1234
+      RESPALDO_DB_NAME: respaldo_ci
+      RESPALDO_DB_SSL: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: All-role online flow using independent MySQL
+        run: node --test test/respaldo-db-flow.test.js

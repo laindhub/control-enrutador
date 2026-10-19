@@ -15,6 +15,7 @@ on:
       - test/respaldo-scoring.test.js
       - test/respaldo-unified-login.test.js
       - test/respaldo-login-csrf.test.js
+      - test/respaldo-login-http.test.js
       - views/login.ejs
       - .github/workflows/check-respaldo.yml
   pull_request:
@@ -32,6 +33,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install server dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Parse server and Respaldo modules
         run: |
           node --check src/server.js
@@ -41,4 +44,4 @@ jobs:
           node --check src/respaldo/router.js
           node --check public/respaldo/app.js
           node --check src/respaldo/scoring.js
-          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js test/respaldo-login-csrf.test.js
+          node --test test/respaldo-scoring.test.js test/respaldo-unified-login.test.js test/respaldo-login-csrf.test.js test/respaldo-login-http.test.js

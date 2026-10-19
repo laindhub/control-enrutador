@@ -297,6 +297,10 @@ function renderReception() {
   form.onsubmit=async e=>{
     e.preventDefault();const f=new FormData(form);
     const continues=f.get('continues')==='Sí, sigue el recorrido';
+    const source=f.get('source');
+    if(['Promotor con ruleta','Vino a ver a su asesor'].includes(source) && !f.get('promoter')){
+      status('Seleccioná quién trajo a la persona.');return;
+    }
     try{
       await api('/visits',{method:'POST',body:JSON.stringify({visitor_name:String(f.get('visitor_name')||'').trim(),
         source:f.get('source'),promoter:f.get('promoter')||'',continues,
@@ -316,7 +320,8 @@ function renderTools() {
   wire('start-reception',renderReception);
 }
 function formField(key,title,value='',type='text',placeholder='—'){
-  return '<div class="space-y-1.5 salon-field"><label for="input-'+esc(key)+'" class="'+uiOriginal.label+'">'+esc(title)+'</label>'
+  return '<div class="space-y-1.5 salon-field">'
+    +(title?'<label for="input-'+esc(key)+'" class="'+uiOriginal.label+'">'+esc(title)+'</label>':'')
     +'<input class="'+uiOriginal.input+'" id="input-'+esc(key)+'" autocomplete="off"'
     +' type="'+esc(type)+'" name="'+esc(key)+'" placeholder="'+esc(placeholder)+'"'
     +' value="'+esc(value??'')+'"'+(type==='number'?' min="0" step="1" inputmode="numeric"':'')+'></div>';
@@ -373,7 +378,7 @@ function pretestPage(v) {
     +'<form class="salon-form" id="pretest-form"><div class="salon-grid">'
     +formField('given','Nombre',given,'text','Nombre')
     +formField('family','Apellido',last,'text','Apellido')+'</div>'
-    +formField('phone','Teléfono · se puede dejar vacío',v.phone||'','tel','+54')
+    +formField('phone','Teléfono',v.phone||'','tel','+54 — se puede dejar vacío')
     +pretest.map(q=>choices(q.key,q.label,q.options,a[q.key])).join('')
     +'<div class="salon-sticky-save"><p>Queda tomado por <b>'+esc(state.user.name)+'</b> → visita de '+esc(v.visitor_name)+'.</p>'
     +'<button class="salon-primary" type="submit">Guardar el pre-test</button></div></form>';

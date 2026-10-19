@@ -16,7 +16,7 @@ router.use('/static', express.static(root, { index: false, etag: true }));
 /** Public, non-sensitive marker to confirm Hostinger is serving the fixed build. */
 router.get('/version', (_req, res) => res.json({
   service: 'mas-duenos-respaldo',
-  version: '2026-10-19-login-csrf-v2',
+  version: '2026-10-19-salon-ui-v2',
   login: 'principal',
   csrf: 'session-bound',
 }));

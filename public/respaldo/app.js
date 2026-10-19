@@ -200,25 +200,58 @@ function home() {
 }
 function renderHome() {
   if(state.view==='admin'){renderAdmin();return;}
+  if(state.secondaryView==='yo'){renderActivity();return;}
+  if(state.secondaryView==='hoy'){renderToday();return;}
   if(state.view==='recepcion'){renderReception();return;}
-  page('<div class="salon-intro"><h1>'+esc(roleLabels[state.view])+'</h1>'
-    +'<p>'+({pretest:'Tomar el pre-test',fulltest:'Tomar el Test del Dueño',enrutador:'Charla y derivación',asesor:'Confirmar si la persona se sentó'}[state.view]||'')+'</p></div>'
+  page('<div class="space-y-1.5 salon-intro"><h1 class="text-salon-anden leading-tight font-medium tracking-[-0.01em]">'
+    +esc(roleLabels[state.view])+'</h1>'
+    +'<p class="text-muted-foreground text-lg leading-snug">'+esc(({pretest:'Tomar el pre-test',fulltest:'Tomar el Test del Dueño',enrutador:'Charla y derivación',asesor:'Confirmar si la persona se sentó'}[state.view]||''))+'</p></div>'
     +pendingList());
   wire('refresh',()=>home());
   document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));
 }
 function pendingList() {
   const role=state.view;
-  const wait=state.visits.filter(v=>role==='pretest'?v.phase==='pretest':role==='fulltest'?v.phase==='fulltest':
-    role==='enrutador'?v.phase==='enrutacion':role==='asesor'?v.phase==='asesor':false);
-  return '<div class="salon-counters"><span><strong>'+wait.length+'</strong> En espera</span>'
-    +'<span><strong>0</strong> Perdidos</span><span><strong>0</strong> Atendidas</span></div>'
+  const wait=state.visits.filter(v=>
+    role==='pretest'?v.phase==='pretest':
+    role==='fulltest'?v.phase==='fulltest':
+    role==='enrutador'?v.phase==='enrutacion':
+    role==='asesor'?v.phase==='asesor':false);
+  return '<div class="salon-counters"><span><strong>'+wait.length+'</strong> En espera</span></div>'
     +'<div class="salon-list-heading"><h2>En espera</h2>'+actionButton('Actualizar lista','refresh','link')+'</div>'
-    +(wait.length?'<ul class="salon-visit-list">'+wait.map(v=>'<li><button class="salon-visit" data-visit="'+esc(v.id)+'">'
-    +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
-    +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'+esc(v.source||'')+' · '+esc(v.promoter||'Liniers')+'</small></span>'
-    +'<span class="salon-chevron">›</span></button></li>').join('')+'</ul>':
-    '<p class="salon-empty">No hay personas en espera por el momento.</p>');
+    +(wait.length?'<ul class="salon-visit-list">'+wait.map(v=>
+      '<li><button type="button" class="salon-visit" data-visit="'+esc(v.id)+'">'
+      +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
+      +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong>'
+      +'<small>'+esc(v.source||'')+' · '+esc(v.promoter||'Liniers')+'</small></span>'
+      +'<span class="salon-chevron">›</span></button></li>').join('')+'</ul>'
+      :'<p class="salon-empty">No hay personas en espera por el momento.</p>');
+}
+function renderToday() {
+  page('<div class="space-y-1.5 salon-intro"><h1 class="'+uiOriginal.h1+'">Hoy</h1>'
+    +'<p class="'+uiOriginal.muted+'">Personas visibles para tu puesto en Liniers.</p></div>'
+    +'<div class="salon-list-heading"><h2>En curso</h2>'+actionButton('Actualizar','refresh','link')+'</div>'
+    +(state.visits.length?'<ul class="salon-visit-list">'+state.visits.map(v=>
+      '<li><button type="button" class="salon-visit" data-visit="'+esc(v.id)+'">'
+      +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
+      +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'
+      +esc(v.source)+' · '+fmt(v.created_at)+'</small></span><span class="salon-chevron">›</span></button></li>'
+    ).join('')+'</ul>':'<p class="salon-empty">No hay personas en tu lista actual.</p>');
+  wire('refresh',()=>home());
+  document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));
+}
+function renderActivity() {
+  const relevant=state.visits.filter(v=>
+    state.view==='pretest'?v.phase==='pretest':
+    state.view==='fulltest'?v.phase==='fulltest':
+    state.view==='enrutador'?v.phase==='enrutacion':
+    state.view==='asesor'?v.phase==='asesor':true);
+  page('<div class="space-y-1.5 salon-intro"><h1 class="'+uiOriginal.h1+'">Mi actividad</h1>'
+    +'<p class="'+uiOriginal.muted+'">Tu puesto en esta sucursal.</p></div>'
+    +'<div class="salon-counters"><span><strong>'+relevant.length+'</strong> Personas en la lista actual</span></div>'
+    +'<section class="admin-section"><h2 class="'+uiOriginal.h2+'">Mi puesto</h2>'
+    +'<p>Operando como <strong>'+esc(state.user.name)+'</strong> · '+esc(userRoles[state.user.role])+' · Liniers.</p>'
+    +'<p>Los indicadores históricos se incorporarán cuando el respaldo registre las operaciones completas de cada turno.</p></section>');
 }
 function renderReception() {
   page('<div class="space-y-6"><button type="button" class="text-muted-foreground hover:text-foreground -ml-2 flex min-h-11 w-fit items-center gap-2 px-2 text-base" data-action="home-tools">← Herramientas</button>'
@@ -274,8 +307,12 @@ function renderReception() {
   wire('home-tools',()=>renderTools());
 }
 function renderTools() {
-  page('<h1>Herramientas</h1><p>Recepción · Liniers</p>'
-    +'<button class="salon-person" data-action="start-reception">Ingreso <span>›</span></button>');
+  page('<div class="space-y-1.5 salon-intro"><h1 class="'+uiOriginal.h1+'">Herramientas</h1>'
+    +'<p class="'+uiOriginal.muted+'">Recepción · Liniers</p></div>'
+    +'<button type="button" class="'+uiOriginal.person+'" data-action="start-reception">'
+    +'<span class="'+uiOriginal.avatar+'">↳</span>'
+    +'<span class="min-w-0 flex-1"><strong class="block text-salon-row font-medium">Ingreso</strong>'
+    +'<small class="text-muted-foreground">Registrar una persona que llegó al salón</small></span></button>');
   wire('start-reception',renderReception);
 }
 function formField(key,title,value='',type='text',placeholder='—'){

@@ -83,6 +83,38 @@ router.get('/api/people', async (_req, res, next) => {
     res.json({ people: rows, nonce });
   } catch (error) { next(error); }
 });
+router.post('/api/enter', async (req, res, next) => {
+  try {
+    const stored = (req.headers.cookie || '').split(';').map(s => s.trim())
+      .find(s => s.startsWith('respaldo_entry='))?.slice('respaldo_entry='.length);
+    const submitted = req.body?.nonce;
+    if (typeof submitted !== 'string' || typeof stored !== 'string'
+      || !/^[a-f0-9]{64}$/.test(submitted) || !/^[a-f0-9]{64}$/.test(stored)
+      || !timingSafeEqual(Buffer.from(submitted), Buffer.from(stored))) {
+      return res.status(403).json({ error: 'La selección de persona venció. Actualizá la página.' });
+    }
+    const id = Number(req.body?.id);
+    if (!Number.isSafeInteger(id) || id < 1)
+      return res.status(400).json({ error: 'Seleccioná una persona de la lista.' });
+    const [[user]] = await db.execute(
+      "SELECT id,name,role FROM respaldo_users WHERE id=? AND role<>'admin' AND active=1 LIMIT 1", [id],
+    );
+    if (!user) return res.status(404).json({ error: 'Esta persona no está habilitada.' });
+    const token = randomBytes(32).toString('hex');
+    await db.execute(
+      'INSERT INTO respaldo_sessions (token_hash,user_id,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR))',
+      [hash(token), user.id],
+    );
+    res.clearCookie('respaldo_entry', { path: '/respaldo' });
+    res.cookie('respaldo_sid', token, {
+      httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production',
+      path: '/respaldo', maxAge: 12 * 60 * 60_000,
+    });
+    await audit(user.id, 'operator_selected', null, { role: user.role });
+    res.status(201).json({ id: user.id, name: user.name, role: user.role });
+  } catch (error) { next(error); }
+});
+
 router.get('/api/users', requireLogin, async (_req, res, next) => {
   try {
     const [rows] = await db.query("SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name");

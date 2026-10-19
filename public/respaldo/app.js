@@ -69,6 +69,7 @@ function wire(id,callback) {
   if(button)button.addEventListener('click',callback);
 }
 const roleLabels={admin:'Administración',recepcion:'Ingreso',pretest:'Pre-test',fulltest:'Full-test',enrutador:'Enrutador',asesor:'Conversión'};
+const promoterRoster=['Ariel Mendez','Nicolas Jimenez','Camila Basiukevitz','Prueba T 1','Hanna Mendez','Prueba T2','Karina Acosta','Prueba T3','Laura Zangaro','Prueba T4','Luciano Barraza','Prueba T5','Luz Vigliano','Samira Morales','Martina Montiel','Sofia Mitre','Melina Acuña','Trinidad Silva','Nadia Chavez'];
 const actionButton=(label,id,kind='')=>'<button type="button" class="salon-button '+kind+'" data-action="'+esc(id)+'">'+esc(label)+'</button>';
 const initials=name=>String(name||'').trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
 const timeline=v=>'<p class="salon-meta">Entró '+fmt(v.created_at)+' · '+esc(v.source||'')+(v.promoter?' · la trajo '+esc(v.promoter):'')+'</p>';
@@ -170,18 +171,40 @@ function renderReception() {
     +'<h1 class="salon-h1">Ingreso</h1><form id="checkin-form" class="salon-form">'
     +formField('visitor_name','Nombre','','text','Nombre de la persona')
     +choices('source','¿Por dónde entró?',sources,'Promotor con ruleta',false,true)
-    +'<div id="source-person">'+formField('promoter','¿Quién la trajo?','','text','Buscá al promotor o asesor')+'</div>'
+    +'<div id="source-person" class="salon-fieldset"><h2 id="source-person-title">¿Quién la trajo?</h2>'
+    +'<input id="source-filter" class="salon-input" type="search" placeholder="Filtrar personal…" autocomplete="off">'
+    +'<div class="salon-choices two salon-person-options" id="source-options"></div></div>'
     +choices('continues','¿Siguió adelante?',['Sí, sigue el recorrido',...exitReasons],'Sí, sigue el recorrido',false,false)
     +'<div class="salon-sticky-save"><p>Se va a guardar a tu nombre: <strong>'+esc(state.user.name)+'</strong>.</p>'
     +'<button class="salon-primary" type="submit" id="checkin-submit">Registrar el ingreso</button></div></form>');
   const form=document.getElementById('checkin-form');
+  const personSearch=document.getElementById('source-filter');
+  let selectedPerson='';
+  function showPersonOptions(){
+    const channel=new FormData(form).get('source');
+    const names=channel==='Vino a ver a su asesor'
+      ? state.users.filter(u=>u.role==='asesor').map(u=>u.name) : promoterRoster;
+    document.getElementById('source-person-title').textContent=channel==='Vino a ver a su asesor'
+      ? '¿A quién vino a ver?' : '¿Quién la trajo?';
+    const query=personSearch.value.trim().toLowerCase();
+    document.getElementById('source-options').innerHTML=names.filter(name=>name.toLowerCase().includes(query))
+      .map(name=>'<label class="salon-choice"><input type="radio" name="promoter" value="'+esc(name)+'"'
+        +(selectedPerson===name?' checked':'')+'><span class="salon-choice-circle">✓</span><span>'+esc(name)+'</span></label>').join('');
+  }
   function update(){
     const channel=new FormData(form).get('source');
     document.getElementById('source-person').hidden=!['Promotor con ruleta','Vino a ver a su asesor'].includes(channel);
+    showPersonOptions();
     const next=new FormData(form).get('continues')==='Sí, sigue el recorrido';
     document.getElementById('checkin-submit').textContent=next?'Registrar el ingreso':'Registrar que no pasó';
   }
-  form.addEventListener('change',update);update();
+  form.addEventListener('change',event=>{
+    if(event.target.name==='promoter') selectedPerson=event.target.value;
+    if(event.target.name==='source') {selectedPerson='';personSearch.value='';}
+    update();
+  });
+  personSearch.addEventListener('input',showPersonOptions);
+  update();
   form.onsubmit=async e=>{
     e.preventDefault();const f=new FormData(form);
     const continues=f.get('continues')==='Sí, sigue el recorrido';

@@ -15,7 +15,7 @@ test('existing login is the only entry for backup accounts', () => {
   assert.ok(server.indexOf("app.post('/login', tryRespaldoLogin)") < server.indexOf("app.use((req, res, next) => {\n  if (startupState === 'starting')"));
   assert.ok(auth.includes("res.redirect(303, '/respaldo')"));
   assert.ok(form.includes('name="_backup_csrf"'));
-  assert.ok(ui.includes("location.replace('/login?respaldo=1')"));
+  assert.ok(ui.includes('renderRoster()'));
   assert.ok(!ui.includes('function renderLogin()'));
   assert.ok(!source('src/respaldo/router.js').includes("router.post('/api/login'"));
 });

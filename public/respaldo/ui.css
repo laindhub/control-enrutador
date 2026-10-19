@@ -117,3 +117,22 @@ button:disabled {opacity:.45;cursor:not-allowed}
  .salon-stats>div {padding:13px}
  .salon-admin .salon-stats strong {font-size:26px}
 }
+
+
+/* Utilidades de composición adicionales para vistas que no existían en Next. */
+.salon-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.salon-questions .salon-field {width:100%}
+.salon-advisor-list {max-height:390px;overflow-y:auto;overscroll-behavior:contain;padding:2px;gap:7px}
+.salon-advisor-list .salon-choice {font-size:13px;line-height:1.25;min-height:44px}
+.salon-choices.two .salon-choice>span:last-child {overflow-wrap:anywhere}
+.salon-field .salon-label {font-size:13px;color:var(--muted-foreground)}
+.salon-test>form {margin-top:12px}
+.salon-staff-list input[type=checkbox] {width:17px;height:17px}
+.salon-search input[type=search]::-webkit-search-cancel-button {cursor:pointer}
+.salon-location-group:not(:first-child) {border-top:1px solid var(--border-row)}
+.salon-test-actions .salon-button {white-space:nowrap}
+@media (max-width:440px){
+ .salon-grid {grid-template-columns:1fr}
+ .salon-test-actions .salon-button {flex:1}
+ .salon-questions .salon-options {gap:7px}
+}

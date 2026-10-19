@@ -116,9 +116,12 @@ router.post('/api/enter', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get('/api/users', requireLogin, async (_req, res, next) => {
+router.get('/api/users', requireLogin, async (req, res, next) => {
   try {
-    const [rows] = await db.query("SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name");
+    const query = req.backupUser.role === 'admin'
+      ? "SELECT id,name,role,active FROM respaldo_users WHERE role<>'admin' ORDER BY name"
+      : "SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name";
+    const [rows] = await db.query(query);
     res.json(rows);
   } catch (error) { next(error); }
 });
@@ -143,6 +146,23 @@ router.post('/api/users', requireLogin, allow('admin'), async (req, res, next) =
   } catch (error) { next(error); }
 });
 
+router.patch('/api/users/:id', requireLogin, allow('admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const name = String(req.body?.name || '').trim();
+    const role = String(req.body?.role || '');
+    const active = req.body?.active === true || req.body?.active === 1;
+    if (!Number.isSafeInteger(id) || id < 1 || !name || name.length > 160 || !roles.includes(role))
+      return res.status(400).json({ error: 'Empleado, nombre o puesto inválido.' });
+    const [result] = await db.execute(
+      "UPDATE respaldo_users SET name=?,role=?,active=? WHERE id=? AND role<>'admin'",
+      [name, role, Number(active), id],
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: 'Empleado inexistente.' });
+    await audit(req.backupUser.id, 'operator_updated', null, { id, name, role, active });
+    res.json({ id, name, role, active });
+  } catch (error) { next(error); }
+});
 router.get('/api/visits', requireLogin, async (req, res, next) => {
   try {
     const actor = req.backupUser;

@@ -21,10 +21,10 @@ const fields = [
     ['miedo_estafas','¿Tenés miedo de que te estafen?',['Sí, ya fui estafado','Sí, aunque nunca fui estafado','Un poco','No me preocupa','No contestó']],
     ['motivos','¿Por qué querés ser Dueño?', ['Sentirme segura y tranquila','Dejar algo a mi familia','Ahorrar para el futuro','Dejar de pagar alquiler','Tener mi propio espacio'],'multi'],
     ['frenos','¿Qué te frena hoy?',['Creo que no puedo ser dueño','Los precios están muy altos','No tengo ahorros suficientes','No califico para un crédito','Tengo miedo de endeudarme','Tengo miedo que me estafen','No encuentro la propiedad que me guste','No sé ni por dónde empezar','No vale la pena ser dueño','Ninguna'],'multi'],
-    ['vivienda_actual','¿Dónde vivís actualmente?',['Departamento','PH','Casa','No contestó']]
+    ['vivienda_tipo','¿Dónde vivís actualmente?',['Departamento','PH','Casa','No contestó']]
   ]},
   {title:'La propiedad soñada',questions:[
-    ['ubicaciones','¿Dónde te gustaría tener tu propiedad? (localidades separadas por coma)','text'],
+    ['ubicacion_sonada','¿Dónde te gustaría tener tu propiedad?','locations'],
     ['tipo_propiedad','¿Cómo te gustaría que fuera tu propiedad?',['Departamento','Casa','PH','No contestó']],
     ['dormitorios','Dormitorios',['Monoambiente','1 dormitorio','2 dormitorios','3 dormitorios','4 dormitorios o más','No contestó']],
     ['servicios','¿Qué servicios te gustaría tener?',['Cochera','Gimnasio','Lavadero','Parrilla','Pileta','Sala de juegos','Salón de fiestas','Ninguna'],'multi']
@@ -392,8 +392,8 @@ function bindPretest(v){
   };
 }
 function locationPicker() {
-  const current=Array.isArray(state.answers.ubicaciones)?state.answers.ubicaciones:
-    String(state.answers.ubicaciones||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const current=Array.isArray(state.answers.ubicacion_sonada)?state.answers.ubicacion_sonada:
+    String(state.answers.ubicacion_sonada||state.answers.ubicaciones||'').split(',').map(x=>x.trim()).filter(Boolean);
   const currentValue=state.locationFilter||'todo';
   const nav=['Todo','CABA','Gran Buenos Aires'].map((name,i)=>{
     const value=['todo','CABA','GBA'][i];
@@ -408,14 +408,14 @@ function locationPicker() {
       '<section class="salon-location-group"><h3 class="text-[15px] leading-snug font-medium">'
       +(region==='CABA'?'Ciudad Autónoma de Buenos Aires (CABA)':'Gran Buenos Aires')+'</h3>'
       +'<div class="salon-location-grid">'+places.map(place=>'<label class="salon-location">'
-      +'<input type="checkbox" name="ubicaciones" value="'+esc(place)+'"'
+      +'<input type="checkbox" name="ubicacion_sonada" value="'+esc(place)+'"'
       +(current.includes(place)?' checked':'')+'><span>'+esc(place)+'</span></label>').join('')
       +'</div></section>').join('')+'</div>'
     +'<p class="text-muted-foreground text-salon-meta" id="location-total">'+current.length+' zonas seleccionadas</p></fieldset>';
 }
 function fulltestQuestion(q,a) {
   const [key,title,options,mode]=q;
-  if(key==='ubicaciones') return locationPicker();
+  if(key==='ubicacion_sonada') return locationPicker();
   return Array.isArray(options)?choices(key,title,options,a[key],mode==='multi'):
     '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset"><legend class="space-y-1">'
     +'<span class="block text-lg leading-snug font-medium">'+esc(title)+'</span></legend>'
@@ -426,7 +426,7 @@ function optionalQuestions(a){
   const x=[];
   if(a.tiene_ahorros==='Sí')x.push(['ahorro_efectivo_ars','Efectivo en pesos','number'],['ahorro_efectivo_usd','Efectivo en dólares','number'],['ahorro_vehiculos_usd','Vehículos en dólares','number'],['ahorro_propiedades_usd','Propiedades en dólares','number']);
   if(['Casa','PH'].includes(a.tipo_propiedad))x.push(['viviria_en_departamento','¿Podrías vivir en un departamento?',['Sí, totalmente.','Sí, podría ser.','No creo.','No, ni loco.']]);
-  if(['Relación de dependencia','Independiente'].includes(a.situacion_laboral))x.push(['trabajo_en_blanco','¿Estás en blanco?',['Sí','No','En parte','No contestó']],['trabajo','¿De qué trabajás?','text']);
+  if(['Relación de dependencia','Independiente'].includes(a.situacion_laboral))x.push(['en_blanco','¿Estás en blanco?',['Sí','No','En parte','No contestó']],['de_que_trabajas','¿De qué trabajás?','text']);
   if(a.quien_decide==='Yo y alguien más')x.push(['acompanante_presente','¿Está presente la otra persona?',yesNoUnknown]);
   return x;
 }
@@ -435,7 +435,7 @@ function chapterQuestions(){
   const extra=optionalQuestions(state.answers).filter(q=>
     (n===1&&q[0]==='viviria_en_departamento')||
     (n===2&&q[0].startsWith('ahorro_'))||
-    (n===3&&['trabajo_en_blanco','trabajo','acompanante_presente'].includes(q[0])));
+    (n===3&&['en_blanco','de_que_trabajas','acompanante_presente'].includes(q[0])));
   return [...fields[n].questions,...extra];
 }
 function fulltestPage(v) {
@@ -477,11 +477,11 @@ function collectAnswers(){
   const form=document.getElementById('fulltest-form');if(!form)return;
   const f=new FormData(form);
   for(const q of chapterQuestions()){
-    if(q[0]==='ubicaciones'){
-      const previous=Array.isArray(state.answers.ubicaciones)?state.answers.ubicaciones:[];
+    if(q[0]==='ubicacion_sonada'){
+      const previous=Array.isArray(state.answers.ubicacion_sonada)?state.answers.ubicacion_sonada:[];
       const visibleGroups=Object.entries(locationGroups).filter(([region])=>(state.locationFilter||'todo')==='todo'||region===state.locationFilter);
       const visible=new Set(visibleGroups.flatMap(([,items])=>items));
-      state.answers.ubicaciones=[...previous.filter(x=>!visible.has(x)),...f.getAll('ubicaciones')];
+      state.answers.ubicacion_sonada=[...previous.filter(x=>!visible.has(x)),...f.getAll('ubicacion_sonada')];
     }
     else if(q[3]==='multi')state.answers[q[0]]=f.getAll(q[0]);
     else {
@@ -495,9 +495,9 @@ function bindFulltest(v){
   form.querySelectorAll('[data-location-group]').forEach(button=>button.addEventListener('click',()=>{
     collectAnswers();state.locationFilter=button.dataset.locationGroup;renderVisit();
   }));
-  form.querySelectorAll('input[name="ubicaciones"]').forEach(el=>el.addEventListener('change',()=>{
+  form.querySelectorAll('input[name="ubicacion_sonada"]').forEach(el=>el.addEventListener('change',()=>{
     const total=document.getElementById('location-total');
-    if(total)total.textContent=form.querySelectorAll('input[name="ubicaciones"]:checked').length+' zonas seleccionadas';
+    if(total)total.textContent=form.querySelectorAll('input[name="ubicacion_sonada"]:checked').length+' zonas seleccionadas';
   }));
   form.querySelectorAll('input').forEach(el=>{
     if(['tiene_ahorros','tipo_propiedad','situacion_laboral','quien_decide'].includes(el.name))

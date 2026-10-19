@@ -50,6 +50,29 @@ const input = (key, label, value='',type='text') => '<label class="field">'+esc(
 const select = (key, label, options, value='', empty='Seleccionar') => '<label class="field">'+esc(label)+'<select name="'+esc(key)+'"><option value="">'+esc(empty)+'</option>'+options.map(o=>'<option '+(String(o)===String(value)?'selected':'')+'>'+esc(o)+'</option>').join('')+'</select></label>';
 const btn = (text,id,style='')=>'<button type="button" class="btn '+style+'" data-action="'+id+'">'+esc(text)+'</button>';
 const userRoles = {admin:'Administración',recepcion:'Recepción',pretest:'Pre-test',fulltest:'Full-test',enrutador:'Enrutación',asesor:'Conversión'};
+
+/* Clases y estructura de las capturas originales de Liniers.
+ * original.css es el Tailwind compilado recuperado de la aplicación; estas
+ * clases se aplican directamente al DOM en vez de simularlas con un tema nuevo. */
+const uiOriginal = Object.freeze({
+  main:'mx-auto w-full max-w-lg flex-1 px-4 py-6',
+  login:'mx-auto flex min-h-screen w-full max-w-lg flex-col px-4 py-8',
+  h1:'text-3xl leading-tight font-medium tracking-tight',
+  h2:'text-lg font-medium',
+  muted:'text-muted-foreground text-lg leading-snug',
+  meta:'text-muted-foreground text-salon-meta leading-snug',
+  label:'text-muted-foreground flex flex-wrap gap-x-2 text-salon-meta',
+  input:'w-full rounded-field-mobile border border-border bg-surface px-4 py-3 text-salon-option outline-none caret-brand placeholder:text-muted-foreground focus:border-foreground aria-[invalid=true]:border-alert disabled:bg-pressed disabled:text-muted-foreground h-14',
+  choice:'rounded-field-mobile flex cursor-pointer items-center border transition-colors min-h-11 gap-1.5 px-1.5 py-0.5 text-[13px] leading-tight active:bg-pressed border-border bg-surface',
+  choiceLarge:'rounded-field-mobile flex cursor-pointer items-center border transition-colors min-h-[58px] gap-3 px-4 py-2.5 text-salon-option active:bg-pressed border-border bg-surface',
+  person:'rounded-card-mobile bg-surface border shadow-card active:bg-pressed flex w-full items-center gap-4 p-4 text-left transition-colors duration-150',
+  avatar:'bg-id-red-tint text-id-red-text rounded-pill flex size-12 shrink-0 items-center justify-center text-[19px] font-medium',
+  submit:'rounded-field-mobile inline-flex w-full items-center justify-center gap-2.5 text-center transition-colors duration-150 outline-none select-none bg-brand-deep text-on-brand shadow-lift min-h-[52px] px-4 font-medium',
+  chapter:'bg-background -mx-4 sticky top-12 z-10 flex items-center justify-center gap-1 border-b px-4 py-1',
+});
+const salonHomeIcon='<svg aria-hidden="true" class="shrink-0 size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.5"></rect><path d="M7 15.4V9.9l5-3.4 5 3.4v5.5" stroke-linejoin="round"></path></svg>';
+const checkMark='<svg aria-hidden="true" class="size-3" viewBox="0 0 12 12" fill="none"><path d="M2 6.5 4.8 9 10 3.5" stroke="var(--on-brand)" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>';
+
 async function api(url, options = {}) {
   const headers = {'Content-Type':'application/json',...(options.headers||{})};
   const write = !['GET','HEAD','OPTIONS'].includes(String(options.method||'GET').toUpperCase());

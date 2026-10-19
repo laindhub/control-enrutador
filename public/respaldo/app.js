@@ -531,36 +531,61 @@ function bindFulltest(v){
   };
 }
 const speakersRoster=['Keren Botini','Nicolas Espinosa','Nicole Laquinta','Thomas Nuñez','Katherine Puppo','Priscila Zajama'];
-function routingPage(v){
-  const advisor=state.users.filter(u=>u.role==='asesor');
-  return personTitle('Charla y derivación',v,'Registrá cómo le fue en la charla y, si corresponde, elegí el asesor que la va a atender.')
-    +'<form class="salon-form" id="route-form">'
+function routingPage(v) {
+  const advisors=state.users.filter(user=>user.role==='asesor');
+  const advisorList=advisors.map(user=>
+    '<label class="'+uiOriginal.choice+' salon-choice" data-advisor-name="'+esc(user.name.toLocaleLowerCase('es'))+'">'
+    +'<input class="sr-only" type="radio" name="advisor_id" value="'+user.id+'">'
+    +'<span aria-hidden="true" class="flex size-[22px] shrink-0 items-center justify-center rounded-pill border salon-choice-indicator">'+checkMark+'</span>'
+    +'<span class="min-w-0">'+esc(user.name)+'<small class="block text-muted-foreground">PAI</small></span></label>'
+  ).join('');
+  return '<div class="space-y-6"><div class="mb-4">'+personTitle('Charla y derivación',v,
+    'Registrá cómo le fue en la charla y, si corresponde, elegí el asesor que la va a atender.')+'</div>'
+    +'<form class="space-y-6" id="route-form">'
     +choices('outcome','¿Cómo le fue en la charla?',['La vio entera','La vio entera, pero no se deriva','Se fue en medio de la charla','No se quedó'])
-    +choices('speaker','¿Quién dio la charla?',speakersRoster)
-    +choices('product','¿Qué producto?',['PAI','Pozo'],'PAI')
-    +'<fieldset class="salon-fieldset"><legend>¿A qué asesor la derivás?</legend><input class="salon-input" id="advisor-filter" placeholder="Filtrar asesores…" type="search">'
-    +'<div id="advisor-list" class="salon-choices advisor-choices">'+advisor.map(u=>'<label class="salon-choice" data-advisor-name="'+esc(u.name.toLowerCase())+'">'
-    +'<input type="radio" name="advisor_id" value="'+u.id+'"><span class="salon-choice-circle">✓</span><span>'+esc(u.name)+'</span></label>').join('')+'</div></fieldset>'
+    +'<div id="route-speaker">'+choices('speaker','¿Quién dio la charla?',speakersRoster,null,false,true)+'</div>'
+    +'<div id="route-product">'+choices('product','¿Qué producto?',['PAI','Pozo'],'PAI')+'</div>'
+    +'<fieldset id="route-advisor" class="space-y-3 salon-fieldset"><legend class="block text-lg leading-snug font-medium">¿A qué asesor la derivás?</legend>'
+    +'<input class="h-9 w-full rounded-field-mobile border border-border bg-surface px-3 text-[13px] outline-none"'
+    +' id="advisor-filter" type="search" autocomplete="off" placeholder="Buscá un asesor">'
+    +'<div id="advisor-list" class="grid grid-cols-2 gap-2 salon-advisor-list">'+advisorList+'</div></fieldset>'
     +'<div id="reason-list">'+choices('reason','¿Por qué no continuó?',exitReasons)+'</div>'
-    +'<p class="salon-meta">Lo firma tu sesión: <strong>'+esc(state.user.name)+'</strong>, sobre la visita de '+esc(v.visitor_name)+'.</p>'
-    +'<button class="salon-primary" type="submit">Confirmar derivación</button></form>';
+    +'<p class="text-muted-foreground text-center text-[15px] leading-snug">No se puede deshacer desde acá.</p>'
+    +'<button class="'+uiOriginal.submit+'" type="submit">Confirmar derivación</button></form></div>';
 }
-function bindRouting(v){
-  const form=document.getElementById('route-form'),filter=document.getElementById('advisor-filter');
-  function toggle(){const x=new FormData(form).get('outcome');document.getElementById('reason-list').hidden=x==='La vio entera';}
+function bindRouting(v) {
+  const form=document.getElementById('route-form');
+  const filter=document.getElementById('advisor-filter');
+  function toggle(){
+    const outcome=new FormData(form).get('outcome');
+    const complete=outcome==='La vio entera';
+    const whole=outcome==='La vio entera, pero no se deriva';
+    const partial=outcome==='Se fue en medio de la charla';
+    document.getElementById('route-speaker').hidden=!(complete||whole||partial);
+    document.getElementById('route-product').hidden=!complete;
+    document.getElementById('route-advisor').hidden=whole||!outcome;
+    document.getElementById('reason-list').hidden=complete||!outcome;
+    document.querySelector('#route-form button[type="submit"]').disabled=!outcome;
+  }
   form.addEventListener('change',toggle);toggle();
   filter.addEventListener('input',()=>{
-    const q=filter.value.toLowerCase();
-    form.querySelectorAll('[data-advisor-name]').forEach(x=>x.hidden=!x.dataset.advisorName.includes(q));
+    const q=filter.value.toLocaleLowerCase('es');
+    form.querySelectorAll('[data-advisor-name]').forEach(element=>element.hidden=!element.dataset.advisorName.includes(q));
   });
-  form.onsubmit=async e=>{
-    e.preventDefault();const f=new FormData(form);
-    const outcomes={'La vio entera':'entera','La vio entera, pero no se deriva':'entera_no_deriva',
-      'Se fue en medio de la charla':'se_fue','No se quedó':'no_se_quedo'};
+  form.onsubmit=async event=>{
+    event.preventDefault();const fields=new FormData(form);
+    const outcomes={
+      'La vio entera':'entera',
+      'La vio entera, pero no se deriva':'entera_no_deriva',
+      'Se fue en medio de la charla':'se_fue',
+      'No se quedó':'no_se_quedo'
+    };
+    const choice=fields.get('outcome');
     try{
       await api('/visits/'+v.id+'/route',{method:'PUT',body:JSON.stringify({
-        outcome:outcomes[f.get('outcome')],advisor_id:f.get('advisor_id')||null,
-        speaker:f.get('speaker'),product:f.get('product'),reason:f.get('reason')||'',
+        outcome:outcomes[choice],advisor_id:fields.get('advisor_id')||null,
+        speaker:fields.get('speaker'),product:choice==='La vio entera'?fields.get('product'):null,
+        reason:choice==='La vio entera'?null:fields.get('reason')
       })});
       status('Derivación registrada.','success');await home();
     }catch(error){status(error.message);}

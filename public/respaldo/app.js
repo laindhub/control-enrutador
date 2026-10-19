@@ -236,7 +236,7 @@ function renderToday() {
       +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
       +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'
       +esc(v.source)+' · '+fmt(v.created_at)+'</small></span><span class="salon-chevron">›</span></button></li>'
-    ).join('')+'</ul>':'<p class="salon-empty">No hay personas en tu lista actual.</p>');
+    ).join('')+'</ul>':'<p class="salon-empty">No hay personas en tu lista actual.</p>'));
   wire('refresh',()=>home());
   document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));
 }

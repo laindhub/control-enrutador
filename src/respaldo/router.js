@@ -64,7 +64,7 @@ const allow = (...accepted) => (req, res, next) =>
 // Hostinger. The token is made available only through an authenticated
 // same-origin GET /api/me.
 router.use('/api', (req, res, next) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/enter') return next();
   if (!req.backupUser || !req.backupToken) return res.status(401).json({ error: 'Iniciá sesión.' });
   if (!validRespaldoCsrf(req.backupToken, req.get('x-respaldo-csrf')))
     return res.status(403).json({ error: 'La sesión de seguridad venció. Volvé a ingresar.' });
@@ -133,10 +133,10 @@ router.post('/api/users', requireLogin, allow('admin'), async (req, res, next) =
   try {
     const name = String(req.body.name || '').trim();
     const role = String(req.body.role || '');
-    const pin = String(req.body.pin || '');
-    if (!name || name.length > 160 || !roles.includes(role) || pin.length < 4 || pin.length > 80)
-      return res.status(400).json({ error: 'Nombre, rol o PIN inválidos.' });
-    const [r] = await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)', [name, role, await bcrypt.hash(pin, 12)]);
+    if (!name || name.length > 160 || !roles.includes(role))
+      return res.status(400).json({ error: 'Nombre o puesto inválido.' });
+    const inaccessibleCredential = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
+    const [r] = await db.execute('INSERT INTO respaldo_users (name,role,pin_hash) VALUES (?,?,?)', [name, role, inaccessibleCredential]);
     await audit(req.backupUser.id, 'user_created', null, { id: r.insertId, name, role });
     res.status(201).json({ id: r.insertId, name, role });
   } catch (error) { next(error); }

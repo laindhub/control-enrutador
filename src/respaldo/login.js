@@ -2,7 +2,9 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
 import { db, ready, respaldoErrorMessage } from './storage.js';
-import { trustedRespaldoOrigin } from './origin.js';
+// Login CSRF is validated by a cryptographically random form nonce and
+// a matching HttpOnly, SameSite=Strict cookie. Comparing browser Origin with
+// reverse-proxy headers is redundant and can block legitimate Hostinger logins.
 
 const CSRF_COOKIE = 'respaldo_login_csrf';
 const PREFIX = 'respaldo:';
@@ -71,9 +73,8 @@ export function tryRespaldoLogin(req, res, next) {
     if (!/^[a-f0-9]{64}$/.test(token) || !equal(token, cookie)) {
       return renderError(req, res, 403, 'La página de ingreso venció. Recargala y volvé a intentar.');
     }
-    if (!trustedRespaldoOrigin(req, { allowMissing: true })) {
-      return renderError(req, res, 403, 'Origen de ingreso no permitido.');
-    }
+    // The nonce + Strict cookie above authenticates a same-browser form submission.
+    // Do not reconstruct HTTPS origin from the hosting provider's internal proxy.
     const password = String(req.body?.password || '');
     if (!password || password.length > 80 || username.length > 180) {
       return renderError(req, res, 401, 'Usuario o contraseña incorrectos.');

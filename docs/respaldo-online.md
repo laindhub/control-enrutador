@@ -38,11 +38,15 @@ La pantalla principal de login conserva el inicio de sesión de los usuarios tra
 
 Si el login indica que faltan variables, revisar `RESPALDO_DB_USER` especialmente. Los errores de conexión a MySQL se muestran sin revelar contraseñas ni usuarios reales.
 
-## Proxy HTTPS y seguridad del login
+## Login único y protección CSRF en Hostinger
 
-El formulario principal se sirve en `https://masduenos.laind.io/login` detrás del proxy HTTPS de Hostinger. El Respaldo verifica el `Origin` del navegador contra esa dirección pública y **no** contra el protocolo interno (`req.protocol`) que puede ser `http` dentro del hosting. La misma verificación se aplica a las solicitudes que modifican datos en `/respaldo/api`.
+Se inicia sesión exclusivamente desde `https://masduenos.laind.io/login`, donde conviven las cuentas existentes y las cuentas independientes de Respaldo.
 
-De forma predeterminada **no hay que agregar nuevas variables**. Solo si el dominio público cambia, configurá `RESPALDO_PUBLIC_ORIGIN` con la nueva dirección HTTPS completa (por ejemplo, `https://respaldo.ejemplo.com`), sin rutas. Las comprobaciones de CSRF del formulario, cookies SameSite y autenticación de la base independiente se mantienen activas.
+Para que el proxy HTTPS de Hostinger no bloquee los formularios legítimos, la autenticación de Respaldo valida el nonce aleatorio del formulario con su cookie `HttpOnly` y `SameSite=Strict`, sin reconstruir ni comparar `Origin` a través de los encabezados internos del proxy. El acceso sigue limitado por usuario y contraseña/PIN, y por la tasa de intentos.
+
+Las operaciones de escritura de `/respaldo/api` requieren el encabezado `X-Respaldo-CSRF`, con un token de sesión recibido únicamente mediante `GET /respaldo/api/me` tras la autenticación. La sesión se conserva en la base propia de Respaldo.
+
+**No se necesita `RESPALDO_PUBLIC_ORIGIN` ni cambiar variables de Hostinger**.
 
 ## Rutas
 

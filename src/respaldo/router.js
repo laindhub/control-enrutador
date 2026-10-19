@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { db, ready, audit, json, parseJson, newVisitId, respaldoErrorMessage } from './storage.js';
-import { trustedRespaldoOrigin } from './origin.js';
+import { csrfForRespaldoSession, validRespaldoCsrf } from './csrf.js';
 
 const router = express.Router();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/respaldo');
@@ -51,10 +51,15 @@ const allow = (...accepted) => (req, res, next) =>
   accepted.includes(req.backupUser.role) || req.backupUser.role === 'admin'
     ? next() : res.status(403).json({ error: 'Tu puesto no tiene permiso para esta operación.' });
 
-// Only same-origin browser requests may mutate data.
+// Protect state changes with a token derived from the current HttpOnly
+// session cookie, rather than depending on TLS/Host headers rewritten by
+// Hostinger. The token is made available only through an authenticated
+// same-origin GET /api/me.
 router.use('/api', (req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  if (!trustedRespaldoOrigin(req)) return res.status(403).json({ error: 'Origen de solicitud no permitido.' });
+  if (!req.backupUser || !req.backupToken) return res.status(401).json({ error: 'Iniciá sesión.' });
+  if (!validRespaldoCsrf(req.backupToken, req.get('x-respaldo-csrf')))
+    return res.status(403).json({ error: 'La sesión de seguridad venció. Volvé a ingresar.' });
   next();
 });
 
@@ -64,7 +69,7 @@ router.get('/api/users', async (_req, res, next) => {
     res.json(rows);
   } catch (error) { next(error); }
 });
-router.get('/api/me', requireLogin, (req, res) => res.json(req.backupUser));
+router.get('/api/me', requireLogin, (req, res) => res.json({ ...req.backupUser, csrf: csrfForRespaldoSession(req.backupToken) }));
 router.post('/api/logout', requireLogin, async (req, res, next) => {
   try {
     await db.execute('DELETE FROM respaldo_sessions WHERE token_hash=?', [hash(req.backupToken)]);

@@ -221,16 +221,18 @@ function pendingList() {
     '<p class="salon-empty">No hay personas en espera por el momento.</p>');
 }
 function renderReception() {
-  page('<button class="salon-back" data-action="home-tools">← Herramientas</button>'
-    +'<h1 class="salon-h1">Ingreso</h1><form id="checkin-form" class="salon-form">'
+  page('<div class="space-y-6"><button type="button" class="text-muted-foreground hover:text-foreground -ml-2 flex min-h-11 w-fit items-center gap-2 px-2 text-base" data-action="home-tools">← Herramientas</button>'
+    +'<h1 class="text-2xl leading-tight font-medium tracking-tight">Ingreso</h1>'
+    +'<form id="checkin-form" class="scroll-mt-20 space-y-7">'
     +formField('visitor_name','Nombre','','text','Nombre de la persona')
     +choices('source','¿Por dónde entró?',sources,'Promotor con ruleta',false,true)
-    +'<div id="source-person" class="salon-fieldset"><h2 id="source-person-title">¿Quién la trajo?</h2>'
-    +'<input id="source-filter" class="salon-input" type="search" placeholder="Filtrar personal…" autocomplete="off">'
-    +'<div class="salon-choices two salon-person-options" id="source-options"></div></div>'
+    +'<section id="source-person" class="space-y-3"><div class="flex items-center justify-between gap-3">'
+    +'<h2 class="text-lg font-medium" id="source-person-title">¿Quién la trajo?</h2>'
+    +'<input id="source-filter" class="h-9 w-36 shrink-0 rounded-field-mobile border border-border bg-surface px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground" type="search" placeholder="Filtrar…" autocomplete="off">'
+    +'</div><div class="grid grid-cols-2 gap-1.5 salon-choices two" id="source-options"></div></section>'
     +choices('continues','¿Siguió adelante?',['Sí, sigue el recorrido',...exitReasons],'Sí, sigue el recorrido',false,false)
-    +'<div class="salon-sticky-save"><p>Se va a guardar a tu nombre: <strong>'+esc(state.user.name)+'</strong>.</p>'
-    +'<button class="salon-primary" type="submit" id="checkin-submit">Registrar el ingreso</button></div></form>');
+    +'<div class="space-y-2"><p class="text-muted-foreground text-[13px] leading-snug">Se va a guardar a tu nombre: <strong>'+esc(state.user.name)+'</strong>.</p>'
+    +'<button class="'+uiOriginal.submit+'" type="submit" id="checkin-submit">Registrar el ingreso</button></div></form></div>');
   const form=document.getElementById('checkin-form');
   const personSearch=document.getElementById('source-filter');
   let selectedPerson='';
@@ -242,8 +244,8 @@ function renderReception() {
       ? '¿A quién vino a ver?' : '¿Quién la trajo?';
     const query=personSearch.value.trim().toLowerCase();
     document.getElementById('source-options').innerHTML=names.filter(name=>name.toLowerCase().includes(query))
-      .map(name=>'<label class="salon-choice"><input type="radio" name="promoter" value="'+esc(name)+'"'
-        +(selectedPerson===name?' checked':'')+'><span class="salon-choice-circle">✓</span><span>'+esc(name)+'</span></label>').join('');
+      .map(name=>'<label class="'+uiOriginal.choice+' salon-choice"><input class="sr-only" type="radio" name="promoter" value="'+esc(name)+'"'
+        +(selectedPerson===name?' checked':'')+'><span aria-hidden="true" class="flex size-[22px] shrink-0 items-center justify-center rounded-pill border salon-choice-indicator">'+checkMark+'</span><span class="min-w-0">'+esc(name)+'</span></label>').join('');
   }
   function update(){
     const channel=new FormData(form).get('source');

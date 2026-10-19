@@ -1,5 +1,5 @@
 import express from 'express';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
@@ -74,7 +74,13 @@ router.use('/api', (req, res, next) => {
 router.get('/api/people', async (_req, res, next) => {
   try {
     const [rows] = await db.query("SELECT id,name,role FROM respaldo_users WHERE active=1 AND role<>'admin' ORDER BY name");
-    res.json(rows);
+    const nonce = randomBytes(32).toString('hex');
+    res.cookie('respaldo_entry', nonce, {
+      httpOnly: true, sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/respaldo', maxAge: 15 * 60_000,
+    });
+    res.json({ people: rows, nonce });
   } catch (error) { next(error); }
 });
 router.get('/api/users', requireLogin, async (_req, res, next) => {

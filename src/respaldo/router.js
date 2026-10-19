@@ -221,7 +221,7 @@ router.put('/api/visits/:id/pretest', requireLogin, allow('pretest'), async (req
       return res.status(400).json({ error: 'Respuestas inválidas.' });
     const name = String(req.body.visitor_name || v.visitor_name).trim().slice(0, 200);
     const phone = String(req.body.phone || v.phone || '').slice(0, 50);
-    if (!name || !phone) return res.status(400).json({ error: 'Completá nombre y teléfono.' });
+    if (!name) return res.status(400).json({ error: 'Completá el nombre.' });
     await db.execute("UPDATE respaldo_visits SET visitor_name=?,phone=?,pretest_json=?,phase='fulltest' WHERE id=?",
       [name, phone, json(answers), v.id]);
     await audit(req.backupUser.id, 'pretest_completed', v.id);

@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
 import { db, ready, respaldoErrorMessage } from './storage.js';
+import { trustedRespaldoOrigin } from './origin.js';
 
 const CSRF_COOKIE = 'respaldo_login_csrf';
 const PREFIX = 'respaldo:';
@@ -70,9 +71,7 @@ export function tryRespaldoLogin(req, res, next) {
     if (!/^[a-f0-9]{64}$/.test(token) || !equal(token, cookie)) {
       return renderError(req, res, 403, 'La página de ingreso venció. Recargala y volvé a intentar.');
     }
-    const origin = req.get('origin');
-    const allowedOrigin = `${req.protocol}://${req.get('host')}`;
-    if (origin && origin !== allowedOrigin) {
+    if (!trustedRespaldoOrigin(req, { allowMissing: true })) {
       return renderError(req, res, 403, 'Origen de ingreso no permitido.');
     }
     const password = String(req.body?.password || '');

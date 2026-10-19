@@ -64,7 +64,7 @@ const renderError = (req, res, status, error) => {
 export function tryRespaldoLogin(req, res, next) {
   const username = String(req.body?.username || '').trim();
   const adminName = String(process.env.RESPALDO_USERNAME || '').trim();
-  const backupLogin = (adminName && username === adminName) || username.startsWith(PREFIX);
+  const backupLogin = Boolean(adminName && username === adminName);
   if (!backupLogin) return next();
 
   return limiter(req, res, async () => {

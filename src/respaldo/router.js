@@ -232,6 +232,19 @@ router.post('/api/visits', requireLogin, allow('recepcion'), async (req, res, ne
     res.status(201).json({ id, phase: continues ? 'pretest' : 'cerrada' });
   } catch (error) { next(error); }
 });
+router.patch('/api/visits/:id/contact', requireLogin, allow('fulltest'), async (req, res, next) => {
+  try {
+    const v = await visitFor(req, res); if (!v) return;
+    if (v.phase !== 'fulltest') return res.status(409).json({ error: 'Solo se puede corregir un Full-test en curso.' });
+    const name = String(req.body?.name || '').trim();
+    const phone = String(req.body?.phone || '').trim();
+    if (!name || name.length > 200 || phone.length > 50)
+      return res.status(400).json({ error: 'Ingresá un nombre válido. El teléfono es opcional.' });
+    await db.execute("UPDATE respaldo_visits SET visitor_name=?,phone=? WHERE id=? AND phase='fulltest'", [name, phone, v.id]);
+    await audit(req.backupUser.id, 'fulltest_contact_corrected', v.id);
+    res.json({ name, phone });
+  } catch (error) { next(error); }
+});
 router.put('/api/visits/:id/pretest', requireLogin, allow('pretest'), async (req, res, next) => {
   try {
     const v = await visitFor(req, res); if (!v) return;

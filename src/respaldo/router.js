@@ -25,6 +25,7 @@ router.get('/login', (_req, res) => res.redirect('/login'));
 router.get('/', (_req, res) => res.type('html').send(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Respaldo · Salón Más Dueños</title>
+<link rel="stylesheet" href="/respaldo/static/original.css">
 <link rel="stylesheet" href="/respaldo/static/ui.css"></head>
 <body><main id="app"><p>Preparando Respaldo…</p></main>
 <script defer src="/respaldo/static/app.js"></script></body></html>`));

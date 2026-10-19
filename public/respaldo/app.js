@@ -399,27 +399,52 @@ function chapterQuestions(){
     (n===3&&['trabajo_en_blanco','trabajo','acompanante_presente'].includes(q[0])));
   return [...fields[n].questions,...extra];
 }
-function fulltestPage(v){
-  const names=['Conociendo a la persona','La propiedad soñada','Punto de partida','¿Disponible para ser dueño/a?','Últimas preguntas'];
-  const tally=fields.flatMap(c=>c.questions).filter(q=>{
-    const a=state.answers[q[0]];
-    return a!==null&&a!==undefined&&a!==''&&(!Array.isArray(a)||a.length>0);
+function fulltestPage(v) {
+  const titles=['Quién es','La propiedad soñada','Punto de partida','¿Disponible para ser dueño/a?','Últimas preguntas'];
+  const done=fields.flatMap(chapter=>chapter.questions).filter(q=>{
+    const answer=state.answers[q[0]];
+    return answer!==null&&answer!==undefined&&answer!==''&&(!Array.isArray(answer)||answer.length>0);
   }).length;
-  return '<div class="salon-operated">Operando: <strong>'+esc(state.user.name)+'</strong></div>'
+  const chapter=state.chapter;
+  const counter='<nav class="'+uiOriginal.chapter+' salon-chapters" aria-label="Capítulos">'
+    +'<button type="button" class="text-muted-foreground/60 hover:text-muted-foreground flex size-11 items-center justify-center"'
+    +' data-action="previous-step" aria-label="Capítulo anterior"'+(chapter===0?' disabled':'')+'>←</button>'
+    +'<ol class="flex items-center gap-3">'+titles.map((name,index)=>
+      '<li class="tabular-nums text-[12px] font-medium '+(chapter===index?'text-foreground/70':'text-muted-foreground/50')+'"'
+      +(index===chapter?' aria-current="step"':'')+' title="'+esc(name)+'" aria-label="Capítulo '+(index+1)+': '+esc(name)+'">'+(index+1)+'</li>').join('')
+    +'</ol><button type="button" class="text-muted-foreground/60 hover:text-muted-foreground flex size-11 items-center justify-center"'
+    +' data-action="next-step" aria-label="Capítulo siguiente"'+(chapter===4?' disabled':'')+'>→</button></nav>';
+  const side=' <span class="text-muted-foreground text-salon-meta">'+done+' de 23 preguntas contestadas</span>';
+  const cuota=Number(state.answers.cuota_posible_ars)||0;
+  const total=chapter===3?'<section class="salon-total"><p class="text-[17px] leading-snug font-medium">Cuota total que podrías pagar para convertirte en Dueño:</p>'
+    +'<p class="cifra text-brand text-3xl font-semibold">Total: '+new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(cuota)+'</p></section>':'';
+  return '<div class="space-y-6 salon-test">'
+    +'<div class="text-muted-foreground text-small">Operando: <strong class="text-foreground">'+esc(state.user.name)+'</strong></div>'
     +personTitle('Full-test',v,'El Test del Dueño. Ninguna pregunta es obligatoria.')
-    +'<form id="fulltest-form" class="salon-form">'
-    +'<nav class="salon-chapters" aria-label="Capítulos">'+names.map((name,i)=>'<span class="salon-chapter '+(i===state.chapter?'current':i<state.chapter?'past':'')+'" title="'+esc(name)+'">'+(i+1)+'</span>').join('')+'</nav>'
-    +'<div class="salon-chapter-title"><small>Capítulo '+(state.chapter+1)+' de 5</small><h2>'+esc(names[state.chapter])+'</h2><small>'+tally+' de 23 preguntas contestadas</small></div>'
-    +chapterQuestions().map(q=>fulltestQuestion(q,state.answers)).join('')
-    +'<div class="salon-sticky-save salon-form-actions">'
-    +actionButton('Descartar','cancel-test','text')+actionButton('No terminó','save-draft','outline')
-    +'<button class="salon-primary" type="submit">'+(state.chapter===4?'Enviar':'Siguiente paso: '+esc(names[state.chapter+1]))+'</button></div></form>';
+    +'<button type="button" class="text-muted-foreground hover:text-foreground text-small underline underline-offset-4" data-action="correct-contact">Corregir nombre o teléfono</button>'
+    +'<form id="fulltest-form" class="scroll-mt-20 space-y-6">'+counter
+    +'<div class="flex flex-wrap items-center justify-between gap-3">'
+    +'<h2 class="text-lg font-medium">'+esc(titles[chapter])+'</h2>'+side+'</div>'
+    +'<div class="grid gap-x-10 gap-y-7 lg:grid-cols-2 salon-questions">'
+    +chapterQuestions().map(q=>fulltestQuestion(q,state.answers)).join('')+'</div>'+total
+    +'<div class="salon-test-actions">'
+    +actionButton('Descartar','cancel-test','text')
+    +actionButton('No terminó','save-draft','outline')
+    +'<button type="submit" class="'+uiOriginal.submit+'">'
+    +(chapter===4?'Siguiente paso: Enviar':'Siguiente paso: '+titles[chapter+1])+'</button></div>'
+    +'</form></div>';
 }
 function collectAnswers(){
   const form=document.getElementById('fulltest-form');if(!form)return;
   const f=new FormData(form);
   for(const q of chapterQuestions()){
-    if(q[3]==='multi'||q[0]==='ubicaciones')state.answers[q[0]]=f.getAll(q[0]);
+    if(q[0]==='ubicaciones'){
+      const previous=Array.isArray(state.answers.ubicaciones)?state.answers.ubicaciones:[];
+      const visibleGroups=Object.entries(locationGroups).filter(([region])=>(state.locationFilter||'todo')==='todo'||region===state.locationFilter);
+      const visible=new Set(visibleGroups.flatMap(([,items])=>items));
+      state.answers.ubicaciones=[...previous.filter(x=>!visible.has(x)),...f.getAll('ubicaciones')];
+    }
+    else if(q[3]==='multi')state.answers[q[0]]=f.getAll(q[0]);
     else {
       const v=f.get(q[0]);
       if(v!==null)state.answers[q[0]]=q[2]==='number'?(v===''?null:Number(v)):(v||null);
@@ -438,6 +463,18 @@ function bindFulltest(v){
   form.querySelectorAll('input').forEach(el=>{
     if(['tiene_ahorros','tipo_propiedad','situacion_laboral','quien_decide'].includes(el.name))
       el.addEventListener('change',()=>{collectAnswers();renderVisit();});
+  });
+  wire('previous-step',()=>{collectAnswers();if(state.chapter>0){state.chapter--;renderVisit();}});
+  wire('next-step',async()=>{collectAnswers();if(state.chapter<4){if(await save(false)){state.chapter++;renderVisit();}}});
+  wire('correct-contact',()=>{
+    collectAnswers();
+    const name=prompt('Nombre y apellido',v.visitor_name);
+    if(name===null)return;
+    const phone=prompt('Teléfono (opcional)',v.phone||'');
+    if(phone===null)return;
+    api('/visits/'+v.id+'/contact',{method:'PATCH',body:JSON.stringify({name,phone})})
+      .then(data=>{v.visitor_name=data.name;v.phone=data.phone;status('Datos actualizados.','success');renderVisit();})
+      .catch(error=>status(error.message));
   });
   wire('cancel-test',()=>{if(confirm('¿Descartar los cambios no guardados?'))home();});
   const save=async complete=>{

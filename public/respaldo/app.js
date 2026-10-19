@@ -466,6 +466,11 @@ function fulltestPage(v) {
     +'<div class="text-muted-foreground text-small">Operando: <strong class="text-foreground">'+esc(state.user.name)+'</strong></div>'
     +personTitle('Full-test',v,'El Test del Dueño. Ninguna pregunta es obligatoria.')
     +'<button type="button" class="text-muted-foreground hover:text-foreground text-small underline underline-offset-4" data-action="correct-contact">Corregir nombre o teléfono</button>'
+    +'<form id="contact-form" class="salon-contact-correction" hidden>'
+    +formField('name','Nombre y apellido',v.visitor_name)
+    +formField('phone','Teléfono',v.phone||'','tel','Opcional')
+    +'<div class="salon-contact-actions"><button class="salon-primary" type="submit">Guardar corrección</button>'
+    +actionButton('Cancelar','close-contact','outline')+'</div></form>'
     +'<form id="fulltest-form" class="scroll-mt-20 space-y-6">'+counter
     +'<div class="flex flex-wrap items-center justify-between gap-3">'
     +'<h2 class="text-lg font-medium">'+esc(titles[chapter])+'</h2>'+side+'</div>'
@@ -510,16 +515,20 @@ function bindFulltest(v){
   });
   wire('previous-step',()=>{collectAnswers();if(state.chapter>0){state.chapter--;renderVisit();}});
   wire('next-step',async()=>{collectAnswers();if(state.chapter<4){if(await save(false)){state.chapter++;renderVisit();}}});
-  wire('correct-contact',()=>{
-    collectAnswers();
-    const name=prompt('Nombre y apellido',v.visitor_name);
-    if(name===null)return;
-    const phone=prompt('Teléfono (opcional)',v.phone||'');
-    if(phone===null)return;
-    api('/visits/'+v.id+'/contact',{method:'PATCH',body:JSON.stringify({name,phone})})
-      .then(data=>{v.visitor_name=data.name;v.phone=data.phone;status('Datos actualizados.','success');renderVisit();})
-      .catch(error=>status(error.message));
-  });
+  const contact=document.getElementById('contact-form');
+  wire('correct-contact',()=>{collectAnswers();contact.hidden=false;contact.querySelector('input').focus();});
+  wire('close-contact',()=>{contact.hidden=true;});
+  contact.onsubmit=async event=>{
+    event.preventDefault();
+    const values=new FormData(contact);
+    try{
+      const data=await api('/visits/'+v.id+'/contact',{method:'PATCH',body:JSON.stringify({
+        name:values.get('name'),phone:values.get('phone')
+      })});
+      v.visitor_name=data.name;v.phone=data.phone;
+      status('Datos actualizados.','success');renderVisit();
+    }catch(error){status(error.message);}
+  };
   wire('cancel-test',()=>{if(confirm('¿Descartar los cambios no guardados?'))home();});
   const save=async complete=>{
     collectAnswers();

@@ -119,48 +119,67 @@ async function showRoster() {
   catch(error){showSetupError(error);}
 }
 function renderRoster() {
-  app.innerHTML='<main class="salon-page"><div class="salon-content">'
-    +'<div class="salon-wordmark"><strong>Más Dueños</strong><span>Salón · Respaldo</span></div>'
-    +'<div class="salon-intro"><h1>¿Quién sos?</h1><p>Tocá tu nombre para entrar al salón.</p></div>'
-    +'<div class="searchbox"><span aria-hidden="true">⌕</span><input id="roster-search" type="search" placeholder="Buscá tu nombre" autocomplete="off"></div>'
-    +'<ul class="salon-roster" id="roster-results"></ul>'
-    +'<p class="salon-footnote">Elegí únicamente tu nombre. El administrador gestiona los puestos y las personas habilitadas.</p>'
-    +'<a class="salon-back" href="/login">← Volver al inicio</a>'
+  app.innerHTML='<main class="'+uiOriginal.login+'">'
+    +'<div class="mb-8 flex items-center gap-2.5"><span class="inline-flex items-center gap-2 text-h2">'
+    +salonHomeIcon+'<span class="wordmark leading-none"><span class="font-normal">Más</span> Dueños</span></span>'
+    +'<span class="text-muted-foreground text-small">Salón · Respaldo</span></div>'
+    +'<div class="space-y-6"><div class="space-y-1.5"><h1 class="'+uiOriginal.h1+'">¿Quién sos?</h1>'
+    +'<p class="'+uiOriginal.muted+'">Tocá tu nombre para entrar.</p></div>'
+    +'<div class="relative salon-search"><svg aria-hidden="true" class="lucide text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>'
+    +'<input id="roster-search" class="'+uiOriginal.input+' pl-12" type="search" placeholder="Buscá tu nombre" aria-label="Buscá tu nombre" autocomplete="off"></div>'
+    +'<ul class="space-y-3" id="roster-results" aria-label="Personal de Liniers"></ul>'
+    +'<p class="text-muted-foreground text-salon-meta">Elegí únicamente tu nombre. Administración gestiona los puestos habilitados.</p>'
+    +'<a href="/login" class="text-muted-foreground hover:text-foreground text-small underline underline-offset-4">Volver al inicio</a>'
     +'</div></main>';
-  const search=document.getElementById('roster-search'), list=document.getElementById('roster-results');
+  const search=document.getElementById('roster-search');
+  const list=document.getElementById('roster-results');
   function draw(){
-    const query=search.value.trim().toLocaleLowerCase('es');
-    const rows=roster.filter(p=>p.name.toLocaleLowerCase('es').includes(query));
-    list.innerHTML=rows.length?rows.map(p=>'<li><button class="salon-person" data-person="'+p.id+'">'
-      +'<span class="salon-avatar">'+esc(initials(p.name))+'</span>'
-      +'<span class="salon-person-details"><b>'+esc(p.name)+'</b><small>Liniers · '+esc(userRoles[p.role]||p.role)+'</small></span>'
-      +'<span class="salon-chevron">›</span></button></li>').join(''):'<li class="salon-empty">No encontramos a esa persona.</li>';
-    list.querySelectorAll('[data-person]').forEach(el=>el.onclick=async()=>{
-      el.disabled=true;
+    const query=search.value.toLocaleLowerCase('es').trim();
+    const people=roster.filter(person=>person.name.toLocaleLowerCase('es').includes(query));
+    list.innerHTML=people.map(person=>'<li><button type="button" class="'+uiOriginal.person+'" data-person="'+person.id+'">'
+      +'<span aria-hidden="true" class="'+uiOriginal.avatar+'">'+esc(initials(person.name))+'</span>'
+      +'<span class="min-w-0 flex-1"><span class="block text-salon-row leading-snug font-medium">'+esc(person.name)+'</span>'
+      +'<span class="text-muted-foreground block truncate text-salon-meta leading-snug">Liniers</span></span>'
+      +'</button></li>').join('') || '<li class="salon-empty">No encontramos a esa persona.</li>';
+    list.querySelectorAll('[data-person]').forEach(button=>button.onclick=async()=>{
+      button.disabled=true;
       try{
-        await api('/enter',{method:'POST',body:JSON.stringify({id:Number(el.dataset.person),nonce:rosterNonce})});
-        state.user=await api('/me');state.users=await api('/users');state.view=state.user.role;
-        await home();
+        await api('/enter',{method:'POST',body:JSON.stringify({id:Number(button.dataset.person),nonce:rosterNonce})});
+        state.user=await api('/me');state.users=await api('/users');
+        state.view=state.user.role;await home();
       }catch(error){status(error.message);await showRoster();}
     });
   }
   search.addEventListener('input',draw);draw();
 }
 function header() {
-  return '<header class="salon-header"><div class="salon-header-inner"><div class="salon-brand">⌂ <strong>Salón</strong></div>'
-    +'<div class="salon-current"><span class="salon-avatar mini">'+esc(initials(state.user.name))+'</span>'
-    +'<span>'+esc(state.user.name.split(' ')[0])+' · Liniers</span></div>'
-    +actionButton('Salir','logout','link')+'</div></header>';
+  return '<header class="bg-background border-border-row sticky top-0 z-10 border-b salon-top">'
+    +'<div class="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4 py-2.5">'
+    +'<span class="inline-flex items-center gap-2 text-h2">'+salonHomeIcon
+    +'<span class="font-medium">Salón</span></span>'
+    +'<span class="text-muted-foreground inline-flex min-w-0 flex-1 items-center justify-end gap-2 text-small">'
+    +'<span class="rounded-pill bg-id-red-tint text-id-red-text inline-flex size-8 shrink-0 items-center justify-center text-small font-medium">'+esc(initials(state.user.name))+'</span>'
+    +'<span class="truncate">'+esc(state.user.name.split(' ')[0])+' · Liniers</span></span>'
+    +'<button type="button" class="text-muted-foreground hover:text-foreground flex min-h-11 items-center px-1 text-small" data-action="logout">Salir</button>'
+    +'</div></header>';
 }
 function page(content,wide=false) {
-  app.innerHTML=header()+'<main class="salon-page '+(wide?'salon-wide':'')+'"><div class="salon-content">'+content+'</div></main>';
+  const operator=state.user.role!=='admin';
+  app.innerHTML='<div class="salon-layout">'+header()
+    +'<main class="'+uiOriginal.main+(wide?' salon-wide':'')+'">'+content+'</main>'
+    +(operator?'<nav class="bg-background border-border sticky bottom-0 z-10 order-last grid auto-cols-fr grid-flow-col border-t pb-[env(safe-area-inset-bottom)] salon-bottomnav" aria-label="Navegación del salón">'
+      +[['Puestos','puestos'],['Hoy','hoy'],['Yo','yo']].map(([label,screen])=>'<button type="button" class="salon-navitem'+((state.secondaryView||'puestos')===screen?' current':'')+'" data-screen="'+screen+'">'+label+'</button>').join('')
+      +'</nav>':'')+'</div>';
   wire('logout',async()=>{
     try{await api('/logout',{method:'POST',body:'{}'});}
     catch(error){status(error.message);return;}
-    state.user=null;state.current=null;state.view='';await showRoster();
+    state.user=null;state.current=null;state.view='';state.secondaryView='puestos';await showRoster();
+  });
+  document.querySelectorAll('[data-screen]').forEach(el=>el.onclick=()=>{
+    state.secondaryView=el.dataset.screen;renderHome();
   });
 }
-async function home() {
+function home() {
   try{state.visits=await api('/visits'+(state.search?'?search='+encodeURIComponent(state.search):''));}
   catch(error){if(error.status===401){state.user=null;await showRoster();return;}showSetupError(error);return;}
   state.view=state.user.role;

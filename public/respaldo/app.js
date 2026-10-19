@@ -70,6 +70,18 @@ const uiOriginal = Object.freeze({
   submit:'rounded-field-mobile inline-flex w-full items-center justify-center gap-2.5 text-center transition-colors duration-150 outline-none select-none bg-brand-deep text-on-brand shadow-lift min-h-[52px] px-4 font-medium',
   chapter:'bg-background -mx-4 sticky top-12 z-10 flex items-center justify-center gap-1 border-b px-4 py-1',
 });
+const locationGroups = Object.freeze({
+  CABA: ['Belgrano','Coghlan','Colegiales','Núñez','Palermo','Recoleta','Retiro','Saavedra','Villa Urquiza',
+    'Almagro','Balvanera','Boedo','Caballito','Chacarita','Monserrat','Parque Chas','San Cristóbal','San Nicolás',
+    'San Telmo','Villa Crespo','Villa General Mitre','Villa Santa Rita','Agronomía','Flores','Floresta','La Paternal',
+    'Liniers','Monte Castro','Parque Avellaneda','Parque Chacabuco','Vélez Sársfield','Versalles','Villa del Parque',
+    'Villa Devoto','Villa Luro','Villa Ortúzar','Villa Pueyrredón','Villa Real','Barracas','Constitución','La Boca',
+    'Mataderos','Nueva Pompeya','Parque Patricios','Puerto Madero','Villa Lugano','Villa Riachuelo','Villa Soldati'],
+  GBA: ['Escobar','José C. Paz','Malvinas Argentinas','Pilar','San Fernando','San Isidro','San Miguel','Tigre',
+    'Vicente López','Hurlingham','Ituzaingó','La Matanza','Merlo','Moreno','Morón','Ramos Mejía',
+    '(Caseros) Tres de Febrero','Almirante Brown','Avellaneda','Berazategui','Esteban Echeverría','Ezeiza',
+    'Florencio Varela','Lanús','Lomas de Zamora','Quilmes']
+});
 const salonHomeIcon='<svg aria-hidden="true" class="shrink-0 size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.5"></rect><path d="M7 15.4V9.9l5-3.4 5 3.4v5.5" stroke-linejoin="round"></path></svg>';
 const checkMark='<svg aria-hidden="true" class="size-3" viewBox="0 0 12 12" fill="none"><path d="M2 6.5 4.8 9 10 3.5" stroke="var(--on-brand)" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>';
 
@@ -340,10 +352,36 @@ function bindPretest(v){
     }catch(error){status(error.message);}
   };
 }
-function fulltestQuestion(q, a) {
+function locationPicker() {
+  const current=Array.isArray(state.answers.ubicaciones)?state.answers.ubicaciones:
+    String(state.answers.ubicaciones||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const currentValue=state.locationFilter||'todo';
+  const nav=['Todo','CABA','Gran Buenos Aires'].map((name,i)=>{
+    const value=['todo','CABA','GBA'][i];
+    return '<button type="button" data-location-group="'+value+'" class="salon-location-tab'+(currentValue===value?' is-active':'')+'">'+name+'</button>';
+  }).join('');
+  const groups=Object.entries(locationGroups).filter(([key])=>currentValue==='todo'||currentValue===key);
+  return '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset">'
+    +'<legend class="space-y-1"><span class="block text-lg leading-snug font-medium">¿Dónde te gustaría tener tu propiedad?</span>'
+    +'<span class="text-muted-foreground text-salon-meta">Elegí todas las zonas que te interesan.</span></legend>'
+    +'<div class="salon-location-tabs" role="group" aria-label="Filtrar ubicaciones">'+nav+'</div>'
+    +'<div class="salon-locations">'+groups.map(([region,places])=>
+      '<section class="salon-location-group"><h3 class="text-[15px] leading-snug font-medium">'
+      +(region==='CABA'?'Ciudad Autónoma de Buenos Aires (CABA)':'Gran Buenos Aires')+'</h3>'
+      +'<div class="salon-location-grid">'+places.map(place=>'<label class="salon-location">'
+      +'<input type="checkbox" name="ubicaciones" value="'+esc(place)+'"'
+      +(current.includes(place)?' checked':'')+'><span>'+esc(place)+'</span></label>').join('')
+      +'</div></section>').join('')+'</div>'
+    +'<p class="text-muted-foreground text-salon-meta" id="location-total">'+current.length+' zonas seleccionadas</p></fieldset>';
+}
+function fulltestQuestion(q,a) {
   const [key,title,options,mode]=q;
+  if(key==='ubicaciones') return locationPicker();
   return Array.isArray(options)?choices(key,title,options,a[key],mode==='multi'):
-    formField(key,title,a[key]??'',options==='number'?'number':options==='email'?'email':'text');
+    '<fieldset class="scroll-mt-28 space-y-3 salon-fieldset"><legend class="space-y-1">'
+    +'<span class="block text-lg leading-snug font-medium">'+esc(title)+'</span></legend>'
+    +formField(key,'',a[key]??'',options==='number'?'number':options==='email'?'email':'text')
+    +'</fieldset>';
 }
 function optionalQuestions(a){
   const x=[];
@@ -381,7 +419,7 @@ function collectAnswers(){
   const form=document.getElementById('fulltest-form');if(!form)return;
   const f=new FormData(form);
   for(const q of chapterQuestions()){
-    if(q[3]==='multi')state.answers[q[0]]=f.getAll(q[0]);
+    if(q[3]==='multi'||q[0]==='ubicaciones')state.answers[q[0]]=f.getAll(q[0]);
     else {
       const v=f.get(q[0]);
       if(v!==null)state.answers[q[0]]=q[2]==='number'?(v===''?null:Number(v)):(v||null);
@@ -390,6 +428,13 @@ function collectAnswers(){
 }
 function bindFulltest(v){
   const form=document.getElementById('fulltest-form');
+  form.querySelectorAll('[data-location-group]').forEach(button=>button.addEventListener('click',()=>{
+    collectAnswers();state.locationFilter=button.dataset.locationGroup;renderVisit();
+  }));
+  form.querySelectorAll('input[name="ubicaciones"]').forEach(el=>el.addEventListener('change',()=>{
+    const total=document.getElementById('location-total');
+    if(total)total.textContent=form.querySelectorAll('input[name="ubicaciones"]:checked').length+' zonas seleccionadas';
+  }));
   form.querySelectorAll('input').forEach(el=>{
     if(['tiene_ahorros','tipo_propiedad','situacion_laboral','quien_decide'].includes(el.name))
       el.addEventListener('change',()=>{collectAnswers();renderVisit();});

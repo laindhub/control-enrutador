@@ -191,7 +191,7 @@ function page(content,wide=false) {
     state.secondaryView=el.dataset.screen;renderHome();
   });
 }
-function home() {
+async function home() {
   try{state.visits=await api('/visits'+(state.search?'?search='+encodeURIComponent(state.search):''));}
   catch(error){if(error.status===401){state.user=null;await showRoster();return;}showSetupError(error);return;}
   state.view=state.user.role;
@@ -343,7 +343,7 @@ function choices(key,title,values,current=null,multi=false,columns=false,descrip
         +'</label>';
     }).join('')+'</div></fieldset>';
 }
-function openVisit(id) {
+async function openVisit(id) {
   try{
     state.current=await api('/visits/'+encodeURIComponent(id));
     state.answers=state.current.fulltest_json||{};

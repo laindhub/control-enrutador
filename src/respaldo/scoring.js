@@ -28,7 +28,7 @@ export function scoreFullTest(a = {}) {
       'Sí, totalmente.': 6, 'Sí, podría ser.': 5, 'No creo.': 4, 'No, ni loco.': 3,
     })[text(a, 'viviria_en_departamento')] ?? 0;
   }
-  const loc = a.ubicaciones;
+  const loc = a.ubicacion_sonada ?? a.ubicaciones;
   const locations = Array.isArray(loc) ? loc : typeof loc === 'string' ? loc.split(',') : [];
   points += locations.some(x => String(x).includes('Oeste')) ? 6 : 3;
   points += a.tiene_ahorros === 'Sí' ? 7 : 5;

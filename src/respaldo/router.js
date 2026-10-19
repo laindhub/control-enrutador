@@ -13,6 +13,14 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 
 router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 router.use('/static', express.static(root, { index: false, etag: true }));
+/** Public, non-sensitive marker to confirm Hostinger is serving the fixed build. */
+router.get('/version', (_req, res) => res.json({
+  service: 'mas-duenos-respaldo',
+  version: '2026-10-19-login-csrf-v2',
+  login: 'principal',
+  csrf: 'session-bound',
+}));
+
 router.get('/login', (_req, res) => res.redirect('/login'));
 router.get('/', (_req, res) => res.type('html').send(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

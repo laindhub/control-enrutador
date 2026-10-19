@@ -232,10 +232,11 @@ function renderToday() {
     +'<p class="'+uiOriginal.muted+'">Personas visibles para tu puesto en Liniers.</p></div>'
     +'<div class="salon-list-heading"><h2>En curso</h2>'+actionButton('Actualizar','refresh','link')+'</div>'
     +(state.visits.length?'<ul class="salon-visit-list">'+state.visits.map(v=>
-      '<li><button type="button" class="salon-visit" data-visit="'+esc(v.id)+'">'
+      '<li>'+(state.view==='recepcion'?'<div class="salon-visit">':'<button type="button" class="salon-visit" data-visit="'+esc(v.id)+'">')
       +'<span class="salon-avatar">'+esc(initials(v.visitor_name))+'</span>'
       +'<span class="salon-visit-details"><strong>'+esc(v.visitor_name)+'</strong><small>'
-      +esc(v.source)+' · '+fmt(v.created_at)+'</small></span><span class="salon-chevron">›</span></button></li>'
+      +esc(v.source)+' · '+fmt(v.created_at)+'</small></span>'
+      +(state.view==='recepcion'?'</div>':'<span class="salon-chevron">›</span></button>')+'</li>'
     ).join('')+'</ul>':'<p class="salon-empty">No hay personas en tu lista actual.</p>'));
   wire('refresh',()=>home());
   document.querySelectorAll('[data-visit]').forEach(button=>button.onclick=()=>openVisit(button.dataset.visit));

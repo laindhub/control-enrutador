@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { db, ready, audit, json, parseJson, newVisitId, respaldoErrorMessage } from './storage.js';
+import { trustedRespaldoOrigin } from './origin.js';
 
 const router = express.Router();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public/respaldo');
@@ -53,9 +54,7 @@ const allow = (...accepted) => (req, res, next) =>
 // Only same-origin browser requests may mutate data.
 router.use('/api', (req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  const origin = req.get('origin');
-  const expected = `${req.protocol}://${req.get('host')}`;
-  if (origin !== expected) return res.status(403).json({ error: 'Origen de solicitud no permitido.' });
+  if (!trustedRespaldoOrigin(req)) return res.status(403).json({ error: 'Origen de solicitud no permitido.' });
   next();
 });
 

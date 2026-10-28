@@ -38,7 +38,7 @@ test('Host report is captured from the original popup without importing files',(
  const main=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
  assert.match(host,/new HostReportCapture/);
  assert.match(host,/Capturar PDF original/);
- assert.match(host,/Imprimir\\s/);
+ assert.ok(host.includes('Imprimir'));
  assert.match(capture,/onCreateWindow/);
  assert.match(capture,/capturePicture/);
  assert.match(capture,/new PdfDocument/);

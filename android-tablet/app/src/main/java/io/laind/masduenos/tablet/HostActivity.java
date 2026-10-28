@@ -27,16 +27,25 @@ public final class HostActivity extends Activity {
     private WebView browser;
     private HostReportCapture capture;
     private TextView captureStatus;
+    private boolean printOnly=false,autoRequested=false;
+    private String targetPath="",expectedName="";
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         if(Build.VERSION.SDK_INT>=28)WebView.setDataDirectorySuffix("host");
         WebView.enableSlowWholeDocumentDraw();
         Ui.statusBars(this);
+        String path=getIntent().getStringExtra("crmPath");
+        if(path!=null&&path.matches("/floor/visits/[a-fA-F0-9-]{36}(?:/full-test)?")){
+            printOnly=true;targetPath=path;
+            expectedName=getIntent().getStringExtra("expectedName");
+        }
         LinearLayout root=Ui.column(this,10);root.setBackgroundColor(Color.WHITE);setContentView(root);
-        TextView title=Ui.label(this,"Full-test · Host",21,true);root.addView(title);
-        TextView help=Ui.label(this,"Ingresá con la cuenta autorizada de Host. Buscá el nombre, abrí la ficha y comprobá el teléfono. Después tocá «Usar esta persona».",13,false);
+        TextView title=Ui.label(this,printOnly?"Impresión de esta persona · Host":"Full-test · Host",21,true);root.addView(title);
+        TextView help=Ui.label(this,printOnly?
+            "Abriendo directamente el Full-test seleccionado. Si el CRM solicita login, ingresá con Host. El reporte se capturará automáticamente. Podés tocar el botón inferior si no se inicia.":
+            "Entrá al Full-test con Host y abrí la ficha seleccionada para capturar el reporte.",13,false);
         help.setTextColor(Ui.MUTED);root.addView(help,Ui.spaced(this,4));
-        Button choose=Ui.button(this,"Preparar derivación y capturar test",true);
+        Button choose=Ui.button(this,printOnly?"Capturar Full-test":"Preparar derivación y capturar test",true);
         choose.setOnClickListener(v->readSelection());
         root.addView(choose,Ui.spaced(this,5));
         captureStatus=Ui.label(this,"Seleccioná una persona de Atendidas para preparar su impresión.",12,false);
@@ -55,6 +64,13 @@ public final class HostActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         browser.setWebChromeClient(capture.chrome());
         browser.setWebViewClient(new WebViewClient(){
+            @Override public void onPageFinished(WebView view,String url){
+                Uri u=Uri.parse(url);
+                if(printOnly&&!autoRequested&&targetPath.equals(u.getPath())){
+                    autoRequested=true;
+                    view.postDelayed(()->readSelection(),1400);
+                }
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 if(!request.isForMainFrame())return false;
                 Uri url=request.getUrl();
@@ -65,7 +81,7 @@ public final class HostActivity extends Activity {
         });
         holder.addView(browser,new FrameLayout.LayoutParams(-1,-1));
         root.addView(holder,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
-        browser.loadUrl("https://"+HOST+"/floor/full-test");
+        browser.loadUrl("https://"+HOST+(printOnly?targetPath:"/floor/full-test"));
     }
     private void readSelection(){
         Uri url=Uri.parse(browser.getUrl()==null?"":browser.getUrl());
@@ -93,29 +109,42 @@ public final class HostActivity extends Activity {
                     Toast.makeText(this,"Abrí la ficha de una persona de Atendidas, donde figure «Imprimir el Full-Test».",Toast.LENGTH_LONG).show();
                     return;
                 }
-                new android.app.AlertDialog.Builder(this).setTitle("Confirmar persona")
-                    .setMessage("Nombre: "+name+"\nHora: "+obj.optString("arrival","Sin identificar")+
-                      "\nTeléfono: "+obj.optString("phone","Revisar manualmente"))
-                    .setNegativeButton("Volver",(d,w)->{})
-                    .setPositiveButton("Capturar PDF original",(d,w)->{
-                        captureStatus.setText("Abriendo el reporte original del CRM…");
-                        capture.arm(pdf->{
-                            Intent data=new Intent();
-                            data.putExtra("leadName",name);
-                            data.putExtra("leadPhone",obj.optString("phone",""));
-                            data.putExtra("arrival",obj.optString("arrival",""));
-                            data.putExtra("crmPath",path);
-                            data.putExtra("pdfPath",pdf.getAbsolutePath());
-                            setResult(RESULT_OK,data);
-                            finish();
-                        },message->captureStatus.setText(message));
-                        browser.evaluateJavascript(
-                            "(()=>{const b=[...document.querySelectorAll('button')].find(x=>/^Imprimir\\s+(?:el\\s+)?Full[-\\s]?Test$/i.test((x.innerText||x.textContent||'').trim()));if(!b)return false;b.click();return true;})()",
-                            clicked->{if(!"true".equals(clicked))captureStatus.setText("Tocá «Imprimir el Full-Test» en la ficha para capturarlo.");});
-                        browser.postDelayed(()->captureStatus.setText("Si el reporte no se abrió, tocá el botón original «Imprimir el Full-Test» en la ficha."),5500);
-                    }).show();
+                if(printOnly){
+                    if(!targetPath.equals(path)||expectedName==null||
+                        !normalizeName(expectedName).equals(normalizeName(name))){
+                        captureStatus.setText("El nombre no coincide con el lead elegido. Volvé al tablero y revisá la ficha.");
+                        return;
+                    }
+                    beginCapture(name,path,obj);
+                }else{
+                    new android.app.AlertDialog.Builder(this).setTitle("Confirmar persona")
+                        .setMessage("Nombre: "+name+"\nHora: "+obj.optString("arrival","Sin identificar")+
+                            "\nTeléfono: "+obj.optString("phone","Revisar manualmente"))
+                        .setNegativeButton("Volver",(d,w)->{})
+                        .setPositiveButton("Capturar PDF original",(d,w)->beginCapture(name,path,obj)).show();
+                }
             }catch(Exception error){Toast.makeText(this,"No se pudieron leer los datos de esta ficha. Confirmá que esté abierta.",Toast.LENGTH_LONG).show();}
         });
+    }
+    private String normalizeName(String text){
+        return java.text.Normalizer.normalize(text,java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}","").toLowerCase(java.util.Locale.ROOT)
+            .replaceAll("[^a-z0-9 ]"," ").replaceAll(" +"," ").trim();
+    }
+    private void beginCapture(String name,String path,JSONObject obj){
+        captureStatus.setText("Capturando el documento original del CRM…");
+        capture.arm(pdf->{
+            Intent result=new Intent();
+            result.putExtra("leadName",name);
+            result.putExtra("leadPhone",obj.optString("phone",""));
+            result.putExtra("arrival",obj.optString("arrival",""));
+            result.putExtra("crmPath",path);
+            result.putExtra("pdfPath",pdf.getAbsolutePath());
+            setResult(RESULT_OK,result);finish();
+        },message->captureStatus.setText(message));
+        browser.evaluateJavascript(
+            "(()=>{const b=[...document.querySelectorAll('button')].find(x=>/^Imprimir\\s+(?:el\\s+)?Full[-\\s]?Test$/i.test((x.innerText||x.textContent||'').trim()));if(!b)return false;b.click();return true;})()",
+            clicked->{if(!"true".equals(clicked))captureStatus.setText("Tocá el botón «Imprimir el Full-Test» del CRM para capturarlo.");});
     }
     @Override public void onBackPressed(){if(browser.canGoBack())browser.goBack();else super.onBackPressed();}
     @Override protected void onDestroy(){if(capture!=null)capture.dispose();if(browser!=null)browser.destroy();super.onDestroy();}

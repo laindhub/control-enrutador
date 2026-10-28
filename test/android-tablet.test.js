@@ -31,3 +31,18 @@ test('IPP direct printing is limited to private IPs and has Android fallback',()
  assert.match(java,/PrintManager/);
  assert.match(java,/one-sided/);
 });
+
+test('Host report is captured from the original popup without importing files',()=>{
+ const host=src('app/src/main/java/io/laind/masduenos/tablet/HostActivity.java');
+ const capture=src('app/src/main/java/io/laind/masduenos/tablet/HostReportCapture.java');
+ const main=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ assert.match(host,/new HostReportCapture/);
+ assert.match(host,/Capturar PDF original/);
+ assert.match(host,/Imprimir\\s/);
+ assert.match(capture,/onCreateWindow/);
+ assert.match(capture,/createPrintDocumentAdapter/);
+ assert.match(capture,/report-container/);
+ assert.match(capture,/renderer.getPageCount\(\)!=2/);
+ assert.match(main,/getStringExtra\("pdfPath"\)/);
+ assert.doesNotMatch(main,/ACTION_OPEN_DOCUMENT|Importar PDF original del CRM|choosePdf\(/);
+});

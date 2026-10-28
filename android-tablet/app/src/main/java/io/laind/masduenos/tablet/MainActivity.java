@@ -72,7 +72,7 @@ public final class MainActivity extends Activity {
             finish();return;
         }
         ScrollView scroll=new ScrollView(this);
-        LinearLayout content=Ui.column(this,20);content.setBackgroundColor(Color.WHITE);
+        LinearLayout content=Ui.column(this,16);content.setBackgroundColor(Color.WHITE);
         scroll.setFillViewport(true);
         scroll.addView(content);NavigationShell.install(this,scroll,NavigationShell.BOARD);
 
@@ -81,17 +81,17 @@ public final class MainActivity extends Activity {
         content.addView(back,new LinearLayout.LayoutParams(-1,Ui.dp(this,47)));
         TextView eyebrow=Ui.label(this,"MÁS DUEÑOS · LINIERS",12,true);
         eyebrow.setTextColor(Ui.RED);content.addView(eyebrow);
-        TextView title=Ui.label(this,"Control Enrutador",28,true);content.addView(title,Ui.spaced(this,5));
-        TextView subtitle=Ui.label(this,"Tablet de Salón · Buscar, preparar, imprimir y confirmar.",14,false);
-        subtitle.setTextColor(Ui.MUTED);content.addView(subtitle,Ui.spaced(this,7));
-
-        section(content,"01  PERSONA SELECCIONADA");
-        TextView intro=Ui.label(this,"Ficha capturada desde Host. Los datos de identidad no se editan aquí, para evitar derivar a otra persona por error.",13,false);
-        intro.setTextColor(Ui.MUTED);content.addView(intro,Ui.spaced(this,8));
-        name=field(content,"Nombre de la persona","Nombre del lead",false);name.setEnabled(false);
-        phone=field(content,"Teléfono de verificación","Número visible en la ficha",false);
-        phone.setEnabled(false);
-        arrival=field(content,"Hora de llegada","Ej.: 11:06",false);arrival.setEnabled(false);
+        TextView title=Ui.label(this,"Preparar derivación",24,true);content.addView(title,Ui.spaced(this,5));
+        section(content,"01  PERSONA · VERIFICADA EN HOST");
+        LinearLayout identity=new LinearLayout(this);
+        identity.setOrientation(LinearLayout.HORIZONTAL);
+        identity.setGravity(Gravity.CENTER_VERTICAL);
+        identity.setBackground(Ui.bg(this,Color.rgb(247,247,247),16,Ui.LINE));
+        identity.setPadding(Ui.dp(this,13),Ui.dp(this,10),Ui.dp(this,11),Ui.dp(this,10));
+        name=identityField(identity,"Nombre","Nombre",2.3f);
+        phone=identityField(identity,"Teléfono","Teléfono",1.7f);
+        arrival=identityField(identity,"Llegó","Hora",.9f);
+        content.addView(identity,Ui.spaced(this,11));
 
         section(content,"02  PREPARAR DERIVACIÓN");
         presenter=autocomplete(content,"Charla de · Presentador",PRESENTERS);
@@ -144,6 +144,24 @@ public final class MainActivity extends Activity {
         View line=new View(this);line.setBackgroundColor(Ui.LINE);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,Ui.dp(this,1));lp.topMargin=Ui.dp(this,7);
         content.addView(line,lp);
+    }
+    private EditText identityField(LinearLayout row,String label,String hint,float weight){
+        LinearLayout cell=new LinearLayout(this);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setPadding(Ui.dp(this,5),0,Ui.dp(this,5),0);
+        TextView caption=Ui.label(this,label,11,true);
+        caption.setTextColor(Ui.MUTED);
+        cell.addView(caption);
+        EditText value=new EditText(this);
+        value.setSingleLine(true);value.setTextSize(14);
+        value.setTextColor(Ui.INK);value.setHint(hint);
+        value.setBackground(null);value.setPadding(0,Ui.dp(this,4),0,0);
+        value.setKeyListener(null);
+        value.setFocusable(false);value.setClickable(false);
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        cell.addView(value,new LinearLayout.LayoutParams(-1,-2));
+        row.addView(cell,new LinearLayout.LayoutParams(0,-2,weight));
+        return value;
     }
     private EditText field(LinearLayout target,String label,String hint,boolean longText){
         Ui.addLabel(this,target,label,14);

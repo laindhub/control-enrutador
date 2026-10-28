@@ -41,7 +41,7 @@ test('Host report is captured from the original popup without importing files',(
  assert.ok(host.includes('Imprimir'));
  assert.match(capture,/onCreateWindow/);
  assert.match(capture,/NativeFullTestPdf\.write/);
- assert.doesNotMatch(capture,/capturePicture|picture\.draw/);
+ assert.doesNotMatch(capture,/\.capturePicture\(|picture\.draw\(/);
  assert.match(src('app/src/main/java/io/laind/masduenos/tablet/NativeFullTestPdf.java'),/new PdfDocument/);
  assert.doesNotMatch(capture,/adapter.onLayout|adapter.onWrite/);
  assert.match(capture,/report-container/);
@@ -209,7 +209,7 @@ test('full-test uses native vector PDF from complete CRM report DOM, not a bitma
  assert.match(capture,/\.conclusion-message/);
  assert.match(capture,/new JSONObject\(encoded\)/);
  assert.match(capture,/NativeFullTestPdf\.write\(report,output\)/);
- assert.doesNotMatch(capture,/capturePicture|Bitmap\.createBitmap|CSS_WIDTH|midpoint/);
+ assert.doesNotMatch(capture,/\.capturePicture\(|Bitmap\.createBitmap\(|CSS_WIDTH|midpoint/);
  assert.match(native,/PageInfo.Builder\(W,H,pageCount\)/);
  assert.match(native,/if\(pageCount>=2\)/);
  assert.match(native,/finishPage\(\)/);

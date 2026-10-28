@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,7 +30,6 @@ public final class HostActivity extends Activity {
     private String targetPath="",expectedName="";
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        if(Build.VERSION.SDK_INT>=28)WebView.setDataDirectorySuffix("host");
         WebView.enableSlowWholeDocumentDraw();
         Ui.statusBars(this);
         String path=getIntent().getStringExtra("crmPath");

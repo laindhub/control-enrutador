@@ -137,6 +137,44 @@ final class LeadStore {
         if(files!=null)for(File file:files)file.delete();
         dir.delete();
     }
+    // Lightweight selection does not generate/require a PDF. The authenticated
+    // Host session validates the visit and passes its stable CRM visit path.
+    synchronized Lead addFromHostMetadata(String name,String phone,String arrival,String crmPath) throws Exception {
+        if(name==null||name.trim().length()<2||
+            crmPath==null||!crmPath.matches("/floor/visits/[a-fA-F0-9-]{36}(?:/full-test)?"))
+            throw new IOException("La ficha de Atendidas no es válida.");
+        Lead item=null;
+        for(Lead existing:all())if(existing.crmPath.equals(crmPath)&&existing.date.equals(today())){item=existing;break;}
+        if(item!=null&&DONE.equals(item.status))
+            throw new IOException("La derivación de esta persona ya figura completada.");
+        if(item==null){item=new Lead();item.id=UUID.randomUUID().toString();item.date=today();}
+        item.name=name.trim();
+        item.phone=phone==null?"":phone.trim();
+        item.arrival=arrival==null?"":arrival.trim();
+        item.crmPath=crmPath;
+        return save(item);
+    }
+    synchronized Lead attachPdf(String id,File captured) throws Exception {
+        Lead item=get(id);
+        if(item==null||DONE.equals(item.status))throw new IOException("La persona no está disponible para imprimir.");
+        if(captured==null||!captured.isFile()||captured.length()<2000||captured.length()>15000000)
+            throw new IOException("El CRM no generó un documento válido.");
+        File folder=leadDir(item.id);
+        if(!folder.exists()&&!folder.mkdirs())throw new IOException("No se pudo preparar el archivo.");
+        File temp=new File(folder,"source.tmp");
+        try(FileInputStream input=new FileInputStream(captured);
+            FileOutputStream output=new FileOutputStream(temp)){
+            byte[] buffer=new byte[16384];int count;
+            while((count=input.read(buffer))!=-1)output.write(buffer,0,count);
+            output.getFD().sync();
+        }
+        try{java.nio.file.Files.move(temp.toPath(),sourceFile(item).toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING);}
+        catch(Exception err){temp.delete();throw new IOException("No se pudo conservar el Full-test.");}
+        item.status=item.prepared()?READY:NEW;
+        File archive=archiveFile(item);if(archive.isFile())archive.delete();
+        return save(item);
+    }
     synchronized Lead addFromHost(String name,String phone,String arrival,String crmPath,File captured) throws Exception {
         if(name==null||name.trim().length()<2||crmPath==null||!crmPath.startsWith("/floor/"))
             throw new IOException("La ficha del CRM no es válida.");

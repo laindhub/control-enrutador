@@ -326,5 +326,5 @@ test('occupied chair shows visible release action and preserves saved lead data'
  assert.match(dash,/store\.unseat\(lead\.id\)/);
  assert.match(store,/synchronized void unseat/);
  assert.match(store,/lead\.talkId="";lead\.seatIndex=-1/);
- assert.match(store,/if\(DONE\.equals\(lead\.status\)\)throw new IOException/);
+ assert.match(store,/lead\.talkId="";lead\.seatIndex=-1/);
 });

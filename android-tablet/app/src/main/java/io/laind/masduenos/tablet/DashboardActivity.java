@@ -160,7 +160,7 @@ public final class DashboardActivity extends Activity {
         LinearLayout titleRow=new LinearLayout(this);titleRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout titleBox=new LinearLayout(this);titleBox.setOrientation(LinearLayout.VERTICAL);
         TextView label=Ui.label(this,talk.display(),20,true);titleBox.addView(label);
-        TextView hint=Ui.label(this,"Tocá una silla libre para elegir de Atendidas",12,false);
+        TextView hint=Ui.label(this,"Silla libre: buscar en Atendidas  ·  Ocupada: abrir ficha  ·  Mantener: opciones",12,false);
         hint.setTextColor(Ui.MUTED);titleBox.addView(hint,Ui.spaced(this,4));
         titleRow.addView(titleBox,new LinearLayout.LayoutParams(0,-2,1));
         Button rename=Ui.button(this,"Editar",false);
@@ -248,7 +248,7 @@ public final class DashboardActivity extends Activity {
         tile.setContentDescription("Silla "+(index+1)+", "+(filled?occupant.name+", "+occupant.label():"libre"));
         if(filled){
             LeadStore.Lead selectedLead=occupant;
-            tile.setOnClickListener(v->showSeatOptions(selectedLead));
+            tile.setOnClickListener(v->openLead(selectedLead));
             tile.setOnLongClickListener(v->{showSeatOptions(selectedLead);return true;});
         }else tile.setOnClickListener(v->pickSeat(talk,index));
         return tile;

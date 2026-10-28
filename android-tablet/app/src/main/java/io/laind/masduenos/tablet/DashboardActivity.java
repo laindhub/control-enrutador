@@ -40,7 +40,11 @@ public final class DashboardActivity extends Activity {
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);Ui.statusBars(this);
         store=new LeadStore(this);chats=new TalkStore(this);
-        if(saved!=null)selectedTalkId=saved.getString("talk_id","");
+        if(saved!=null){
+            selectedTalkId=saved.getString("talk_id","");
+            pendingTalkId=saved.getString("pending_talk_id","");
+            pendingSeat=saved.getInt("pending_seat",-1);
+        }
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(Ui.dp(this,15),Ui.dp(this,13),Ui.dp(this,15),0);
         root.setBackgroundColor(Color.WHITE);
@@ -90,6 +94,8 @@ public final class DashboardActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle state){
         state.putString("talk_id",selectedTalkId);
+        state.putString("pending_talk_id",pendingTalkId);
+        state.putInt("pending_seat",pendingSeat);
         super.onSaveInstanceState(state);
     }
     @Override protected void onResume(){super.onResume();if(initialised)refresh();}
@@ -229,7 +235,7 @@ public final class DashboardActivity extends Activity {
         tile.setMinimumWidth(0);
         tile.setBackground(Ui.bg(this,background,13,stroke));
         String seatNumber=String.format(Locale.ROOT,"%02d",index+1);
-        TextView num=Ui.label(this,"SILLA "+seatNumber,10,true);
+        TextView num=Ui.label(this,"SILLA "+seatNumber+(filled?" · ⋯":""),10,true);
         num.setTextColor(filled?Ui.INK:Ui.MUTED);num.setGravity(Gravity.CENTER);
         tile.addView(num);
         TextView center=Ui.label(this,filled?occupant.name:"＋",filled?12:27,filled);

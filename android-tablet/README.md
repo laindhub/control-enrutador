@@ -78,3 +78,11 @@ En esta versión:
 - La composición 2-up copia la geometría A4 vertical de Impresión Más Dueños 2.3.1: página original 1 abajo y 2 arriba, rotación visual equivalente a 90 grados antihorarios, 1 copia en total. Se reserva una banda compacta para charla, asesor y descripción.
 - **Se muestra una vista previa A4 antes de enviar a la impresora**, para no gastar papel si el sitio cambia sus estilos.
 - Esto pasó compilación y pruebas de código; hay que aprobar visualmente el PDF renderizado en la Tab A8 antes de usarlo para archivo. La APK no tiene acceso al depurador CDP de Edge y por ello necesita su propia ruta de representación.
+
+## 0.5.4 · Impresión corregida contra referencia de la extensión Edge
+
+Se compararon `Full-test-archivo.PDF` (salida Android) y `asi es como deberia ser.pdf` (extensión): la salida Android capturaba el reporte como una imagen angosta centrada, con mucho espacio en blanco y páginas mal distribuidas.
+
+Ahora HostReportCapture NO utiliza WebView.capturePicture. Extrae el contenido del propio reporte HTML creado por el CRM (`.report-container`, `.section-title`, `.info-item` y `.conclusion-message`), sin copiar credenciales, y NativeFullTestPdf lo compone en páginas **Carta 612×792**, con texto y líneas vectoriales, tipografía y secciones originales, ajuste de líneas, y paginación entre secciones. Si faltan secciones o excede dos páginas, se rechaza antes de imprimir. PdfComposer sigue imponiendo ambas páginas, rotadas y en orden, en una hoja A4 con los tres datos de archivo.
+
+La composición y la paginación son una implementación nativa equivalente, no los bytes exactos de Chromium. Verificar una hoja física de un cliente de prueba antes de utilizarla como archivo oficial. No enviar reportes de clientes al repositorio ni a un servidor externo.

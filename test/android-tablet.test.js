@@ -40,11 +40,12 @@ test('Host report is captured from the original popup without importing files',(
  assert.match(host,/Capturar PDF original/);
  assert.ok(host.includes('Imprimir'));
  assert.match(capture,/onCreateWindow/);
- assert.match(capture,/capturePicture/);
- assert.match(capture,/new PdfDocument/);
+ assert.match(capture,/NativeFullTestPdf\.write/);
+ assert.doesNotMatch(capture,/capturePicture|picture\.draw/);
+ assert.match(src('app/src/main/java/io/laind/masduenos/tablet/NativeFullTestPdf.java'),/new PdfDocument/);
  assert.doesNotMatch(capture,/adapter.onLayout|adapter.onWrite/);
  assert.match(capture,/report-container/);
- assert.match(capture,/renderer.getPageCount\(\)!=2/);
+ assert.match(capture,/pages.getPageCount\(\)!=2/);
  assert.match(main,/getStringExtra\("pdfPath"\)/);
  assert.doesNotMatch(main,/ACTION_OPEN_DOCUMENT|Importar PDF original del CRM|choosePdf\(/);
 });
@@ -198,20 +199,25 @@ test('Host CRM always uses desktop UA and wide viewport even on mobile',()=>{
  assert.doesNotMatch(host,/La sesión Host expiró/);
 });
 
-test('full-test capture uses Letter-width report CSS and headings, never midpoint bisect',()=>{
- const source=src('app/src/main/java/io/laind/masduenos/tablet/HostReportCapture.java');
- assert.match(source,/CSS_WIDTH=816/);
- assert.match(source,/CSS_HEIGHT=1056/);
- assert.match(source,/setUseWideViewPort\(true\)/);
- assert.match(source,/section-title/);
- assert.match(source,/capacidad de pago/);
- assert.match(source,/final float scale=Math.min/);
- assert.match(source,/Math.max\(cutInPicture,heightInPicture-cutInPicture\)/);
- assert.match(source,/clipRect\(margin,margin,612-margin,792-margin\)/);
- assert.match(source,/picture.draw\(canvas\)/);
- assert.match(source,/cssToPicture/);
- assert.match(source,/No se encontró un corte seguro entre secciones/);
- assert.doesNotMatch(source,/sourceHeight\/2f|segmentHeight=sourceHeight\/2f|sourceHeight\/2/);
+test('full-test uses native vector PDF from complete CRM report DOM, not a bitmap screenshot',()=>{
+ const capture=src('app/src/main/java/io/laind/masduenos/tablet/HostReportCapture.java');
+ const native=src('app/src/main/java/io/laind/masduenos/tablet/NativeFullTestPdf.java');
+ assert.match(capture,/\.report-container/);
+ assert.match(capture,/\.section-title/);
+ assert.match(capture,/\.summary-box/);
+ assert.match(capture,/\.info-item/);
+ assert.match(capture,/\.conclusion-message/);
+ assert.match(capture,/new JSONObject\(encoded\)/);
+ assert.match(capture,/NativeFullTestPdf\.write\(report,output\)/);
+ assert.doesNotMatch(capture,/capturePicture|Bitmap\.createBitmap|CSS_WIDTH|midpoint/);
+ assert.match(native,/PageInfo.Builder\(W,H,pageCount\)/);
+ assert.match(native,/if\(pageCount>=2\)/);
+ assert.match(native,/finishPage\(\)/);
+ assert.match(native,/cardHeight/);
+ assert.match(native,/wrap\(/);
+ assert.match(native,/\bINK\b/);
+ assert.match(native,/throw new IOException\("El test necesita "/);
+ assert.doesNotMatch(native,/Bitmap|PdfRenderer|capturePicture/);
 });
 test('imposition matches original Edge 2-up portrait geometry and keeps a single copy',()=>{
  const source=src('app/src/main/java/io/laind/masduenos/tablet/PdfComposer.java');

@@ -29,12 +29,18 @@ public final class PrintController {
         for(int i=0;i<4;i++){n[i]=Integer.parseInt(part[i]);if(n[i]>255)return false;}
         return n[0]==10||(n[0]==172&&n[1]>=16&&n[1]<=31)||(n[0]==192&&n[1]==168);
     }
-    public static void direct(String printerIp,File pdf,Consumer<String> callback){
+    public static final class Result {
+        public final boolean ok;
+        public final String message;
+        Result(boolean ok,String message){this.ok=ok;this.message=message;}
+    }
+    public static void direct(String printerIp,File pdf,Consumer<Result> callback){
         new Thread(()->{
-            String result;
-            try{sendIpp(printerIp,pdf);result="Trabajo aceptado por la impresora. Verificá que haya salido la hoja.";}
-            catch(Exception ex){result="IPP no disponible: "+(ex.getMessage()==null?"falló la conexión":ex.getMessage())+
-                "\nUsá «Imprimir con Android» como respaldo.";}
+            Result result;
+            try{sendIpp(printerIp,pdf);result=new Result(true,
+                "La Brother aceptó el trabajo. Verificá que haya salido físicamente la hoja.");}
+            catch(Exception ex){result=new Result(false,
+                "No se aceptó el trabajo en IPP. Usá «Imprimir con Android» como respaldo.");}
             callback.accept(result);
         },"local-ipp-printer").start();
     }

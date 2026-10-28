@@ -2,15 +2,13 @@ package io.laind.masduenos.tablet;
 
 import android.app.Activity;
 import android.graphics.pdf.PdfRenderer;
-import android.os.Bundle;
-import android.os.CancellationSignal;
+import android.graphics.pdf.PdfDocument;
+import android.graphics.Picture;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import java.io.FileOutputStream;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
-import android.print.PageRange;
-import android.print.PrintAttributes;
-import android.print.PrintDocumentAdapter;
-import android.print.PrintDocumentInfo;
-import android.view.View;
 import android.widget.FrameLayout;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -78,37 +76,37 @@ final class HostReportCapture {
         if(popup==null||!armed||writing)return;
         writing=true;
         File output=new File(activity.getCacheDir(),"crm-fulltest-original.pdf");
-        PrintAttributes attributes=new PrintAttributes.Builder()
-            .setMediaSize(PrintAttributes.MediaSize.NA_LETTER)
-            .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
-            .setMinMargins(new PrintAttributes.Margins(250,250,250,250)).build();
-        PrintDocumentAdapter adapter=popup.createPrintDocumentAdapter("Test del Dueño");
-        adapter.onStart();
-        adapter.onLayout(null,attributes,new CancellationSignal(),new PrintDocumentAdapter.LayoutResultCallback(){
-            @Override public void onLayoutFinished(PrintDocumentInfo info,boolean changed){
-                try{
-                    ParcelFileDescriptor destination=ParcelFileDescriptor.open(output,
-                        ParcelFileDescriptor.MODE_CREATE|ParcelFileDescriptor.MODE_TRUNCATE|ParcelFileDescriptor.MODE_READ_WRITE);
-                    adapter.onWrite(new PageRange[]{PageRange.ALL_PAGES},destination,new CancellationSignal(),
-                        new PrintDocumentAdapter.WriteResultCallback(){
-                            @Override public void onWriteFinished(PageRange[] pages){
-                                try{destination.close();adapter.onFinish();validate(output);}
-                                catch(Exception e){fail("No se pudo validar la impresión generada.");}
-                            }
-                            @Override public void onWriteFailed(CharSequence error){
-                                try{destination.close();}catch(Exception ignored){}
-                                adapter.onFinish();fail("WebView no pudo generar el PDF del Full-test.");
-                            }
-                            @Override public void onWriteCancelled(){
-                                try{destination.close();}catch(Exception ignored){}
-                                adapter.onFinish();fail("La captura del Full-test se canceló.");
-                            }
-                        });
-                }catch(Exception e){adapter.onFinish();fail("No se pudo crear el PDF temporal.");}
-            }
-            @Override public void onLayoutFailed(CharSequence message){adapter.onFinish();fail("El reporte no tiene un diseño imprimible.");}
-            @Override public void onLayoutCancelled(){adapter.onFinish();fail("Se canceló la preparación del documento.");}
-        },new Bundle());
+        try{
+            // Android's PrintDocumentAdapter callbacks have package-private
+            // constructors: direct onLayout/onWrite is not available to apps.
+            // Record the original HTML drawing into a private PDF instead.
+            Picture picture=popup.capturePicture();
+            if(picture==null||picture.getWidth()<100||picture.getHeight()<400)
+                throw new IllegalStateException("El reporte no terminó de dibujarse.");
+            PdfDocument document=new PdfDocument();
+            try{
+                final int sourceWidth=picture.getWidth(),sourceHeight=picture.getHeight();
+                final float segmentHeight=sourceHeight/2f;
+                for(int index=0;index<2;index++){
+                    PdfDocument.PageInfo size=new PdfDocument.PageInfo.Builder(612,792,index+1).create();
+                    PdfDocument.Page page=document.startPage(size);
+                    Canvas canvas=page.getCanvas();
+                    canvas.drawColor(Color.WHITE);
+                    final float margin=19f;
+                    final float scale=Math.min((612f-2*margin)/sourceWidth,(792f-2*margin)/segmentHeight);
+                    canvas.save();
+                    canvas.clipRect(margin,margin,612f-margin,792f-margin);
+                    canvas.translate(margin,margin);
+                    canvas.scale(scale,scale);
+                    canvas.translate(0,-index*segmentHeight);
+                    picture.draw(canvas);
+                    canvas.restore();
+                    document.finishPage(page);
+                }
+                try(FileOutputStream destination=new FileOutputStream(output)){document.writeTo(destination);}
+            }finally{document.close();}
+            validate(output);
+        }catch(Exception e){output.delete();fail("No se pudo convertir el reporte HTML: "+e.getMessage());}
     }
     private void validate(File pdf) {
         try(ParcelFileDescriptor fd=ParcelFileDescriptor.open(pdf,ParcelFileDescriptor.MODE_READ_ONLY);

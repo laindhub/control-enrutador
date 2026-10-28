@@ -23,8 +23,8 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 /** The tablet's primary workspace: a local board, not a duplicate CRM.
- * Only individual leads explicitly chosen in the authenticated Host session
- * appear here. No fictional or stale "live CRM" counters are displayed.
+ * Each user-selected lead comes from the authorized Host Atendidas list.
+ * No fictional or stale "live CRM" counters are displayed.
  */
 public final class DashboardActivity extends Activity {
     private static final int PICK_HOST=111;
@@ -53,8 +53,8 @@ public final class DashboardActivity extends Activity {
         TextView subtitle=Ui.label(this,"Personas de hoy · Gestión local de tu charla",13,false);
         subtitle.setTextColor(Ui.MUTED);root.addView(subtitle,Ui.spaced(this,7));
         LinearLayout actions=new LinearLayout(this);
-        Button add=Ui.button(this,"+ Buscar en Host",true);
-        add.setOnClickListener(v->startActivityForResult(new Intent(this,HostActivity.class),PICK_HOST));
+        Button add=Ui.button(this,"+ Buscar en Atendidas",true);
+        add.setOnClickListener(v->startActivityForResult(new Intent(this,HostLookupActivity.class),PICK_HOST));
         actions.addView(add,new LinearLayout.LayoutParams(0,Ui.dp(this,49),1));
         Button router=Ui.button(this,"CRM Enrutador",false);
         router.setOnClickListener(v->startActivity(new Intent(this,RouterActivity.class)));
@@ -162,7 +162,7 @@ public final class DashboardActivity extends Activity {
             TextView title=Ui.label(this,current.isEmpty()?"Todavía no hay personas en tu tablero":"No hay resultados",18,true);
             blank.addView(title);
             TextView detail=Ui.label(this,current.isEmpty()
-                ?"Agregá una persona desde Atendidas en el CRM de Host. Su Full-test queda guardado para que puedas retomar la gestión."
+                ?"Buscá una persona en Atendidas desde la tablet. No necesitás abrir ni imprimir su Full-test para agregarla."
                 :"Probá otro filtro o buscá por nombre, descripción, horario o asesor.",14,false);
             detail.setTextColor(Ui.MUTED);blank.addView(detail,Ui.spaced(this,10));
             list.addView(blank,Ui.spaced(this,14));return;
@@ -229,15 +229,11 @@ public final class DashboardActivity extends Activity {
         try{
             String name=data.getStringExtra("leadName"),path=data.getStringExtra("crmPath");
             String phone=data.getStringExtra("leadPhone"),arrival=data.getStringExtra("arrival");
-            String raw=data.getStringExtra("pdfPath");
-            File source=raw==null?null:new File(raw);
-            if(source==null||!source.getCanonicalPath().startsWith(getCacheDir().getCanonicalPath()+File.separator))
-                throw new IllegalArgumentException("El PDF no pertenece al área privada del CRM.");
-            LeadStore.Lead lead=store.addFromHost(name,phone,arrival,path,source);
+            LeadStore.Lead lead=store.addFromHostMetadata(name,phone,arrival,path);
             Intent editor=new Intent(this,MainActivity.class);editor.putExtra("lead_id",lead.id);startActivity(editor);
         }catch(Exception error){
             new AlertDialog.Builder(this).setTitle("No se pudo agregar el lead")
-                .setMessage("El documento no se guardó. Volvé a abrir la ficha de Host e intentá capturarlo otra vez.")
+                .setMessage("No se pudo incorporar la ficha. Revisá que corresponda a Atendidas de hoy.")
                 .setPositiveButton("Entendido",(d,w)->{}).show();
         }
     }

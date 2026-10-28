@@ -157,10 +157,18 @@ final class HostReportCapture {
         File output=new File(activity.getCacheDir(),"crm-fulltest-original.pdf");
         try{
             Picture picture=popup.capturePicture();
-            if(picture==null||picture.getWidth()<700||picture.getHeight()<height-50)
+            if(picture==null||picture.getWidth()<600)
                 throw new IllegalStateException("El documento todavía no terminó de dibujarse.");
+            // capturePicture may use device pixels, while the DOM provides CSS
+            // pixels. Convert every Y boundary to the picture's coordinate
+            // system before drawing; otherwise density scales the report down.
             final int width=picture.getWidth();
-            final int maxSegment=Math.max(cut,height-cut);
+            final float cssToPicture=width/(float)CSS_WIDTH;
+            final float heightInPicture=height*cssToPicture;
+            final float cutInPicture=cut*cssToPicture;
+            if(picture.getHeight()<heightInPicture-30*cssToPicture)
+                throw new IllegalStateException("La imagen del reporte está incompleta.");
+            final float maxSegment=Math.max(cutInPicture,heightInPicture-cutInPicture);
             final float margin=18f, contentWidth=612f-2*margin, contentHeight=792f-2*margin;
             final float scale=Math.min(contentWidth/width,contentHeight/maxSegment);
             if(scale<.44f)throw new IllegalStateException("El informe es demasiado largo para dos páginas legibles.");
@@ -174,7 +182,7 @@ final class HostReportCapture {
                     // vertical clip windows. Never bisect the content midway.
                     canvas.save();
                     canvas.clipRect(margin,margin,612-margin,792-margin);
-                    canvas.translate(margin,margin-(index==0?0:cut)*scale);
+                    canvas.translate(margin,margin-(index==0?0:cutInPicture)*scale);
                     canvas.scale(scale,scale);
                     picture.draw(canvas);
                     canvas.restore();

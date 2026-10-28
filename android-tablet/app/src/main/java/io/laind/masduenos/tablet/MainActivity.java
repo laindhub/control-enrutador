@@ -74,7 +74,7 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);
         LinearLayout content=Ui.column(this,20);content.setBackgroundColor(Color.WHITE);
         scroll.setFillViewport(true);
-        scroll.addView(content);setContentView(scroll);
+        scroll.addView(content);NavigationShell.install(this,scroll,NavigationShell.BOARD);
 
         Button back=Ui.button(this,"‹ Volver al tablero",false);
         back.setOnClickListener(v->{saveDraft();finish();});

@@ -26,6 +26,7 @@ public final class HostActivity extends Activity {
     private WebView browser;
     private HostReportCapture capture;
     private TextView captureStatus;
+    private Button choose;
     private boolean printOnly=false,autoRequested=false;
     private boolean tabRequested=false,routeOpening=false;
     private int listAttempts=0,detailAttempts=0,recoveryAttempts=0;
@@ -45,7 +46,7 @@ public final class HostActivity extends Activity {
             "Buscando el reporte de esta persona con tu sesión Host activa…":
             "Entrá al Full-test con Host y abrí la ficha seleccionada para capturar el reporte.",13,false);
         help.setTextColor(Ui.MUTED);root.addView(help,Ui.spaced(this,4));
-        Button choose=Ui.button(this,printOnly?"Reintentar obtención del test":"Preparar derivación y capturar test",false);
+        choose=Ui.button(this,printOnly?"Reintentar obtención del test":"Preparar derivación y capturar test",false);
         choose.setOnClickListener(v->{
             if(printOnly){
                 listAttempts=0;detailAttempts=0;tabRequested=false;autoRequested=false;

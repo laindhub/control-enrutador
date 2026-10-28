@@ -41,13 +41,19 @@ public final class HostActivity extends Activity {
         }
         LinearLayout root=Ui.column(this,12);root.setBackgroundColor(Color.WHITE);
         NavigationShell.install(this,root,NavigationShell.HOST);
-        TextView title=Ui.label(this,printOnly?"Impresión de esta persona · Host":"Full-test · Host",21,true);root.addView(title);
+        TextView title=Ui.label(this,printOnly?"Full-test · Impresión":"Full-test · Host",19,true);root.addView(title);
         TextView help=Ui.label(this,printOnly?
-            "Usamos la sesión de Host ya abierta para obtener el Full-test de esta persona. No hace falta buscarla nuevamente.":
+            "Buscando el reporte de esta persona con tu sesión Host activa…":
             "Entrá al Full-test con Host y abrí la ficha seleccionada para capturar el reporte.",13,false);
         help.setTextColor(Ui.MUTED);root.addView(help,Ui.spaced(this,4));
-        Button choose=Ui.button(this,printOnly?"Capturar Full-test":"Preparar derivación y capturar test",true);
-        choose.setOnClickListener(v->readSelection());
+        Button choose=Ui.button(this,printOnly?"Reintentar obtención del test":"Preparar derivación y capturar test",false);
+        choose.setOnClickListener(v->{
+            if(printOnly){
+                listAttempts=0;detailAttempts=0;tabRequested=false;autoRequested=false;
+                browser.loadUrl("https://"+HOST+"/floor/full-test");
+            }else readSelection();
+        });
+        if(printOnly)choose.setVisibility(View.GONE);
         root.addView(choose,Ui.spaced(this,5));
         captureStatus=Ui.label(this,printOnly?"Recuperando la ficha de la sesión Host…":
             "Seleccioná una persona de Atendidas para preparar su impresión.",12,false);
@@ -104,7 +110,8 @@ public final class HostActivity extends Activity {
         if(!printOnly||isFinishing()||browser==null||autoRequested)return;
         if(!"/floor/full-test".equals(Uri.parse(browser.getUrl()).getPath()))return;
         if(++listAttempts>26){
-            captureStatus.setText("No se encontró este UUID en Atendidas. La sesión sigue abierta; comprobá el estado del lead.");
+            captureStatus.setText("No se encontró la visita en Atendidas. Podés revisar el CRM y reintentar.");
+            if(choose!=null)choose.setVisibility(View.VISIBLE);
             return;
         }
         String js="(()=>{const wanted="+JSONObject.quote(targetPath)+";"+
@@ -129,7 +136,8 @@ public final class HostActivity extends Activity {
     private void checkSelectedVisit(){
         if(isFinishing()||!printOnly||autoRequested||browser==null)return;
         if(++detailAttempts>22){
-            captureStatus.setText("La visita todavía no mostró el Full-test. Podés revisar el CRM en esta pantalla.");
+            captureStatus.setText("El Full-test no aparece todavía. Podés reintentar sin volver a ingresar tu PIN.");
+            if(choose!=null)choose.setVisibility(View.VISIBLE);
             return;
         }
         if(!targetPath.equals(Uri.parse(browser.getUrl()).getPath())){
@@ -175,7 +183,8 @@ public final class HostActivity extends Activity {
                 if(printOnly){
                     if(!targetPath.equals(path)||expectedName==null||
                         !normalizeName(expectedName).equals(normalizeName(name))){
-                        captureStatus.setText("El nombre no coincide con el lead elegido. Volvé al tablero y revisá la ficha.");
+                        captureStatus.setText("La ficha abierta no coincide con el lead elegido. No se imprimirá otro test.");
+                        if(choose!=null)choose.setVisibility(View.VISIBLE);
                         return;
                     }
                     beginCapture(name,path,obj);

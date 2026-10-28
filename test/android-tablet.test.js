@@ -237,3 +237,16 @@ test('visual PDF proof is required before dispatching to Brother or Android',()=
  assert.match(source,/setNegativeButton\("Cancelar"/);
  assert.match(source,/setPositiveButton\("Imprimir 1 hoja"/);
 });
+
+test('exact extension geometry, no new header and only three added values',()=>{
+ const source=src('app/src/main/java/io/laind/masduenos/tablet/PdfComposer.java');
+ assert.match(source,/slotH=\(A4_HEIGHT-2\*SHEET_MARGIN-GUTTER\)\/2f/);
+ assert.match(source,/SHEET_MARGIN=0f/);
+ assert.match(source,/GUTTER=0f/);
+ assert.match(source,/drawThreeFieldsInWhitespace/);
+ assert.match(source,/Charla de:/);
+ assert.match(source,/Derivado a:/);
+ assert.match(source,/Descripción:/);
+ assert.doesNotMatch(source,/HEADER=|drawHeader\(|HOJA DE ARCHIVO/);
+ assert.doesNotMatch(source,/A4_HEIGHT-HEADER|slotH=\(A4_HEIGHT-HEADER/);
+});

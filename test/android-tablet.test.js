@@ -37,7 +37,7 @@ test('Host report is captured from the original popup without importing files',(
  const capture=src('app/src/main/java/io/laind/masduenos/tablet/HostReportCapture.java');
  const main=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
  assert.match(host,/new HostReportCapture/);
- assert.match(host,/Capturar PDF original/);
+ assert.match(host,/Capturar test|Capturando el documento/);
  assert.ok(host.includes('Imprimir'));
  assert.match(capture,/onCreateWindow/);
  assert.match(capture,/NativeFullTestPdf\.write/);
@@ -86,7 +86,7 @@ test('printing and CRM completion are distinct confirmed states',()=>{
  assert.match(editor,/markRegistered\(\)/);
  assert.match(editor,/LeadStore.PAPER/);
  assert.match(editor,/LeadStore.DONE/);
- assert.match(editor,/CRM oficial/);
+ assert.match(editor,/CRM de Enrutador/);
  assert.match(control,/Consumer<Result>/);
  assert.match(control,/new Result\(false/);
 });
@@ -276,7 +276,7 @@ test('Host lookup uses full-height native list instead of leaving invisible WebV
  assert.match(lookup,/private ScrollView scrolling;/);
  assert.match(lookup,/private FrameLayout webHolder;/);
  assert.match(lookup,/webHolder\.setVisibility\(show\?View\.VISIBLE:View\.GONE\)/);
- assert.match(lookup,/scrolling\.setVisibility\(show\?View\.GONE:View\.VISIBLE\)/);
+ assert.match(lookup,/scrolling\.setVisibility\(show\|\|reviewed!=null\?View\.GONE:View\.VISIBLE\)/);
  assert.doesNotMatch(lookup,/browser\.setVisibility\(show\?View\.VISIBLE:View\.GONE\)/);
  assert.match(lookup,/status\.setText\("Atendidas de hoy: "\+candidates\.size\(\)/);
 });

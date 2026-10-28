@@ -45,7 +45,7 @@ public final class DashboardActivity extends Activity {
         LinearLayout root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.WHITE);
         root.setPadding(Ui.dp(this,18),Ui.dp(this,12),Ui.dp(this,18),0);
-        setContentView(root);
+        NavigationShell.install(this,root,NavigationShell.BOARD);
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         TextView brand=Ui.label(this,"Control Enrutador",25,true);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
         TextView label=Ui.label(this,"LINIERS · TAB A8",11,true);label.setTextColor(Ui.RED);header.addView(label);

@@ -17,6 +17,8 @@ import android.widget.TextView;
 public final class RouterActivity extends Activity {
     private static final String ORIGIN="https://liniers.xn--somosmasdueos-skb.com";
     private WebView page;
+    private String assignedPath="";
+    private boolean returnedFromLogin=false;
     @Override public void onCreate(Bundle state){
         super.onCreate(state);Ui.statusBars(this);
         LinearLayout root=Ui.column(this,12);root.setBackgroundColor(-1);NavigationShell.install(this,root,NavigationShell.ROUTER);
@@ -28,6 +30,13 @@ public final class RouterActivity extends Activity {
         s.setAllowContentAccess(false);s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         CookieManager.getInstance().setAcceptCookie(true);
         page.setWebViewClient(new WebViewClient(){
+            @Override public void onPageFinished(WebView view,String url){
+                Uri current=Uri.parse(url);
+                if(!assignedPath.isEmpty()&&!returnedFromLogin&&"/floor".equals(current.getPath())){
+                    returnedFromLogin=true;
+                    view.loadUrl(ORIGIN+assignedPath);
+                }
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
                 if(!req.isForMainFrame())return false;
                 Uri u=req.getUrl();
@@ -43,6 +52,7 @@ public final class RouterActivity extends Activity {
             String id=link.split("/")[3];
             destination="/floor/visits/"+id+"/assignment";
         }
+        if(!destination.equals("/floor/router"))assignedPath=destination;
         page.loadUrl(ORIGIN+destination);
     }
     @Override public void onBackPressed(){if(page.canGoBack())page.goBack();else super.onBackPressed();}

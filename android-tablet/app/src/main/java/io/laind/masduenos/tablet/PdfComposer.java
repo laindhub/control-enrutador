@@ -18,7 +18,7 @@ import java.util.List;
  * precisely the full two slots of A4 portrait, like Edge 2.3.1. Unlike older
  * releases, NO new top header, gutter, outer margins or proportional shrink
  * is introduced. Three supplemental routing fields are drawn ONLY in the
- * unused white space to the right of the original page-two content.
+ * verified clear area to the right of page two, with an occupancy check.
  *
  * This does NOT fix a non-original upstream source PDF. The source capture
  * must use the actual CRM print layout, never a guessed reconstructed form.
@@ -49,6 +49,7 @@ public final class PdfComposer {
                     try{
                         image.eraseColor(Color.WHITE);
                         page.render(image,null,null,PdfRenderer.Page.RENDER_MODE_FOR_PRINT);
+                        if(i==1)ensureReservedWhitespaceIsBlank(image);
                         // Extension 2.3.1: page 1 bottom, page 2 top,
                         // rotated 90 degrees in the output PDF.
                         final float slotTop=i==0?SHEET_MARGIN+slotH+GUTTER:SHEET_MARGIN;
@@ -79,73 +80,84 @@ public final class PdfComposer {
         canvas.restore();
     }
     /**
-     * Supplemental information stays inside the verified EMPTY region of the
-     * original two-up A4 sheet: x=253..410, y=47..347 PDF points.
+     * The original Full-test page 2 occupies the LEFT of the top two-up slot.
+     * The trailing 40% is blank on the verified source. Reserve a strict
+     * rectangle on the RIGHT (x=339..556, y=67..392) for the three references.
      *
-     * The ORIGINAL test is rotated -90 degrees by drawLikeEdge().
-     * Our annotation intentionally rotates +90 degrees (the reverse), so it
-     * faces the operator standing in front of the archived sheet.
-     * It does not translate, shrink, clip or reflow the original test.
+     * Rotation -90f matches the printed questionnaire itself: unlike the
+     * previous +90f cards, nothing is upside down or facing the wrong way.
+     * The source images never move, scale differently or get painted over.
      */
     private static void drawThreeFieldsInWhitespace(Canvas canvas,
                          String presenter,String advisor,String description) throws IOException {
-        final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
-        final int red=Color.rgb(210,38,27);
-        final int ink=Color.rgb(29,30,34);
-        final int gray=Color.rgb(96,100,106);
+        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
+        int red=Color.rgb(210,38,27);
+        int ink=Color.rgb(29,30,34);
+        int gray=Color.rgb(99,103,110);
         canvas.save();
-        canvas.translate(410f,47f);
-        canvas.rotate(90f); // Reverse orientation relative to the Full-test itself.
-
-        p.setColor(red);
-        p.setTypeface(android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.BOLD));
-        p.setTextSize(11.5f);
-        canvas.drawText("REFERENCIAS DE SALÓN",6f,13.5f,p);
-
-        drawFieldCard(canvas,p,24f,0,"Charla de:",presenter,red,ink,gray);
-        drawFieldCard(canvas,p,68f,1,"Derivado a:",advisor,red,ink,gray);
-        drawFieldCard(canvas,p,112f,2,"Descripción:",description,red,ink,gray);
-
+        canvas.translate(335f,397f);
+        canvas.rotate(-90f); // SAME direction as the CRM Full-test, not +90.
+        // No title: only three clearly identified fields, in a reserved strip.
+        drawFieldCard(canvas,p,4f,0,"Charla de:",presenter,red,ink,gray);
+        drawFieldCard(canvas,p,80f,1,"Derivado a:",advisor,red,ink,gray);
+        drawFieldCard(canvas,p,156f,2,"Descripción:",description,red,ink,gray);
         canvas.restore();
     }
+
+    /**
+     * Guard against unexpected long reports whose content extends into the
+     * reserved area. Fail closed rather than obscure client information.
+     * On source page 2 the bottom region maps to the right of the A4 slot.
+     */
+    private static void ensureReservedWhitespaceIsBlank(Bitmap source) throws IOException {
+        int startY=(int)(source.getHeight()*.575f);
+        int endY=(int)(source.getHeight()*.985f);
+        int startX=(int)(source.getWidth()*.15f);
+        int endX=(int)(source.getWidth()*.92f);
+        int occupied=0;
+        for(int y=startY;y<endY;y+=7){
+            for(int x=startX;x<endX;x+=7){
+                int color=source.getPixel(x,y);
+                int darkest=Math.min(Color.red(color),Math.min(Color.green(color),Color.blue(color)));
+                if(darkest<225&&++occupied>32)
+                    throw new IOException("Este Full-test ocupa el espacio reservado para referencias. Se canceló la impresión para no tapar datos.");
+            }
+        }
+    }
+
     private static void drawFieldCard(Canvas c,Paint p,float top,int type,
                  String label,String value,int red,int ink,int gray) throws IOException {
-        p.setColor(Color.rgb(249,248,247));
+        final float left=5f,right=330f,bottom=top+68f;
         p.setStyle(Paint.Style.FILL);
-        c.drawRoundRect(4f,top,297f,top+40f,5.5f,5.5f,p);
-        p.setColor(Color.rgb(221,223,225));
-        p.setStrokeWidth(.75f);
+        p.setColor(Color.rgb(249,249,250));
+        c.drawRoundRect(left,top,right,bottom,6f,6f,p);
+        p.setColor(Color.rgb(221,224,227));
+        p.setStrokeWidth(.8f);
         p.setStyle(Paint.Style.STROKE);
-        c.drawRoundRect(4f,top,297f,top+40f,5.5f,5.5f,p);
+        c.drawRoundRect(left,top,right,bottom,6f,6f,p);
         p.setStyle(Paint.Style.FILL);
         p.setColor(red);
-        c.drawRoundRect(4f,top,7f,top+40f,2f,2f,p);
+        c.drawRoundRect(left,top,left+3.5f,bottom,1.5f,1.5f,p);
+        drawSymbol(c,p,type,21f,top+21f,red);
 
-        // Native Canvas vector symbols based on the two user-supplied icons:
-        // presentation board for "Charla de"; person silhouette for advisor.
-        // A stylized note identifies the free-text physical description.
-        drawSymbol(c,p,type,15f,top+10f,red);
-
-        p.setTypeface(android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD));
-        p.setTextSize(8.2f);
         p.setColor(gray);
-        c.drawText(label,43f,top+12.5f,p);
+        p.setTypeface(android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD));
+        p.setTextSize(11.5f);
+        c.drawText(label,60f,top+23f,p);
 
         p.setColor(ink);
         p.setTypeface(android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.BOLD));
-        p.setTextSize(11.8f);
-        String cleaned=clean(value);
-        List<String> lines=wrap(cleaned,p,244f);
+        p.setTextSize(15f);
+        List<String> lines=wrap(clean(value),p,255f);
         if(lines.size()>2)
-            throw new IOException("La descripción es demasiado larga para la hoja de archivo.");
-        int i=0;
-        for(String line:lines){
-            if(p.measureText(line)>244f)
-                throw new IOException("Una referencia no cabe en la hoja de archivo.");
-            c.drawText(line,43f,top+27f+i*11.5f,p);
-            i++;
+            throw new IOException("La referencia no entra en el espacio reservado; acortá la descripción.");
+        for(int i=0;i<lines.size();i++){
+            if(p.measureText(lines.get(i))>255f)
+                throw new IOException("Una referencia es demasiado larga para la hoja de archivo.");
+            c.drawText(lines.get(i),60f,top+45f+i*17f,p);
         }
     }
+
     private static void drawSymbol(Canvas c,Paint p,int kind,float x,float y,int red){
         c.save();
         c.translate(x,y);

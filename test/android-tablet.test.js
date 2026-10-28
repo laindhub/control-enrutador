@@ -205,7 +205,7 @@ test('full-test capture uses Letter-width report CSS and headings, never midpoin
  assert.match(source,/setUseWideViewPort\(true\)/);
  assert.match(source,/section-title/);
  assert.match(source,/capacidad de pago/);
- assert.match(source,/const scale=Math.min/);
+ assert.match(source,/final float scale=Math.min/);
  assert.match(source,/Math.max\(cut,height-cut\)/);
  assert.match(source,/clipRect\(margin,margin,612-margin,792-margin\)/);
  assert.match(source,/picture.draw\(canvas\)/);

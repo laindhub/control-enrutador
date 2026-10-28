@@ -37,7 +37,13 @@ public final class RouterActivity extends Activity {
             }
         });
         root.addView(page,new LinearLayout.LayoutParams(-1,0,1));
-        page.loadUrl(ORIGIN+"/floor/visits");
+        String link=getIntent().getStringExtra("crmPath");
+        String destination="/floor/router";
+        if(link!=null&&link.matches("/floor/visits/[a-fA-F0-9-]{36}(?:/full-test)?")) {
+            String id=link.split("/")[3];
+            destination="/floor/visits/"+id+"/assignment";
+        }
+        page.loadUrl(ORIGIN+destination);
     }
     @Override public void onBackPressed(){if(page.canGoBack())page.goBack();else super.onBackPressed();}
     @Override protected void onDestroy(){if(page!=null)page.destroy();super.onDestroy();}

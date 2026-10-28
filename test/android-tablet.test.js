@@ -55,14 +55,15 @@ test('tablet opens with the board, not the single-lead form',()=>{
  const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
  assert.match(manifest,/DashboardActivity" android:exported="true"/);
  assert.match(manifest,/MainActivity" android:exported="false"/);
- assert.match(dash,/Buscar en Atendidas/);
- assert.match(dash,/Personas en gestión/);
+ assert.match(dash,/Charlas de hoy/);
+ assert.match(dash,/SILLA /);
  assert.match(dash,/Por imprimir/);
  assert.match(dash,/Por confirmar/);
  assert.match(dash,/HostLookupActivity/);
- assert.match(dash,/store.addFromHostMetadata/);
+ assert.match(dash,/store.placeFromHost/);
  assert.match(dash,/lead.id/);
- assert.match(dash,/getResources\(\).getConfiguration\(\).orientation/);
+ assert.match(dash,/TalkStore.COLS/);
+ assert.match(dash,/TalkStore.ROWS/);
 });
 test('each lead has an encrypted persisted draft and its own protected PDF',()=>{
  const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
@@ -102,7 +103,7 @@ test('Atendidas native picker mirrors the real Full-test list in the Host sessio
  assert.match(java,/setResult\(RESULT_OK/);
  assert.match(java,/Confirmar persona/);
  assert.match(dash,/HostLookupActivity\.class/);
- assert.match(dash,/store.addFromHostMetadata/);
+ assert.match(dash,/store.placeFromHost/);
  assert.match(manifest,/HostLookupActivity" android:exported="false" android:process=":host"/);
 });
 test('deferred print opens selected CRM visit and archives it under correct lead',()=>{
@@ -284,4 +285,46 @@ test('4-second Host sync does not rebuild 200+ cards if no lead changed',()=>{
  assert.match(lookup,/incoming\.size\(\)!=candidates\.size\(\)/);
  assert.match(lookup,/if\(changed\|\|!wasReady\)draw\(\)/);
  assert.match(lookup,/search\.addTextChangedListener/);
+});
+
+test('12-seat talk boards are persisted encrypted without losing prior lead fields',()=>{
+ const talks=src('app/src/main/java/io/laind/masduenos/tablet/TalkStore.java');
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ assert.match(talks,/COLS=4,ROWS=3,CAPACITY=COLS\*ROWS/);
+ assert.match(talks,/LeadStore\.encrypt/);
+ assert.match(talks,/LeadStore\.decrypt/);
+ assert.match(talks,/createToday/);
+ assert.match(talks,/removeEmpty/);
+ assert.match(dash,/for\(int r=0;r<TalkStore\.ROWS;r\+\+\)/);
+ assert.match(dash,/for\(int c=0;c<TalkStore\.COLS;c\+\+\)/);
+ assert.match(dash,/showChatOptions/);
+ assert.match(dash,/Personas sin silla/);
+ assert.match(store,/o\.put\("talkId",talkId\)/);
+ assert.match(store,/o\.put\("seatIndex",seatIndex\)/);
+ assert.match(store,/o\.optInt\("seatIndex",-1\)/);
+});
+test('unoccupied chair opens attended Host dialog and prevents duplicate UUIDs',()=>{
+ const picker=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
+ assert.match(dash,/picker\.putExtra\("seat_picker",true\)/);
+ assert.match(dash,/picker\.putExtra\("seat_number",seat\+1\)/);
+ assert.match(picker,/Theme_Material_Light_Dialog_NoActionBar/);
+ assert.match(picker,/FLAG_DIM_BEHIND/);
+ assert.match(store,/placeFromHost/);
+ assert.match(store,/visitKey\(lead\.crmPath\)/);
+ assert.match(store,/Esta silla ya está ocupada/);
+ assert.match(store,/El lead ya ocupa otra silla/);
+});
+test('occupied chair shows visible release action and preserves saved lead data',()=>{
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
+ assert.match(dash,/tile\.setOnClickListener\(v->showSeatOptions\(selectedLead\)\)/);
+ assert.match(dash,/Liberar silla · Se retiró/);
+ assert.match(dash,/setPositiveButton\("Liberar"/);
+ assert.match(dash,/store\.unseat\(lead\.id\)/);
+ assert.match(store,/synchronized void unseat/);
+ assert.match(store,/lead\.talkId="";lead\.seatIndex=-1/);
+ assert.match(store,/if\(DONE\.equals\(lead\.status\)\)throw new IOException/);
 });

@@ -109,3 +109,13 @@ La composición y la paginación son una implementación nativa equivalente, no 
 - Ahora **el contenedor completo** queda `GONE` cuando se muestra el buscador, y la lista ocupa toda la altura libre. El modo «Ver CRM / Ingresar» muestra el navegador en lugar de la lista.
 - Se conservan los 226 registros que reporte el CRM y el filtro por nombre se aplica a todos ellos, no solo a los visibles.
 - El sondeo periódico compara los resultados antes de recrear cientos de tarjetas, evitando saltos de scroll y trabajo innecesario en Android.
+
+## Charlas y sillas (0.6.0)
+
+- El tablero del día se organiza en charlas con hora editable. Cada una muestra exactamente 12 sillas dispuestas en 4 columnas por 3 filas y admite crear varias charlas en el mismo día.
+- Tocar una silla libre abre Atendidas en una ventana de selección; se conserva la sesión Host existente. Una vez elegido y verificado el UUID, el lead queda en esa silla y se abre su ficha.
+- Tocar una silla ocupada abre las acciones **Abrir derivación / Mover a otra silla / Liberar silla · Se retiró**. Liberar requiere confirmación y **no borra la ficha ni registra nada en el CRM**.
+- El UUID es único dentro del día: impide registrar el mismo lead en dos sillas accidentalmente. Existe traslado explícito.
+- Los leads históricos sin charla/silla sobreviven a la actualización y se pueden ubicar desde «Personas sin silla».
+- Charlas y asignaciones quedan cifradas localmente; no se envían las ubicaciones de sillas al CRM.
+- La impresión y derivación oficial siguen funcionando desde la ficha, con sus confirmaciones actuales. La automatización de guardado oficial no se activa en esta versión.

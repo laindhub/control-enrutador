@@ -16,9 +16,9 @@ public final class PdfComposer {
     static final int A4_WIDTH=595,A4_HEIGHT=842;
     public static File compose(File original,File output,String presenter,String advisor,String description) throws IOException {
         if(original==null||!original.isFile())throw new IOException("Primero seleccioná el PDF original.");
+        PdfDocument result=new PdfDocument();
         try(ParcelFileDescriptor descriptor=ParcelFileDescriptor.open(original,ParcelFileDescriptor.MODE_READ_ONLY);
-            PdfRenderer renderer=new PdfRenderer(descriptor);
-            PdfDocument result=new PdfDocument()){
+            PdfRenderer renderer=new PdfRenderer(descriptor)){
             if(renderer.getPageCount()!=2)throw new IOException("Esta versión requiere un Full-test original de 2 páginas. No se omitirá ninguna página.");
             PdfDocument.PageInfo info=new PdfDocument.PageInfo.Builder(595,842,1).create();
             PdfDocument.Page sheet=result.startPage(info);
@@ -42,7 +42,7 @@ public final class PdfComposer {
             }
             result.finishPage(sheet);
             try(FileOutputStream stream=new FileOutputStream(output)){result.writeTo(stream);}
-        }
+        }finally{result.close();}
         return output;
     }
     private static void drawRotated(Canvas canvas,Bitmap bitmap,float slotY,float slotH){

@@ -40,6 +40,8 @@ public final class HostLookupActivity extends Activity {
     private final Runnable poll=()->sync();
     private WebView browser;
     private LinearLayout root,results;
+    private ScrollView scrolling;
+    private FrameLayout webHolder;
     private EditText search;
     private TextView status;
     private Button toggle;
@@ -83,10 +85,10 @@ public final class HostLookupActivity extends Activity {
             public void onTextChanged(CharSequence s,int a,int before,int count){draw();}
             public void afterTextChanged(Editable s){}
         });
-        ScrollView scrolling=new ScrollView(this);
+        scrolling=new ScrollView(this);
         results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);
         scrolling.addView(results);root.addView(scrolling,new LinearLayout.LayoutParams(-1,0,1));
-        FrameLayout webHolder=new FrameLayout(this);
+        webHolder=new FrameLayout(this);
         browser=HostWebSession.attach(this,webHolder);
         browser.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
@@ -116,11 +118,16 @@ public final class HostLookupActivity extends Activity {
     }
     private void showBrowser(){
         boolean show=manual||!ready;
-        browser.setVisibility(show?View.VISIBLE:View.GONE);
+        // Both scrolling and webHolder use layout_weight=1. Hiding only
+        // the inner WebView left an EMPTY half-height container below the
+        // cards, so only three of 200+ attended leads were visible.
+        // Hide the full container so the native results take all space.
+        webHolder.setVisibility(show?View.VISIBLE:View.GONE);
+        scrolling.setVisibility(show?View.GONE:View.VISIBLE);
         search.setVisibility(show?View.GONE:View.VISIBLE);
-        results.setVisibility(show?View.GONE:View.VISIBLE);
+        browser.setVisibility(View.VISIBLE);
         toggle.setText(show?"Mostrar buscador":"Ver CRM / Ingresar");
-        if(show&&browser.getVisibility()==View.VISIBLE)status.setText("Si Liniers solicita acceso, ingresá con el PIN autorizado de Host.");
+        if(show)status.setText("Si Liniers solicita acceso, ingresá con el PIN autorizado de Host.");
     }
     private void sync(){
         if(isFinishing()||browser==null)return;

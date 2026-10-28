@@ -29,7 +29,7 @@ import java.util.Arrays;
  * verified write integration is available.
  */
 public final class MainActivity extends Activity {
-    private static final int HOST_PICK=51,PDF_PICK=52;
+    private static final int HOST_PICK=51;
     private static final String[] PRESENTERS={"Keren Botini","Nicolas Espinosa","Nicole Laquinta",
         "Thomas Núñez","Katherine Puppo","Priscila Zajama"};
     private static final String[] ADVISORS={"Nadia Abregu","Nicolás Artaza","Zair Baltazar",
@@ -63,9 +63,9 @@ public final class MainActivity extends Activity {
         subtitle.setTextColor(Ui.MUTED);content.addView(subtitle,Ui.spaced(this,7));
 
         section(content,"01  BUSCAR PERSONA");
-        TextView intro=Ui.label(this,"Entrá al Full-test con la sesión autorizada de Host. Elegí el lead del día y comprobá teléfono y horario.",13,false);
+        TextView intro=Ui.label(this,"Desde Atendidas elegí el lead del día. La app leerá su ficha y capturará el PDF original en la misma sesión de Host.",13,false);
         intro.setTextColor(Ui.MUTED);content.addView(intro,Ui.spaced(this,8));
-        Button openHost=Ui.button(this,"Abrir Full-test · Host",false);
+        Button openHost=Ui.button(this,"Buscar lead y obtener Full-test",false);
         openHost.setOnClickListener(v->startActivityForResult(new Intent(this,HostActivity.class),HOST_PICK));
         content.addView(openHost,Ui.spaced(this,12));
         name=field(content,"Nombre de la persona","Nombre del lead",false);
@@ -86,11 +86,9 @@ public final class MainActivity extends Activity {
         product=spinner(content,new String[]{"PAI","Pozo"});
 
         section(content,"03  HOJA DE ARCHIVO · IMPRESIÓN");
-        TextView printHelp=Ui.label(this,"Una hoja A4 · una copia · una cara. Conserva ambas páginas originales del Full-test y suma tus tres referencias.",13,false);
+        TextView printHelp=Ui.label(this,"El PDF se obtiene directamente del botón «Imprimir el Full-Test» del CRM. Conservamos ambas páginas en una hoja A4 y añadimos tus tres referencias.",13,false);
         printHelp.setTextColor(Ui.MUTED);content.addView(printHelp,Ui.spaced(this,8));
-        Button pdfButton=Ui.button(this,"Importar PDF original del CRM",false);
-        pdfButton.setOnClickListener(v->choosePdf());content.addView(pdfButton,Ui.spaced(this,11));
-        pdfStatus=Ui.label(this,"Aún no importaste un Full-test.",12,false);
+        pdfStatus=Ui.label(this,"Abrí un lead de Atendidas para cargar su test automáticamente.",12,false);
         pdfStatus.setTextColor(Ui.MUTED);content.addView(pdfStatus,Ui.spaced(this,7));
         printerIp=field(content,"IP de la Brother en la red Más Dueños","192.168.2.33",false);
         printerIp.setText(getPreferences(MODE_PRIVATE).getString("printer_ip","192.168.2.33"));
@@ -155,40 +153,34 @@ public final class MainActivity extends Activity {
         if(value(description).isEmpty()){description.setError("Ingresá una referencia visual.");description.requestFocus();return false;}
         return true;
     }
-    private void choosePdf(){
-        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.setType("application/pdf");intent.addCategory(Intent.CATEGORY_OPENABLE);
-        startActivityForResult(intent,PDF_PICK);
-    }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(result!=RESULT_OK||data==null)return;
-        if(request==HOST_PICK){
+        if(request!=HOST_PICK||result!=RESULT_OK||data==null)return;
+        final String localPath=data.getStringExtra("pdfPath");
+        final File candidate=localPath==null?null:new File(localPath);
+        try{
+            // Only a private PDF captured by our Host activity may be opened.
+            final String privateDir=getCacheDir().getCanonicalPath()+File.separator;
+            if(candidate==null||!candidate.getCanonicalPath().startsWith(privateDir))
+                throw new IOException("El reporte original no pertenece a la app.");
+            if(!candidate.isFile()||candidate.length()<2048||candidate.length()>15000000)
+                throw new IOException("El CRM todavía no entregó un PDF válido.");
+            try(android.os.ParcelFileDescriptor fd=android.os.ParcelFileDescriptor.open(candidate,android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+                android.graphics.pdf.PdfRenderer renderer=new android.graphics.pdf.PdfRenderer(fd)){
+                if(renderer.getPageCount()!=2)throw new IOException("El original debe tener dos páginas.");
+            }
+            invalidatePrint();
+            originalPdf=candidate;
             name.setText(data.getStringExtra("leadName"));
             phone.setText(data.getStringExtra("leadPhone"));
             arrival.setText(data.getStringExtra("arrival"));
             leadCrmPath=data.getStringExtra("crmPath");
+            pdfStatus.setText("Full-test original capturado desde Host · 2 páginas · "+(candidate.length()/1024)+" KB");
+            operationStatus.setText("Lead seleccionado. Completá presentador, asesor y descripción antes de imprimir.");
+        }catch(Exception exception){
             invalidatePrint();
-            operationStatus.setText("Persona seleccionada desde Host. Revisá teléfono y completá la derivación.");
-        }else if(request==PDF_PICK){
-            try(InputStream in=getContentResolver().openInputStream(data.getData())){
-                if(in==null)throw new IOException("No se pudo abrir el archivo.");
-                File copy=new File(getCacheDir(),"fulltest-original-temporal.pdf");
-                try(FileOutputStream out=new FileOutputStream(copy)){
-                    byte[] buf=new byte[16384];int n;long total=0;
-                    while((n=in.read(buf))!=-1){
-                        total+=n;if(total>15_000_000)throw new IOException("PDF demasiado grande.");
-                        out.write(buf,0,n);
-                    }
-                }
-                byte[] header=new byte[4];
-                try(java.io.FileInputStream verify=new java.io.FileInputStream(copy)){
-                    if(verify.read(header)!=4||header[0]!='%'||header[1]!='P'||header[2]!='D'||header[3]!='F')
-                        throw new IOException("El archivo seleccionado no es un PDF válido.");
-                }
-                originalPdf=copy;pdfStatus.setText("Full-test original cargado · "+(copy.length()/1024)+" KB");
-                invalidatePrint();
-            }catch(Exception ex){pdfStatus.setText("No se pudo importar el PDF: "+ex.getMessage());}
+            originalPdf=null;
+            pdfStatus.setText("Error al obtener el test desde Host: "+exception.getMessage());
         }
     }
     private void invalidatePrint(){
@@ -197,7 +189,7 @@ public final class MainActivity extends Activity {
     }
     private void preparePrint(boolean direct){
         if(!validate())return;
-        if(originalPdf==null){pdfStatus.setText("Primero importá el PDF original.");return;}
+        if(originalPdf==null){pdfStatus.setText("Primero elegí el lead y capturá su Full-test desde Host.");return;}
         if(direct&&!PrintController.isPrivateIPv4(value(printerIp))){
             printerIp.setError("La IP debe estar en la red local.");return;
         }
@@ -247,7 +239,7 @@ public final class MainActivity extends Activity {
                 for(EditText input:new EditText[]{name,phone,arrival,description,presenter,advisor})input.setText("");
                 outcome.setSelection(0);product.setSelection(0);leadCrmPath="";
                 if(originalPdf!=null)originalPdf.delete();originalPdf=null;
-                pdfStatus.setText("Aún no importaste un Full-test.");
+                pdfStatus.setText("Abrí un lead de Atendidas para cargar su test automáticamente.");
                 invalidatePrint();
                 operationStatus.setText("Listo para buscar otra persona.");
             }).show();

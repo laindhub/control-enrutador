@@ -60,7 +60,18 @@ final class NavigationShell {
             shell.addView(sep,new LinearLayout.LayoutParams(-1,Ui.dp(activity,1)));
             shell.addView(dock,new LinearLayout.LayoutParams(-1,Ui.dp(activity,80)));
         }
+        // Android 15 enforces edge-to-edge for target 35. Keep both the header
+        // and the dock outside status/navigation bar cutouts.
+        shell.setOnApplyWindowInsetsListener((view,insets)->{
+            android.graphics.Insets bars=insets.getInsets(
+                android.view.WindowInsets.Type.statusBars() |
+                android.view.WindowInsets.Type.navigationBars() |
+                android.view.WindowInsets.Type.displayCutout());
+            view.setPadding(bars.left,bars.top,bars.right,bars.bottom);
+            return insets;
+        });
         activity.setContentView(shell);
+        shell.requestApplyInsets();
     }
     private static void navigate(Activity context,int screen){
         Class<? extends Activity> destination=screen==HOST?HostLookupActivity.class:

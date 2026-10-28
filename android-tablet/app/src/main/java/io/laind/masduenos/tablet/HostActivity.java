@@ -65,8 +65,9 @@ public final class HostActivity extends Activity {
         browser.setWebChromeClient(capture.chrome());
         browser.setWebViewClient(new WebViewClient(){
             @Override public void onPageFinished(WebView view,String url){
-                if(!printOnly||isFinishing())return;
-                String current=Uri.parse(url).getPath();
+                HostDesktopMode.enforce(view,()->{
+                    if(!printOnly||isFinishing()||isDestroyed())return;
+                    String current=Uri.parse(view.getUrl()==null?url:view.getUrl()).getPath();
                 if(current==null)return;
                 if(targetPath.equals(current)){
                     captureStatus.setText("Verificando Full-test de la persona seleccionada…");
@@ -81,8 +82,11 @@ public final class HostActivity extends Activity {
                     captureStatus.setText("Localizando la ficha de este lead en Atendidas…");
                     view.postDelayed(()->openVisitFromList(),650);
                 }else if("/floor/login".equals(current)){
-                    captureStatus.setText("La sesión Host expiró. Ingresá una vez para continuar.");
+                    // This URL alone does not prove the session expired:
+                    // mobile/desktop routing can briefly visit the login page.
+                    captureStatus.setText("Comprobando acceso al CRM en vista de escritorio…");
                 }
+                });
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 if(!request.isForMainFrame())return false;

@@ -78,32 +78,104 @@ public final class PdfComposer {
         canvas.drawBitmap(image,-image.getWidth()/2f,-image.getHeight()/2f,quality);
         canvas.restore();
     }
+    /**
+     * Supplemental information stays inside the verified EMPTY region of the
+     * original two-up A4 sheet: x=253..410, y=47..347 PDF points.
+     *
+     * The ORIGINAL test is rotated -90 degrees by drawLikeEdge().
+     * Our annotation intentionally rotates +90 degrees (the reverse), so it
+     * faces the operator standing in front of the archived sheet.
+     * It does not translate, shrink, clip or reflow the original test.
+     */
     private static void drawThreeFieldsInWhitespace(Canvas canvas,
                          String presenter,String advisor,String description) throws IOException {
-        Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
-        paint.setTypeface(android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.NORMAL));
-        paint.setColor(Color.rgb(38,38,38));
-        paint.setTextSize(9.5f);
-        String[] entries={
-            "Charla de: "+clean(presenter),
-            "Derivado a: "+clean(advisor),
-            "Descripción: "+clean(description)
-        };
-        int row=0;
-        for(String entry:entries){
-            for(String line:wrap(entry,paint,305f)){
-                if(row>=9)throw new IOException("Los tres datos no caben sin alterar el Full-test.");
-                // Corresponds to the empty area visible to the right of the
-                // upper source page in the original two-up extension output.
-                // The text follows the same orientation as report contents.
-                canvas.save();
-                canvas.translate(245f+row*16f,355f);
-                canvas.rotate(-90f);
-                canvas.drawText(line,0f,0f,paint);
-                canvas.restore();
-                row++;
-            }
+        final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.SUBPIXEL_TEXT_FLAG);
+        final int red=Color.rgb(210,38,27);
+        final int ink=Color.rgb(29,30,34);
+        final int gray=Color.rgb(96,100,106);
+        canvas.save();
+        canvas.translate(410f,47f);
+        canvas.rotate(90f); // Reverse orientation relative to the Full-test itself.
+
+        p.setColor(red);
+        p.setTypeface(android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.BOLD));
+        p.setTextSize(11.5f);
+        canvas.drawText("REFERENCIAS DE SALÓN",6f,13.5f,p);
+
+        drawFieldCard(canvas,p,24f,0,"CHARLA DE",presenter,red,ink,gray);
+        drawFieldCard(canvas,p,68f,1,"DERIVADO A",advisor,red,ink,gray);
+        drawFieldCard(canvas,p,112f,2,"DESCRIPCIÓN",description,red,ink,gray);
+
+        canvas.restore();
+    }
+    private static void drawFieldCard(Canvas c,Paint p,float top,int type,
+                 String label,String value,int red,int ink,int gray) throws IOException {
+        p.setColor(Color.rgb(249,248,247));
+        p.setStyle(Paint.Style.FILL);
+        c.drawRoundRect(4f,top,297f,top+40f,5.5f,5.5f,p);
+        p.setColor(Color.rgb(221,223,225));
+        p.setStrokeWidth(.75f);
+        p.setStyle(Paint.Style.STROKE);
+        c.drawRoundRect(4f,top,297f,top+40f,5.5f,5.5f,p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(red);
+        c.drawRoundRect(4f,top,7f,top+40f,2f,2f,p);
+
+        // Native Canvas vector symbols based on the two user-supplied icons:
+        // presentation board for "Charla de"; person silhouette for advisor.
+        // A stylized note identifies the free-text physical description.
+        drawSymbol(c,p,type,15f,top+10f,red);
+
+        p.setTypeface(android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD));
+        p.setTextSize(8.2f);
+        p.setColor(gray);
+        c.drawText(label,43f,top+12.5f,p);
+
+        p.setColor(ink);
+        p.setTypeface(android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.BOLD));
+        p.setTextSize(11.8f);
+        String cleaned=clean(value);
+        List<String> lines=wrap(cleaned,p,244f);
+        if(lines.size()>2)
+            throw new IOException("La descripción es demasiado larga para la hoja de archivo.");
+        int i=0;
+        for(String line:lines){
+            if(p.measureText(line)>244f)
+                throw new IOException("Una referencia no cabe en la hoja de archivo.");
+            c.drawText(line,43f,top+27f+i*11.5f,p);
+            i++;
         }
+    }
+    private static void drawSymbol(Canvas c,Paint p,int kind,float x,float y,int red){
+        c.save();
+        c.translate(x,y);
+        p.setColor(red);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(1.65f);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeJoin(Paint.Join.ROUND);
+        if(kind==0){
+            // Presentation board + play triangle (presentation.svg).
+            c.drawRoundRect(0f,3f,20f,20f,2f,2f,p);
+            c.drawLine(10f,0f,10f,3f,p);
+            c.drawLine(7f,0f,13f,0f,p);
+            c.drawLine(8f,20f,5f,24f,p);
+            c.drawLine(12f,20f,15f,24f,p);
+            android.graphics.Path play=new android.graphics.Path();
+            play.moveTo(8f,8f);play.lineTo(14f,11.5f);
+            play.lineTo(8f,15f);play.close();c.drawPath(play,p);
+        }else if(kind==1){
+            // Person icon (person.svg): head and shoulders.
+            c.drawCircle(10f,7f,5f,p);
+            c.drawArc(1f,13f,19f,26f,185f,170f,false,p);
+        }else{
+            c.drawRoundRect(2f,1f,18f,23f,2f,2f,p);
+            c.drawLine(6f,7f,14f,7f,p);
+            c.drawLine(6f,12f,14f,12f,p);
+            c.drawLine(6f,17f,12f,17f,p);
+        }
+        p.setStyle(Paint.Style.FILL);
+        c.restore();
     }
     private static List<String> wrap(String s,Paint p,float maxWidth){
         List<String> result=new ArrayList<>();

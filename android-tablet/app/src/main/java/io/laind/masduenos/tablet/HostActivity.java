@@ -160,7 +160,7 @@ public final class HostActivity extends Activity {
     private void readSelection(){
         Uri url=Uri.parse(browser.getUrl()==null?"":browser.getUrl());
         if(!"https".equals(url.getScheme())||!HOST.equals(url.getHost())){
-            Toast.makeText(this,"Abrí una ficha del CRM antes de continuar.",Toast.LENGTH_LONG).show();return;
+            UiSheets.notice(this,"Abrí una ficha del CRM antes de continuar.",true);return;
         }
         // This snippet runs only after a deliberate tap; it reads visible lead
         // information, never passwords, form PINs or authentication cookies.
@@ -180,7 +180,7 @@ public final class HostActivity extends Activity {
                 String path=obj.optString("path","");
                 if(name.length()<2||!obj.optBoolean("print")||
                    !(path.matches("/floor/visits/[a-zA-Z0-9-]+(?:/full-test)?")||path.matches("/floor/full-test/[a-zA-Z0-9-]+"))){
-                    Toast.makeText(this,"Abrí la ficha de una persona de Atendidas, donde figure «Imprimir el Full-Test».",Toast.LENGTH_LONG).show();
+                    UiSheets.notice(this,"Elegí una persona de Atendidas para capturar su test.",true);
                     return;
                 }
                 if(printOnly){
@@ -192,13 +192,12 @@ public final class HostActivity extends Activity {
                     }
                     beginCapture(name,path,obj);
                 }else{
-                    new android.app.AlertDialog.Builder(this).setTitle("Confirmar persona")
-                        .setMessage("Nombre: "+name+"\nHora: "+obj.optString("arrival","Sin identificar")+
-                            "\nTeléfono: "+obj.optString("phone","Revisar manualmente"))
-                        .setNegativeButton("Volver",(d,w)->{})
-                        .setPositiveButton("Capturar PDF original",(d,w)->beginCapture(name,path,obj)).show();
+                    UiSheets.confirm(this,"Verificar persona",
+                        "Nombre: "+name+"\nHora: "+obj.optString("arrival","Sin identificar")+
+                            "\nTeléfono: "+obj.optString("phone","Revisar en CRM"),
+                        "Volver","Capturar test",()->beginCapture(name,path,obj));
                 }
-            }catch(Exception error){Toast.makeText(this,"No se pudieron leer los datos de esta ficha. Confirmá que esté abierta.",Toast.LENGTH_LONG).show();}
+            }catch(Exception error){UiSheets.notice(this,"No se pudo leer la ficha. Revisá el CRM.",true);}
         });
     }
     private String normalizeName(String text){

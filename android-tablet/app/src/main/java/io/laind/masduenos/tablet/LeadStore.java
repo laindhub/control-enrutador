@@ -32,7 +32,8 @@ final class LeadStore {
     static final String NEW="new", READY="ready", SENT="sent", PAPER="paper", DONE="done";
     static final String PREF="private_tablet_board_v1", RECORDS="encrypted_records", KEY_ALIAS="masduenos_tablet_board_aes_v1";
     static final class Lead {
-        String id="",crmPath="",name="",phone="",arrival="",date="",presenter="",advisor="",description="";
+        String id="",crmPath="",name="",phone="",arrival="",date="",presenter="",advisor="",description="",talkId="";
+        int seatIndex=-1;
         String outcome="La vio entera",product="PAI",status=NEW;
         long updatedAt;
         JSONObject toJson() throws Exception {
@@ -40,7 +41,8 @@ final class LeadStore {
             o.put("id",id);o.put("crmPath",crmPath);o.put("name",name);o.put("phone",phone);
             o.put("arrival",arrival);o.put("date",date);o.put("presenter",presenter);o.put("advisor",advisor);
             o.put("description",description);o.put("outcome",outcome);o.put("product",product);
-            o.put("status",status);o.put("updatedAt",updatedAt);return o;
+            o.put("status",status);o.put("updatedAt",updatedAt);
+            o.put("talkId",talkId);o.put("seatIndex",seatIndex);return o;
         }
         static Lead fromJson(JSONObject o) {
             Lead l=new Lead();
@@ -50,7 +52,10 @@ final class LeadStore {
             l.presenter=o.optString("presenter");l.advisor=o.optString("advisor");
             l.description=o.optString("description");l.outcome=o.optString("outcome","La vio entera");
             l.product=o.optString("product","PAI");l.status=o.optString("status",NEW);
-            l.updatedAt=o.optLong("updatedAt",0);return l;
+            l.updatedAt=o.optLong("updatedAt",0);
+            l.talkId=o.optString("talkId","");l.seatIndex=o.optInt("seatIndex",-1);
+            if(l.seatIndex<0||l.seatIndex>=TalkStore.CAPACITY){l.talkId="";l.seatIndex=-1;}
+            return l;
         }
         boolean prepared(){return !presenter.trim().isEmpty()&&!advisor.trim().isEmpty()&&!description.trim().isEmpty();}
         String label(){
@@ -78,7 +83,7 @@ final class LeadStore {
             .setKeySize(256).setRandomizedEncryptionRequired(true).build());
         return generator.generateKey();
     }
-    private static String encrypt(String text) throws Exception {
+    static String encrypt(String text) throws Exception {
         Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE,key());
         byte[] body=cipher.doFinal(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -89,7 +94,7 @@ final class LeadStore {
         System.arraycopy(body,0,combined,iv.length+1,body.length);
         return Base64.encodeToString(combined,Base64.NO_WRAP);
     }
-    private static String decrypt(String encrypted) throws Exception {
+    static String decrypt(String encrypted) throws Exception {
         byte[] bytes=Base64.decode(encrypted,Base64.DEFAULT);
         int size=bytes.length==0?0:bytes[0]&255;
         if(size!=12||bytes.length<29)throw new IOException("La información local está dañada.");
@@ -153,6 +158,70 @@ final class LeadStore {
         item.arrival=arrival==null?"":arrival.trim();
         item.crmPath=crmPath;
         return save(item);
+    }
+    private static String visitKey(String path){
+        if(path==null)return "";
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile(
+            "^/floor/visits/([0-9a-fA-F-]{36})(?:/full-test)?$").matcher(path);
+        return m.matches()?m.group(1).toLowerCase(Locale.ROOT):"";
+    }
+    synchronized Lead placeFromHost(String name,String phone,String arrival,String crmPath,
+                                    String talkId,int seatIndex) throws Exception{
+        if(!talkId.matches("[a-fA-F0-9-]{36}")||seatIndex<0||seatIndex>=TalkStore.CAPACITY)
+            throw new IOException("La silla o charla seleccionada no es válida.");
+        String uuid=visitKey(crmPath);
+        if(uuid.isEmpty()||name==null||name.trim().length()<2)
+            throw new IOException("La persona de Atendidas no es válida.");
+        ArrayList<Lead> list=all();
+        Lead target=null;
+        for(Lead lead:list){
+            if(lead.date.equals(today())&&uuid.equals(visitKey(lead.crmPath))){
+                target=lead;
+            }
+            if(lead.date.equals(today())&&talkId.equals(lead.talkId)&&lead.seatIndex==seatIndex
+                &&!uuid.equals(visitKey(lead.crmPath))){
+                throw new IOException("Esta silla ya está ocupada por "+lead.name+".");
+            }
+        }
+        if(target!=null){
+            if(DONE.equals(target.status))throw new IOException("Este lead ya figura derivado.");
+            if(!target.talkId.isEmpty()&&
+                (!target.talkId.equals(talkId)||target.seatIndex!=seatIndex))
+                throw new IOException("El lead ya ocupa otra silla. Podés moverlo desde su ficha del tablero.");
+        }else{
+            target=new Lead();target.id=UUID.randomUUID().toString();target.date=today();
+            list.add(target);
+        }
+        target.name=name.trim();target.phone=phone==null?"":phone.trim();
+        target.arrival=arrival==null?"":arrival.trim();target.crmPath=crmPath;
+        target.talkId=talkId;target.seatIndex=seatIndex;
+        target.updatedAt=System.currentTimeMillis();
+        write(list);return target;
+    }
+    synchronized void moveToSeat(String leadId,String talkId,int seatIndex) throws Exception{
+        if(!talkId.matches("[a-fA-F0-9-]{36}")||seatIndex<0||seatIndex>=TalkStore.CAPACITY)
+            throw new IOException("Destino inválido.");
+        ArrayList<Lead> list=all();Lead target=null;
+        for(Lead lead:list){
+            if(lead.id.equals(leadId))target=lead;
+            else if(lead.date.equals(today())&&talkId.equals(lead.talkId)&&lead.seatIndex==seatIndex)
+                throw new IOException("La silla ya está ocupada por "+lead.name+".");
+        }
+        if(target==null)throw new IOException("No se encontró el lead.");
+        if(!today().equals(target.date))throw new IOException("Solo podés ubicar personas del día.");
+        if(DONE.equals(target.status))throw new IOException("La derivación ya está registrada.");
+        target.talkId=talkId;target.seatIndex=seatIndex;
+        target.updatedAt=System.currentTimeMillis();
+        write(list);
+    }
+    synchronized void unseat(String leadId) throws Exception{
+        ArrayList<Lead> list=all();
+        for(Lead lead:list)if(lead.id.equals(leadId)){
+            if(DONE.equals(lead.status))throw new IOException("No se puede liberar una derivación registrada.");
+            lead.talkId="";lead.seatIndex=-1;lead.updatedAt=System.currentTimeMillis();
+            write(list);return;
+        }
+        throw new IOException("Lead no encontrado.");
     }
     synchronized Lead attachPdf(String id,File captured) throws Exception {
         Lead item=get(id);

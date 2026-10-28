@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.2.0)
+# Más Dueños · Enrutador Tablet (prototipo 0.3.0)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -21,3 +21,17 @@ Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app exi
 ## Compilar
 Java 17, Android SDK 35. Ejecutar `gradle :app:assembleRelease` desde `android-tablet/`.
 La CI genera un APK **sin firma**, no instalable directamente. Firmarlo con una clave de distribución privada antes de instalar.
+
+## Tablero multilead (0.3.0)
+
+- Inicio con tablero de **varias personas al mismo tiempo**, tarjetas independientes, búsqueda por nombre, descripción, asesor, presentador o hora y filtros de estado.
+- Vista responsive: una columna vertical / dos columnas en horizontal para Galaxy Tab A8.
+- El tablero muestra **solo los leads seleccionados manualmente desde Atendidas de Host**. No presenta cifras falsas del CRM en tiempo real.
+- Cada lead tiene un borrador persistente cifrado con **AES-GCM y Android Keystore**; los PDFs quedan en el almacenamiento privado de la app, sin backup del sistema.
+- El PDF capturado se copia a un archivo independiente por visita. La impresión de una persona no sobreescribe el documento de otra.
+- Flujo de estados separados: en preparación -> por imprimir -> enviado a impresión -> hoja verificada -> registrada por el usuario. La última etapa se confirma manualmente, **no es un registro automático en el CRM**.
+- Los cambios a presentador/asesor/descripción invalidan la impresión anterior. Las personas marcadas como registradas quedan bloqueadas; pueden eliminarse desde la ficha con confirmación.
+- Si falló IPP, no se declara impreso; el diálogo de Android sigue como alternativa.
+- Los leads anteriores siguen accesibles mediante «Ver días anteriores». Se pueden quitar desde la ficha.
+
+**A verificar en el salón:** captura del reporte HTML del CRM, legibilidad de PDF, conexión IPP, navegación entre varias fichas y confirmación manual de CRM. No ingreses PINes ni datos personales en issues o capturas públicas.

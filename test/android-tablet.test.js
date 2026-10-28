@@ -45,6 +45,46 @@ test('Host report is captured from the original popup without importing files',(
  assert.doesNotMatch(capture,/adapter.onLayout|adapter.onWrite/);
  assert.match(capture,/report-container/);
  assert.match(capture,/renderer.getPageCount\(\)!=2/);
- assert.match(main,/getStringExtra\("pdfPath"\)/);
+ assert.match(src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java'),/getStringExtra\("pdfPath"\)/);
  assert.doesNotMatch(main,/ACTION_OPEN_DOCUMENT|Importar PDF original del CRM|choosePdf\(/);
+});
+
+test('tablet opens with the board, not the single-lead form',()=>{
+ const manifest=src('app/src/main/AndroidManifest.xml');
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ assert.match(manifest,/DashboardActivity" android:exported="true"/);
+ assert.match(manifest,/MainActivity" android:exported="false"/);
+ assert.match(dash,/Buscar en Host/);
+ assert.match(dash,/Personas en gestión/);
+ assert.match(dash,/Por imprimir/);
+ assert.match(dash,/Por confirmar/);
+ assert.match(dash,/getStringExtra\("pdfPath"\)/);
+ assert.match(dash,/store.addFromHost/);
+ assert.match(dash,/lead.id/);
+ assert.match(dash,/getResources\(\).getConfiguration\(\).orientation/);
+});
+test('each lead has an encrypted persisted draft and its own protected PDF',()=>{
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
+ const editor=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ assert.match(store,/AndroidKeyStore/);
+ assert.match(store,/AES\/GCM\/NoPadding/);
+ assert.match(store,/getFilesDir\(\)/);
+ assert.match(store,/UUID.randomUUID\(\)/);
+ assert.match(store,/source.pdf/);
+ assert.match(store,/archive.pdf/);
+ assert.match(editor,/store.archiveFile\(draft\)/);
+ assert.match(editor,/saveDraft\(\)/);
+ assert.match(editor,/onPause\(\)/);
+ assert.match(editor,/Volver al tablero/);
+});
+test('printing and CRM completion are distinct confirmed states',()=>{
+ const editor=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ const control=src('app/src/main/java/io/laind/masduenos/tablet/PrintController.java');
+ assert.match(editor,/confirmPaper\(\)/);
+ assert.match(editor,/markRegistered\(\)/);
+ assert.match(editor,/LeadStore.PAPER/);
+ assert.match(editor,/LeadStore.DONE/);
+ assert.match(editor,/CRM oficial/);
+ assert.match(control,/Consumer<Result>/);
+ assert.match(control,/new Result\(false/);
 });

@@ -144,6 +144,8 @@ final class LeadStore {
             throw new IOException("No se recibió un Full-test válido.");
         Lead item=null;
         for(Lead existing:all())if(existing.crmPath.equals(crmPath)&&existing.date.equals(today())){item=existing;break;}
+        if(item!=null&&DONE.equals(item.status))
+            throw new IOException("Esta persona ya fue marcada como derivada en el tablero.");
         if(item==null){item=new Lead();item.id=UUID.randomUUID().toString();item.date=today();}
         // Copy atomically before changing metadata, so a failed capture cannot
         // overwrite a previous complete source PDF.
@@ -156,9 +158,10 @@ final class LeadStore {
             output.getFD().sync();
         }
         File destination=new File(folder,"source.pdf");
-        if(!temp.renameTo(destination)){
-            temp.delete();throw new IOException("No se pudo preservar el Full-test del cliente.");
-        }
+        try{
+            java.nio.file.Files.move(temp.toPath(),destination.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }catch(Exception copyError){temp.delete();throw new IOException("No se pudo preservar el Full-test del cliente.");}
         item.name=name.trim();item.phone=phone==null?"":phone.trim();
         item.arrival=arrival==null?"":arrival.trim();item.crmPath=crmPath;
         // A recaptured test may have changed; a previous print no longer counts.

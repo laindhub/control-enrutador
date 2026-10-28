@@ -86,3 +86,10 @@ Se compararon `Full-test-archivo.PDF` (salida Android) y `asi es como deberia se
 Ahora HostReportCapture NO utiliza WebView.capturePicture. Extrae el contenido del propio reporte HTML creado por el CRM (`.report-container`, `.section-title`, `.info-item` y `.conclusion-message`), sin copiar credenciales, y NativeFullTestPdf lo compone en páginas **Carta 612×792**, con texto y líneas vectoriales, tipografía y secciones originales, ajuste de líneas, y paginación entre secciones. Si faltan secciones o excede dos páginas, se rechaza antes de imprimir. PdfComposer sigue imponiendo ambas páginas, rotadas y en orden, en una hoja A4 con los tres datos de archivo.
 
 La composición y la paginación son una implementación nativa equivalente, no los bytes exactos de Chromium. Verificar una hoja física de un cliente de prueba antes de utilizarla como archivo oficial. No enviar reportes de clientes al repositorio ni a un servidor externo.
+
+## Impresión 0.5.6 — orientación de anotaciones y legibilidad
+- La hoja original del Full-test conserva su geometría de dos páginas por A4, sin reducir el contenido.
+- Las referencias auxiliares se rotan **+90°**, en sentido opuesto al de la composición del test (-90°), para leerlas desde el lado de archivo.
+- Presentador, asesor y descripción aparecen en tarjetas vectoriales discretas, con nombres en negrita, etiqueta, ícono de presentación/persona/nota y una franja roja.
+- El bloque permanece en la misma zona en blanco. Si las referencias no caben, la app informa el error en vez de superponerlas al test.
+- La compilación CI produce un APK **sin firma**. El artefacto instalable debe firmarse aparte con el mismo certificado de la serie 0.5.x y validar la estructura, versión y certificado.

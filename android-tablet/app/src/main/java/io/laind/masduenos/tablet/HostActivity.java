@@ -27,6 +27,8 @@ public final class HostActivity extends Activity {
     private HostReportCapture capture;
     private TextView captureStatus;
     private boolean printOnly=false,autoRequested=false;
+    private boolean tabRequested=false,routeOpening=false;
+    private int listAttempts=0,detailAttempts=0,recoveryAttempts=0;
     private String targetPath="",expectedName="";
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -37,16 +39,18 @@ public final class HostActivity extends Activity {
             printOnly=true;targetPath=path;
             expectedName=getIntent().getStringExtra("expectedName");
         }
-        LinearLayout root=Ui.column(this,10);root.setBackgroundColor(Color.WHITE);setContentView(root);
+        LinearLayout root=Ui.column(this,12);root.setBackgroundColor(Color.WHITE);
+        NavigationShell.install(this,root,NavigationShell.HOST);
         TextView title=Ui.label(this,printOnly?"Impresión de esta persona · Host":"Full-test · Host",21,true);root.addView(title);
         TextView help=Ui.label(this,printOnly?
-            "Abriendo directamente el Full-test seleccionado. Si el CRM solicita login, ingresá con Host. El reporte se capturará automáticamente. Podés tocar el botón inferior si no se inicia.":
+            "Usamos la sesión de Host ya abierta para obtener el Full-test de esta persona. No hace falta buscarla nuevamente.":
             "Entrá al Full-test con Host y abrí la ficha seleccionada para capturar el reporte.",13,false);
         help.setTextColor(Ui.MUTED);root.addView(help,Ui.spaced(this,4));
         Button choose=Ui.button(this,printOnly?"Capturar Full-test":"Preparar derivación y capturar test",true);
         choose.setOnClickListener(v->readSelection());
         root.addView(choose,Ui.spaced(this,5));
-        captureStatus=Ui.label(this,"Seleccioná una persona de Atendidas para preparar su impresión.",12,false);
+        captureStatus=Ui.label(this,printOnly?"Recuperando la ficha de la sesión Host…":
+            "Seleccioná una persona de Atendidas para preparar su impresión.",12,false);
         captureStatus.setTextColor(Ui.MUTED);root.addView(captureStatus,Ui.spaced(this,4));
         FrameLayout holder=new FrameLayout(this);
         capture=new HostReportCapture(this,holder);
@@ -63,10 +67,23 @@ public final class HostActivity extends Activity {
         browser.setWebChromeClient(capture.chrome());
         browser.setWebViewClient(new WebViewClient(){
             @Override public void onPageFinished(WebView view,String url){
-                Uri u=Uri.parse(url);
-                if(printOnly&&!autoRequested&&targetPath.equals(u.getPath())){
-                    autoRequested=true;
-                    view.postDelayed(()->readSelection(),1400);
+                if(!printOnly||isFinishing())return;
+                String current=Uri.parse(url).getPath();
+                if(current==null)return;
+                if(targetPath.equals(current)){
+                    captureStatus.setText("Verificando Full-test de la persona seleccionada…");
+                    detailAttempts=0;
+                    view.postDelayed(()->checkSelectedVisit(),450);
+                }else if("/floor".equals(current)&&recoveryAttempts++<2){
+                    // A direct deep-link may land on the authenticated CRM home.
+                    // The session is active; recover through Host's own list.
+                    captureStatus.setText("Host conectado. Recuperando Atendidas…");
+                    view.postDelayed(()->view.loadUrl("https://"+HOST+"/floor/full-test"),350);
+                }else if("/floor/full-test".equals(current)){
+                    captureStatus.setText("Localizando la ficha de este lead en Atendidas…");
+                    view.postDelayed(()->openVisitFromList(),650);
+                }else if("/floor/login".equals(current)){
+                    captureStatus.setText("La sesión Host expiró. Ingresá una vez para continuar.");
                 }
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
@@ -79,7 +96,50 @@ public final class HostActivity extends Activity {
         });
         holder.addView(browser,new FrameLayout.LayoutParams(-1,-1));
         root.addView(holder,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
-        browser.loadUrl("https://"+HOST+(printOnly?targetPath:"/floor/full-test"));
+        // Start from the Host list, where its authenticated React navigation
+        // can open the exact visit UUID without another login or manual search.
+        browser.loadUrl("https://"+HOST+"/floor/full-test");
+    }
+    private void openVisitFromList(){
+        if(!printOnly||isFinishing()||browser==null||autoRequested)return;
+        if(!"/floor/full-test".equals(Uri.parse(browser.getUrl()).getPath()))return;
+        if(++listAttempts>26){
+            captureStatus.setText("No se encontró este UUID en Atendidas. La sesión sigue abierta; comprobá el estado del lead.");
+            return;
+        }
+        String js="(()=>{const wanted="+JSONObject.quote(targetPath)+";"+
+            "const link=[...document.querySelectorAll('a[href]')].find(a=>new URL(a.href,location.href).pathname===wanted);"+
+            "if(link){link.click();return 'opened';}"+
+            "const tab=[...document.querySelectorAll('button')].find(b=>/Atendidas/.test(b.textContent||''));"+
+            "if(tab&&"+(!tabRequested?"true":"false")+"){tab.click();return 'tab';}"+
+            "return 'waiting';})()";
+        browser.evaluateJavascript(js,value->{
+            if(isFinishing()||browser==null)return;
+            if("\"opened\"".equals(value)){
+                routeOpening=true;
+                captureStatus.setText("Abriendo el Full-test correspondiente…");
+            }else{
+                if("\"tab\"".equals(value))tabRequested=true;
+                browser.postDelayed(()->openVisitFromList(),600);
+            }
+        });
+    }
+    private void checkSelectedVisit(){
+        if(isFinishing()||!printOnly||autoRequested||browser==null)return;
+        if(!targetPath.equals(Uri.parse(browser.getUrl()).getPath()))return;
+        if(++detailAttempts>22){
+            captureStatus.setText("El CRM abrió la visita, pero aún no muestra el botón del Full-test.");
+            return;
+        }
+        browser.evaluateJavascript("(()=>{const m=document.querySelector('main');"+
+            "return !!m&&[...m.querySelectorAll('button')].some(b=>/Imprimir\\s+(?:el\\s+)?Full[-\\s]?Test/i.test(b.textContent||''));})()",
+            result->{
+                if(isFinishing()||browser==null)return;
+                if("true".equals(result)){
+                    autoRequested=true;
+                    readSelection();
+                }else browser.postDelayed(()->checkSelectedVisit(),500);
+            });
     }
     private void readSelection(){
         Uri url=Uri.parse(browser.getUrl()==null?"":browser.getUrl());

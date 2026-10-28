@@ -40,8 +40,10 @@ final class HostWebSession {
             config.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
             CookieManager.getInstance().setAcceptCookie(true);
             shared.setBackgroundColor(Color.WHITE);
+            HostDesktopMode.configure(shared);
         } else {
             context.setBaseContext(activity);
+            HostDesktopMode.configure(shared);
         }
         ViewParent parent=shared.getParent();
         if(parent instanceof ViewGroup)((ViewGroup)parent).removeView(shared);

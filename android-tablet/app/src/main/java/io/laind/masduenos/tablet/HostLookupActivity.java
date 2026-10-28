@@ -5,7 +5,6 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -52,9 +51,9 @@ public final class HostLookupActivity extends Activity {
     }
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
-        if(Build.VERSION.SDK_INT>=28)WebView.setDataDirectorySuffix("host");
         Ui.statusBars(this);
-        root=Ui.column(this,16);root.setBackgroundColor(Color.WHITE);setContentView(root);
+        root=Ui.column(this,16);root.setBackgroundColor(Color.WHITE);
+        NavigationShell.install(this,root,NavigationShell.HOST);
         root.addView(Ui.label(this,"Atendidas · Full-test",24,true));
         status=Ui.label(this,"Conectando a la sesión de Host…",13,false);
         status.setTextColor(Ui.MUTED);root.addView(status,Ui.spaced(this,7));
@@ -122,15 +121,16 @@ public final class HostLookupActivity extends Activity {
         if(selecting){readSelected();return;}
         Uri uri=Uri.parse(browser.getUrl()==null?"":browser.getUrl());
         if(!"https".equals(uri.getScheme())||!HOST.equals(uri.getHost())){status.setText("La sesión de Host no está disponible.");return;}
-        if(!uri.getPath().startsWith("/floor/full-test")){
-            if(uri.getPath().equals("/floor")){
+        String safePath=uri.getPath()==null?"":uri.getPath();
+        if(!safePath.startsWith("/floor/full-test")){
+            if(safePath.equals("/floor")){
                 // Host login normally redirects to the Salón landing page.
                 // Go straight to Full-test without another manual navigation.
                 status.setText("Abriendo Atendidas con tu sesión Host…");
                 browser.loadUrl(ORIGIN+"/floor/full-test");
                 return;
             }
-            if(uri.getPath().equals("/floor/login")){
+            if(safePath.equals("/floor/login")){
                 ready=false;showBrowser();
                 status.setText("Ingresá con el PIN de Host para activar el buscador.");
             }
@@ -237,5 +237,7 @@ public final class HostLookupActivity extends Activity {
         if(manual){manual=false;showBrowser();return;}
         super.onBackPressed();
     }
+    @Override protected void onPause(){handler.removeCallbacks(poll);super.onPause();}
+    @Override protected void onResume(){super.onResume();if(browser!=null)handler.postDelayed(poll,700);}
     @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);if(browser!=null)browser.destroy();super.onDestroy();}
 }

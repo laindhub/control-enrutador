@@ -18,6 +18,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -85,12 +86,8 @@ public final class HostLookupActivity extends Activity {
         ScrollView scrolling=new ScrollView(this);
         results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);
         scrolling.addView(results);root.addView(scrolling,new LinearLayout.LayoutParams(-1,0,1));
-        browser=new WebView(this);
-        WebSettings config=browser.getSettings();
-        config.setJavaScriptEnabled(true);config.setDomStorageEnabled(true);
-        config.setAllowFileAccess(false);config.setAllowContentAccess(false);
-        config.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        CookieManager.getInstance().setAcceptCookie(true);
+        FrameLayout webHolder=new FrameLayout(this);
+        browser=HostWebSession.attach(this,webHolder);
         browser.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
                 if(!req.isForMainFrame())return false;
@@ -103,8 +100,14 @@ public final class HostLookupActivity extends Activity {
             }
         });
         LinearLayout.LayoutParams webParams=new LinearLayout.LayoutParams(-1,0,1);
-        root.addView(browser,webParams);
-        browser.loadUrl(ORIGIN+"/floor/full-test");
+        root.addView(webHolder,webParams);
+        if(!HostWebSession.initialized()){
+            browser.loadUrl(ORIGIN+"/floor/full-test");
+        }else{
+            String existing=Uri.parse(browser.getUrl()).getPath();
+            if(!"/floor/full-test".equals(existing)&&!"/floor/login".equals(existing))
+                browser.loadUrl(ORIGIN+"/floor/full-test");
+        }
         showBrowser();
     }
     private void showBrowser(){
@@ -239,5 +242,10 @@ public final class HostLookupActivity extends Activity {
     }
     @Override protected void onPause(){handler.removeCallbacks(poll);super.onPause();}
     @Override protected void onResume(){super.onResume();if(browser!=null)handler.postDelayed(poll,700);}
-    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);if(browser!=null)browser.destroy();super.onDestroy();}
+    @Override protected void onDestroy(){
+        handler.removeCallbacksAndMessages(null);
+        HostWebSession.release(this);
+        browser=null;
+        super.onDestroy();
+    }
 }

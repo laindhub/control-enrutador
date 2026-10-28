@@ -10,7 +10,10 @@ public final class TabletApplication extends Application {
         super.onCreate();
         if(Build.VERSION.SDK_INT>=28) {
             String process=Application.getProcessName();
-            if(process!=null&&process.endsWith(":host"))WebView.setDataDirectorySuffix("host");
+            if(process!=null&&process.endsWith(":host")){
+                WebView.setDataDirectorySuffix("host");
+                WebView.enableSlowWholeDocumentDraw();
+            }
         }
     }
 }

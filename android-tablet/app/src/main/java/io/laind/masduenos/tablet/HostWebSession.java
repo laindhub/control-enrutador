@@ -53,7 +53,7 @@ final class HostWebSession {
     static boolean initialized(){return shared!=null&&shared.getUrl()!=null;}
 
     static void release(Activity owner) {
-        if(shared==null)return;
+        if(shared==null||context.getBaseContext()!=owner)return;
         // Callbacks referencing an Activity must not survive when its UI closes.
         shared.setWebViewClient(new WebViewClient());
         shared.setWebChromeClient(new WebChromeClient());

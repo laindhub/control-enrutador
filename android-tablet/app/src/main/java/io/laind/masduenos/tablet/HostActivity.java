@@ -32,7 +32,6 @@ public final class HostActivity extends Activity {
     private String targetPath="",expectedName="";
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        WebView.enableSlowWholeDocumentDraw();
         Ui.statusBars(this);
         String path=getIntent().getStringExtra("crmPath");
         if(path!=null&&path.matches("/floor/visits/[a-fA-F0-9-]{36}(?:/full-test)?")){
@@ -60,16 +59,8 @@ public final class HostActivity extends Activity {
         captureStatus.setTextColor(Ui.MUTED);root.addView(captureStatus,Ui.spaced(this,4));
         FrameLayout holder=new FrameLayout(this);
         capture=new HostReportCapture(this,holder);
-        browser=new WebView(this);
-        WebSettings settings=browser.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setSupportMultipleWindows(true);
-        settings.setJavaScriptCanOpenWindowsAutomatically(true);
-        settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        CookieManager.getInstance().setAcceptCookie(true);
+        boolean existing=HostWebSession.initialized();
+        browser=HostWebSession.attach(this,holder);
         browser.setWebChromeClient(capture.chrome());
         browser.setWebViewClient(new WebViewClient(){
             @Override public void onPageFinished(WebView view,String url){
@@ -100,11 +91,18 @@ public final class HostActivity extends Activity {
                 return true;
             }
         });
-        holder.addView(browser,new FrameLayout.LayoutParams(-1,-1));
         root.addView(holder,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
-        // Start from the Host list, where its authenticated React navigation
-        // can open the exact visit UUID without another login or manual search.
-        browser.loadUrl("https://"+HOST+"/floor/full-test");
+        // Resume the SAME authenticated WebView used by Atendidas. The lookup
+        // leaves the selected UUID open, so there is no second login or reload.
+        String current=existing?Uri.parse(browser.getUrl()).getPath():null;
+        if(printOnly&&targetPath.equals(current)){
+            captureStatus.setText("Sesión Host recuperada. Preparando Full-test de este lead…");
+            browser.postDelayed(()->checkSelectedVisit(),500);
+        }else if(!existing||!"/floor/full-test".equals(current)){
+            browser.loadUrl("https://"+HOST+"/floor/full-test");
+        }else if(printOnly){
+            browser.postDelayed(()->openVisitFromList(),500);
+        }
     }
     private void openVisitFromList(){
         if(!printOnly||isFinishing()||browser==null||autoRequested)return;
@@ -219,5 +217,10 @@ public final class HostActivity extends Activity {
             clicked->{if(!"true".equals(clicked))captureStatus.setText("Tocá el botón «Imprimir el Full-Test» del CRM para capturarlo.");});
     }
     @Override public void onBackPressed(){if(browser.canGoBack())browser.goBack();else super.onBackPressed();}
-    @Override protected void onDestroy(){if(capture!=null)capture.dispose();if(browser!=null)browser.destroy();super.onDestroy();}
+    @Override protected void onDestroy(){
+        if(capture!=null)capture.dispose();
+        HostWebSession.release(this);
+        browser=null;
+        super.onDestroy();
+    }
 }

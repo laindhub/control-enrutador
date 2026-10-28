@@ -101,7 +101,7 @@ test('Atendidas native picker mirrors the real Full-test list in the Host sessio
  assert.match(java,/sync\(\)/);
  assert.match(java,/candidates/);
  assert.match(java,/setResult\(RESULT_OK/);
- assert.match(java,/Confirmar persona/);
+ assert.match(java,/Confirmá que sea la persona correcta/);
  assert.match(dash,/HostLookupActivity\.class/);
  assert.match(dash,/store.placeFromHost/);
  assert.match(manifest,/HostLookupActivity" android:exported="false" android:process=":host"/);
@@ -235,8 +235,8 @@ test('visual PDF proof is required before dispatching to Brother or Android',()=
  const send=source.indexOf('private void sendPreparedPrint(boolean direct)');
  assert.ok(preview>0&&send>preview);
  assert.match(source,/new android.widget.ImageView/);
- assert.match(source,/setNegativeButton\("Cancelar"/);
- assert.match(source,/setPositiveButton\("Imprimir 1 hoja"/);
+ assert.match(source,/UiSheets\.open\(this,"Vista previa/);
+ assert.match(source,/"Imprimir 1 hoja"/);
 });
 
 test('exact extension geometry, no new header and only three added values',()=>{
@@ -320,11 +320,45 @@ test('unoccupied chair opens attended Host dialog and prevents duplicate UUIDs',
 test('occupied chair shows visible release action and preserves saved lead data',()=>{
  const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
  const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
- assert.match(dash,/tile\.setOnClickListener\(v->showSeatOptions\(selectedLead\)\)/);
+ assert.match(dash,/tile\.setOnClickListener\(v->openLead\(selectedLead\)\)/);
  assert.match(dash,/Liberar silla · Se retiró/);
- assert.match(dash,/setPositiveButton\("Liberar"/);
+ assert.match(dash,/UiSheets\.confirm\(this,"Liberar silla"/);
  assert.match(dash,/store\.unseat\(lead\.id\)/);
  assert.match(store,/synchronized void unseat/);
  assert.match(store,/lead\.talkId="";lead\.seatIndex=-1/);
  assert.match(store,/lead\.talkId="";lead\.seatIndex=-1/);
+});
+
+test('native seat picker presents a bottom sheet with inline review, not nested Android dialogs',()=>{
+ const picker=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const modal=src('app/src/main/java/io/laind/masduenos/tablet/UiSheets.java');
+ assert.match(picker,/layout\.gravity=Gravity\.BOTTOM/);
+ assert.match(picker,/layout\.width=-1/);
+ assert.match(picker,/surface\.setCornerRadii/);
+ assert.match(picker,/showReview\(data\)/);
+ assert.match(picker,/reviewPanel\.setVisibility/);
+ assert.match(picker,/Asignar a silla/);
+ assert.doesNotMatch(picker,/new AlertDialog\.Builder/);
+ assert.match(modal,/void notice\(/);
+ assert.match(modal,/void confirm\(/);
+ assert.match(modal,/void options\(/);
+ assert.match(modal,/Gravity\.BOTTOM/);
+});
+test('picker filters full Host list while limiting visible cards',()=>{
+ const picker=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ assert.match(picker,/LIMIT=32/);
+ assert.match(picker,/matches\+\+/);
+ assert.match(picker,/if\(shown>=LIMIT\)continue/);
+ assert.match(picker,/Mostrando /);
+ assert.match(picker,/hideSoftInputFromWindow/);
+});
+test('no standard dialogs or Toasts in primary routing flow',()=>{
+ for(const p of ['DashboardActivity.java','MainActivity.java','HostLookupActivity.java','HostActivity.java']){
+  const java=src('app/src/main/java/io/laind/masduenos/tablet/'+p);
+  assert.doesNotMatch(java,/new (?:android\.app\.)?AlertDialog\.Builder/);
+  assert.doesNotMatch(java,/Toast\.makeText/);
+ }
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ assert.match(dash,/tile\.setOnClickListener\(v->openLead\(selectedLead\)\)/);
+ assert.match(dash,/tile\.setOnLongClickListener/);
 });

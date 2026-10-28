@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.5.3)
+# Más Dueños · Enrutador Tablet (prototipo 0.6.1)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -119,3 +119,11 @@ La composición y la paginación son una implementación nativa equivalente, no 
 - Los leads históricos sin charla/silla sobreviven a la actualización y se pueden ubicar desde «Personas sin silla».
 - Charlas y asignaciones quedan cifradas localmente; no se envían las ubicaciones de sillas al CRM.
 - La impresión y derivación oficial siguen funcionando desde la ficha, con sus confirmaciones actuales. La automatización de guardado oficial no se activa en esta versión.
+
+## 0.6.1 · Experiencia de enrutación
+- Selector de Atendidas como hoja inferior nativa de ancho completo, con esquinas redondeadas y controles compactos.
+- Busca sobre toda la lista, pero dibuja hasta 32 resultados simultáneos para evitar ralentizaciones con 200+ personas.
+- Verificación de nombre, teléfono y hora dentro del mismo selector; sin segunda alerta Android.
+- Toque de silla ocupada abre la ficha; pulsación larga ofrece mover o liberar.
+- Errores, acciones y confirmaciones usan componentes visuales propios. El diálogo de impresión Android queda solo como alternativa explícita a la Brother directa.
+- No cambia los permisos del CRM ni el registro oficial de derivaciones.

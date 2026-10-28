@@ -150,3 +150,33 @@ test('shared CRM UUID opens direct assignment in own Router session',()=>{
  assert.match(router,/returnedFromLogin/);
  assert.doesNotMatch(router,/loadUrl\(ORIGIN\+"\/floor\/visits"\)/);
 });
+
+test('Host lookup and printing attach the SAME live WebView, not two independent sessions',()=>{
+ const shared=src('app/src/main/java/io/laind/masduenos/tablet/HostWebSession.java');
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const host=src('app/src/main/java/io/laind/masduenos/tablet/HostActivity.java');
+ const application=src('app/src/main/java/io/laind/masduenos/tablet/TabletApplication.java');
+ assert.match(shared,/private static WebView shared/);
+ assert.match(shared,/new WebView\(context\)/);
+ assert.match(shared,/MutableContextWrapper/);
+ assert.match(shared,/context\.setBaseContext\(activity\)/);
+ assert.match(shared,/getBaseContext\(\)!=owner/);
+ assert.match(shared,/shared\.setWebViewClient\(new WebViewClient\(\)\)/);
+ assert.match(lookup,/HostWebSession\.attach\(this,webHolder\)/);
+ assert.match(host,/HostWebSession\.attach\(this,holder\)/);
+ assert.match(lookup,/HostWebSession\.release\(this\)/);
+ assert.match(host,/HostWebSession\.release\(this\)/);
+ assert.doesNotMatch(lookup,/new WebView\(this\)/);
+ assert.doesNotMatch(host,/new WebView\(this\)/);
+ assert.doesNotMatch(host,/browser\.destroy\(\)/);
+ assert.match(application,/WebView\.enableSlowWholeDocumentDraw\(\)/);
+});
+test('same Host visit remains selected between picking and printing',()=>{
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const host=src('app/src/main/java/io/laind/masduenos/tablet/HostActivity.java');
+ assert.match(lookup,/putExtra\("crmPath",wantedPath\)/);
+ assert.match(host,/targetPath\.equals\(current\)/);
+ assert.match(host,/checkSelectedVisit\(\)/);
+ assert.match(host,/No se encontró la visita/);
+ assert.doesNotMatch(host,/browser\.loadUrl\("https:\/\/"\+HOST\+\(printOnly\?targetPath/);
+});

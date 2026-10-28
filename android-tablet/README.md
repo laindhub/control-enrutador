@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.5.0)
+# Más Dueños · Enrutador Tablet (prototipo 0.5.1)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -51,3 +51,12 @@ La CI genera un APK **sin firma**, no instalable directamente. Firmarlo con una 
 - Se evitan accesos a rutas nulas durante carga/redirect del CRM y se suspenden sondeos del buscador cuando la pantalla no está activa.
 - Desde la ficha ya preparada se abre directamente /floor/visits/<uuid>/assignment usando la sesión exclusiva de Enrutador, y tras login se reabre la asignación elegida.
 - **El llenado automático de controles y el envío final NO están implementados en esta versión**; el formulario original sigue siendo la vía oficial de confirmación. Debe verificarse el control React y su resultado real antes de automatizar una operación irreversible.
+
+## Sesión Host reutilizable (0.5.1)
+
+Corrección confirmada en código de la repetición de login al imprimir:
+- Antes: `HostLookupActivity` y `HostActivity` creaban instancias independientes de `new WebView(this)`. Compartían cookies, pero **no** la sesión de pestaña, el estado React ni el DOM.
+- Ahora: ambas pantallas reutilizan una sola instancia de WebView en el proceso `:host`, que se desprende/adjunta a sus contenedores al navegar. La aplicación no copia ni guarda PIN, cookies o tokens.
+- Si la ficha seleccionada sigue abierta en ese WebView, la impresión usa el UUID actual sin volver a cargar la web ni repetir el login.
+- Si Android mata el proceso Host, se pierde el WebView en memoria; entonces el CRM puede pedir inicio de sesión legítimamente.
+- La validación real de la Brother y del reporte final sigue pendiente de una prueba en la Galaxy Tab A8.

@@ -101,8 +101,7 @@ public final class DashboardActivity extends Activity {
     @Override protected void onResume(){super.onResume();if(initialised)refresh();}
     private void alert(String title,String message){
         if(isFinishing())return;
-        new AlertDialog.Builder(this).setTitle(title).setMessage(message)
-            .setPositiveButton("Entendido",(d,w)->{}).show();
+        UiSheets.info(this,title,message);
     }
     private void refresh(){
         if(!initialised)return;
@@ -271,17 +270,14 @@ public final class DashboardActivity extends Activity {
     }
     private void showChatOptions(TalkStore.Talk talk){
         String[] choices={"Cambiar nombre y hora","Eliminar charla vacía"};
-        new AlertDialog.Builder(this).setTitle(talk.display())
-            .setItems(choices,(d,index)->{
+        UiSheets.options(this,talk.display(),choices,index->{
                 if(index==0)renameTalk(talk);
-                else new AlertDialog.Builder(this).setTitle("Eliminar charla vacía")
-                    .setMessage("La charla solamente se eliminará si no tiene personas asignadas.")
-                    .setNegativeButton("Cancelar",(a,b)->{})
-                    .setPositiveButton("Eliminar",(a,b)->{
+                else UiSheets.confirm(this,"Eliminar charla vacía",
+                    "Solo se eliminará si no tiene personas asignadas.","Cancelar","Eliminar",()->{
                         try{chats.removeEmpty(talk,store);selectedTalkId="";refresh();}
                         catch(Exception e){alert("No se pudo eliminar",e.getMessage());}
-                    }).show();
-            }).show();
+                    });
+            });
     }
     private void renameTalk(TalkStore.Talk talk){
         LinearLayout form=Ui.column(this,13);
@@ -292,27 +288,24 @@ public final class DashboardActivity extends Activity {
         time.setHint("Hora (ej. 11:00)");time.setText(talk.time);
         time.setInputType(InputType.TYPE_CLASS_DATETIME|InputType.TYPE_DATETIME_VARIATION_TIME);
         form.addView(time);
-        new AlertDialog.Builder(this).setTitle("Editar charla").setView(form)
-            .setNegativeButton("Cancelar",(d,w)->{})
-            .setPositiveButton("Guardar",(d,w)->{
+        UiSheets.open(this,"Editar charla","Cambiá el nombre y la hora de esta charla.",
+            form,"Cancelar","Guardar",()->{
                 try{chats.rename(talk,name.getText().toString(),time.getText().toString());refresh();}
                 catch(Exception e){alert("No se pudo guardar",e.getMessage());}
-            }).show();
+            });
     }
     private void showSeatOptions(LeadStore.Lead lead){
         String[] options={"Abrir derivación","Mover a otra silla","Liberar silla · Se retiró"};
-        new AlertDialog.Builder(this).setTitle(lead.name+" · Silla "+(lead.seatIndex+1))
-            .setItems(options,(d,position)->{
+        UiSheets.options(this,lead.name+" · Silla "+(lead.seatIndex+1),options,position->{
                 if(position==0)openLead(lead);
                 else if(position==1)showMoveDialog(lead);
-                else new AlertDialog.Builder(this).setTitle("Liberar silla")
-                    .setMessage("La silla volverá a quedar libre para otra persona. La ficha, descripción, impresión e historial del lead se conservarán. Esta acción no registra por sí sola que se retiró en el CRM.")
-                    .setNegativeButton("Cancelar",(a,b)->{})
-                    .setPositiveButton("Liberar",(a,b)->{
+                else UiSheets.confirm(this,"Liberar silla",
+                    "La silla volverá a quedar libre. La ficha, descripción, impresión e historial se conservarán. Esta acción no cambia el estado en el CRM.",
+                    "Cancelar","Liberar",()->{
                         try{store.unseat(lead.id);refresh();}
                         catch(Exception e){alert("No se pudo liberar",e.getMessage());}
-                    }).show();
-            }).show();
+                    });
+            });
     }
     private void showMoveDialog(LeadStore.Lead lead){
         if(LeadStore.DONE.equals(lead.status)){
@@ -334,13 +327,12 @@ public final class DashboardActivity extends Activity {
             }
         }
         if(labels.isEmpty()){alert("Sin lugar","Creá otra charla para disponer de más sillas.");return;}
-        new AlertDialog.Builder(this).setTitle("Ubicar a "+lead.name)
-            .setItems(labels.toArray(new String[0]),(d,pos)->{
-                try{
-                    store.moveToSeat(lead.id,talkIds.get(pos),indices.get(pos));
-                    selectedTalkId=talkIds.get(pos);refresh();
-                }catch(Exception e){alert("No se pudo mover",e.getMessage());}
-            }).setNegativeButton("Cancelar",(d,w)->{}).show();
+        UiSheets.options(this,"Ubicar a "+lead.name,labels.toArray(new String[0]),pos->{
+            try{
+                store.moveToSeat(lead.id,talkIds.get(pos),indices.get(pos));
+                selectedTalkId=talkIds.get(pos);refresh();
+            }catch(Exception e){alert("No se pudo mover",e.getMessage());}
+        });
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
@@ -364,13 +356,12 @@ public final class DashboardActivity extends Activity {
             }catch(Exception ignored){}
             if(existing!=null&&!LeadStore.DONE.equals(existing.status)){
                 LeadStore.Lead found=existing;
-                new AlertDialog.Builder(this).setTitle("Esta persona ya tiene silla")
-                    .setMessage("Está ubicada en otra posición. ¿Querés moverla a la silla "+(seat+1)+" de esta charla?")
-                    .setNegativeButton("Conservar",(d,w)->{})
-                    .setPositiveButton("Mover",(d,w)->{
+                UiSheets.confirm(this,"Esta persona ya tiene silla",
+                    "Está ubicada en otra posición. ¿Querés moverla a la silla "+(seat+1)+" de esta charla?",
+                    "Conservar","Mover",()->{
                         try{store.moveToSeat(found.id,talkId,seat);selectedTalkId=talkId;refresh();openLead(found);}
                         catch(Exception err){alert("No se pudo mover",err.getMessage());}
-                    }).show();
+                    });
             }else alert("No se pudo asignar",error.getMessage());
         }
     }

@@ -96,7 +96,11 @@ public final class HostLookupActivity extends Activity {
                 return true;
             }
             @Override public void onPageFinished(WebView view,String url){
-                handler.removeCallbacks(poll);handler.postDelayed(poll,600);
+                HostDesktopMode.enforce(view,()->{
+                    if(isFinishing()||isDestroyed())return;
+                    handler.removeCallbacks(poll);
+                    handler.postDelayed(poll,650);
+                });
             }
         });
         LinearLayout.LayoutParams webParams=new LinearLayout.LayoutParams(-1,0,1);

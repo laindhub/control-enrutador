@@ -102,9 +102,9 @@ public final class PdfComposer {
         p.setTextSize(11.5f);
         canvas.drawText("REFERENCIAS DE SALÓN",6f,13.5f,p);
 
-        drawFieldCard(canvas,p,24f,0,"CHARLA DE",presenter,red,ink,gray);
-        drawFieldCard(canvas,p,68f,1,"DERIVADO A",advisor,red,ink,gray);
-        drawFieldCard(canvas,p,112f,2,"DESCRIPCIÓN",description,red,ink,gray);
+        drawFieldCard(canvas,p,24f,0,"Charla de:",presenter,red,ink,gray);
+        drawFieldCard(canvas,p,68f,1,"Derivado a:",advisor,red,ink,gray);
+        drawFieldCard(canvas,p,112f,2,"Descripción:",description,red,ink,gray);
 
         canvas.restore();
     }

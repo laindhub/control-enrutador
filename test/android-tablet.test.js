@@ -40,7 +40,9 @@ test('Host report is captured from the original popup without importing files',(
  assert.match(host,/Capturar PDF original/);
  assert.match(host,/Imprimir\\s/);
  assert.match(capture,/onCreateWindow/);
- assert.match(capture,/createPrintDocumentAdapter/);
+ assert.match(capture,/capturePicture/);
+ assert.match(capture,/new PdfDocument/);
+ assert.doesNotMatch(capture,/adapter.onLayout|adapter.onWrite/);
  assert.match(capture,/report-container/);
  assert.match(capture,/renderer.getPageCount\(\)!=2/);
  assert.match(main,/getStringExtra\("pdfPath"\)/);

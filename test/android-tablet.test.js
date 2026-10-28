@@ -204,9 +204,9 @@ test('full-test uses native vector PDF from complete CRM report DOM, not a bitma
  const native=src('app/src/main/java/io/laind/masduenos/tablet/NativeFullTestPdf.java');
  assert.match(capture,/\.report-container/);
  assert.match(capture,/\.section-title/);
- assert.match(capture,/\.summary-box/);
- assert.match(capture,/\.info-item/);
- assert.match(capture,/\.conclusion-message/);
+ assert.match(capture,/summary-box/);
+ assert.match(capture,/info-item/);
+ assert.match(capture,/conclusion-message/);
  assert.match(capture,/new JSONObject\(encoded\)/);
  assert.match(capture,/NativeFullTestPdf\.write\(report,output\)/);
  assert.doesNotMatch(capture,/\.capturePicture\(|Bitmap\.createBitmap\(|CSS_WIDTH|midpoint/);

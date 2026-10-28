@@ -45,7 +45,7 @@ public final class HostLookupActivity extends Activity {
     private EditText search;
     private TextView status;
     private Button toggle;
-    private boolean selecting=false,ready=false,manual=false;
+    private boolean selecting=false,ready=false,manual=false,seatPicker=false;
     private String wantedPath="";
     private int detailTries=0;
     private static final class Item {
@@ -53,11 +53,31 @@ public final class HostLookupActivity extends Activity {
         Item(String name,String time,String path){this.name=name;this.time=time;this.path=path;}
     }
     @Override public void onCreate(Bundle state){
+        seatPicker=getIntent().getBooleanExtra("seat_picker",false);
+        if(seatPicker)setTheme(android.R.style.Theme_Material_Light_Dialog_NoActionBar);
         super.onCreate(state);
         Ui.statusBars(this);
-        root=Ui.column(this,16);root.setBackgroundColor(Color.WHITE);
-        NavigationShell.install(this,root,NavigationShell.HOST);
-        root.addView(Ui.label(this,"Atendidas · Full-test",24,true));
+        root=Ui.column(this,seatPicker?12:16);root.setBackgroundColor(Color.WHITE);
+        if(seatPicker){
+            setContentView(root);
+            android.util.DisplayMetrics metrics=getResources().getDisplayMetrics();
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            android.view.WindowManager.LayoutParams layout=getWindow().getAttributes();
+            layout.dimAmount=.5f;
+            layout.width=(int)(metrics.widthPixels*.93f);
+            layout.height=(int)(metrics.heightPixels*.85f);
+            layout.gravity=Gravity.CENTER;
+            getWindow().setAttributes(layout);
+        }else NavigationShell.install(this,root,NavigationShell.HOST);
+        String heading=seatPicker?
+            getIntent().getStringExtra("talk_name")+" · Silla "+getIntent().getIntExtra("seat_number",0):
+            "Atendidas · Full-test";
+        root.addView(Ui.label(this,seatPicker?"Elegir de Atendidas":heading,seatPicker?21:24,true));
+        if(seatPicker){
+            TextView seatInfo=Ui.label(this,heading,13,false);
+            seatInfo.setTextColor(Ui.MUTED);
+            root.addView(seatInfo,Ui.spaced(this,3));
+        }
         status=Ui.label(this,"Conectando a la sesión de Host…",13,false);
         status.setTextColor(Ui.MUTED);root.addView(status,Ui.spaced(this,7));
         LinearLayout buttons=new LinearLayout(this);
@@ -70,13 +90,13 @@ public final class HostLookupActivity extends Activity {
             });
         });
         buttons.addView(refresh,new LinearLayout.LayoutParams(0,Ui.dp(this,50),1));
-        toggle=Ui.button(this,"Ver CRM / Ingresar",false);
+        toggle=Ui.button(this,seatPicker?"Iniciar sesión Host":"Ver CRM / Ingresar",false);
         toggle.setOnClickListener(v->{manual=!manual;showBrowser();});
         LinearLayout.LayoutParams toggleParams=new LinearLayout.LayoutParams(0,Ui.dp(this,50),1);
         toggleParams.leftMargin=Ui.dp(this,8);buttons.addView(toggle,toggleParams);
         root.addView(buttons,Ui.spaced(this,9));
         search=new EditText(this);
-        search.setSingleLine(true);search.setTextSize(16);search.setHint("Buscar persona por nombre…");
+        search.setSingleLine(true);search.setTextSize(16);search.setHint(seatPicker?"Nombre del lead…":"Buscar persona por nombre…");
         search.setPadding(Ui.dp(this,15),Ui.dp(this,10),Ui.dp(this,15),Ui.dp(this,10));
         search.setBackground(Ui.bg(this,Color.WHITE,13,Ui.LINE));
         root.addView(search,Ui.spaced(this,12));
@@ -126,7 +146,7 @@ public final class HostLookupActivity extends Activity {
         scrolling.setVisibility(show?View.GONE:View.VISIBLE);
         search.setVisibility(show?View.GONE:View.VISIBLE);
         browser.setVisibility(View.VISIBLE);
-        toggle.setText(show?"Mostrar buscador":"Ver CRM / Ingresar");
+        toggle.setText(show?"Mostrar buscador":(seatPicker?"Ver CRM":"Ver CRM / Ingresar"));
         if(show)status.setText("Si Liniers solicita acceso, ingresá con el PIN autorizado de Host.");
     }
     private void sync(){

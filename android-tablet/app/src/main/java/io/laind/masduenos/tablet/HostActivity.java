@@ -118,6 +118,8 @@ public final class HostActivity extends Activity {
             if("\"opened\"".equals(value)){
                 routeOpening=true;
                 captureStatus.setText("Abriendo el Full-test correspondiente…");
+                // Next.js client-side navigation does not invoke onPageFinished.
+                browser.postDelayed(()->checkSelectedVisit(),650);
             }else{
                 if("\"tab\"".equals(value))tabRequested=true;
                 browser.postDelayed(()->openVisitFromList(),600);
@@ -126,9 +128,12 @@ public final class HostActivity extends Activity {
     }
     private void checkSelectedVisit(){
         if(isFinishing()||!printOnly||autoRequested||browser==null)return;
-        if(!targetPath.equals(Uri.parse(browser.getUrl()).getPath()))return;
         if(++detailAttempts>22){
-            captureStatus.setText("El CRM abrió la visita, pero aún no muestra el botón del Full-test.");
+            captureStatus.setText("La visita todavía no mostró el Full-test. Podés revisar el CRM en esta pantalla.");
+            return;
+        }
+        if(!targetPath.equals(Uri.parse(browser.getUrl()).getPath())){
+            browser.postDelayed(()->checkSelectedVisit(),450);
             return;
         }
         browser.evaluateJavascript("(()=>{const m=document.querySelector('main');"+

@@ -93,3 +93,12 @@ La composición y la paginación son una implementación nativa equivalente, no 
 - Presentador, asesor y descripción aparecen en tarjetas vectoriales discretas, con nombres en negrita, etiqueta, ícono de presentación/persona/nota y una franja roja.
 - El bloque permanece en la misma zona en blanco. Si las referencias no caben, la app informa el error en vez de superponerlas al test.
 - La compilación CI produce un APK **sin firma**. El artefacto instalable debe firmarse aparte con el mismo certificado de la serie 0.5.x y validar la estructura, versión y certificado.
+
+## Ajuste visual 0.5.7
+
+- Sin título «Referencias de salón».
+- Las referencias se rotan -90°, como el Full-test original, evitando el texto invertido.
+- Se ubican en una franja reservada a la derecha de la segunda página, fuera del cuestionario y del veredicto.
+- No se desplazan ni achican las páginas originales: se conserva la composición de Edge.
+- Antes de añadir los campos se comprueba que la zona reservada del PDF original esté realmente vacía. Si tiene contenido, se cancela la composición para no taparlo.
+- Iconos vectoriales y referencias destacadas en negrita.

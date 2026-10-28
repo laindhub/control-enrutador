@@ -251,16 +251,20 @@ test('exact extension geometry, no new header and only three added values',()=>{
  assert.doesNotMatch(source,/A4_HEIGHT-HEADER|slotH=\(A4_HEIGHT-HEADER/);
 });
 
-test('supplemental archive notes face opposite direction and use bold icon cards',()=>{
+test('archive references match the questionnaire, stay outside content, omit heading',()=>{
  const pdf=src('app/src/main/java/io/laind/masduenos/tablet/PdfComposer.java');
- assert.match(pdf,/canvas\.rotate\(90f\)/);
+ assert.doesNotMatch(pdf,/canvas\.rotate\(90f\)/);
  assert.match(pdf,/canvas\.rotate\(-90f\)/);
- assert.match(pdf,/drawFieldCard\(canvas,p,24f,0/);
- assert.match(pdf,/drawFieldCard\(canvas,p,68f,1/);
- assert.match(pdf,/drawFieldCard\(canvas,p,112f,2/);
+ assert.match(pdf,/canvas\.translate\(335f,397f\)/);
+ assert.match(pdf,/drawFieldCard\(canvas,p,4f,0/);
+ assert.match(pdf,/drawFieldCard\(canvas,p,80f,1/);
+ assert.match(pdf,/drawFieldCard\(canvas,p,156f,2/);
  assert.match(pdf,/drawSymbol\(Canvas c,Paint p,int kind/);
- assert.match(pdf,/Typeface\.BOLD/);
- assert.match(pdf,/La descripción es demasiado larga/);
+ assert.match(pdf,/Typeface.BOLD/);
+ assert.match(pdf,/ensureReservedWhitespaceIsBlank\(image\)/);
+ assert.match(pdf,/source\.getPixel\(x,y\)/);
+ assert.match(pdf,/Se canceló la impresión para no tapar datos/);
+ assert.doesNotMatch(pdf,/REFERENCIAS DE SALÓN/);
  assert.match(pdf,/SHEET_MARGIN=0f/);
  assert.match(pdf,/GUTTER=0f/);
  assert.doesNotMatch(pdf,/drawHeader\(/);

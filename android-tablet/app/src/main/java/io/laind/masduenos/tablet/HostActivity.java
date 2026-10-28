@@ -30,6 +30,7 @@ public final class HostActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         if(Build.VERSION.SDK_INT>=28)WebView.setDataDirectorySuffix("host");
+        WebView.enableSlowWholeDocumentDraw();
         Ui.statusBars(this);
         LinearLayout root=Ui.column(this,10);root.setBackgroundColor(Color.WHITE);setContentView(root);
         TextView title=Ui.label(this,"Full-test · Host",21,true);root.addView(title);
@@ -110,7 +111,7 @@ public final class HostActivity extends Activity {
                         },message->captureStatus.setText(message));
                         browser.evaluateJavascript(
                             "(()=>{const b=[...document.querySelectorAll('button')].find(x=>/^Imprimir\\s+(?:el\\s+)?Full[-\\s]?Test$/i.test((x.innerText||x.textContent||'').trim()));if(!b)return false;b.click();return true;})()",
-                            value->{if(!"true".equals(value))captureStatus.setText("Tocá «Imprimir el Full-Test» en la ficha para capturarlo.");});
+                            clicked->{if(!"true".equals(clicked))captureStatus.setText("Tocá «Imprimir el Full-Test» en la ficha para capturarlo.");});
                         browser.postDelayed(()->captureStatus.setText("Si el reporte no se abrió, tocá el botón original «Imprimir el Full-Test» en la ficha."),5500);
                     }).show();
             }catch(Exception error){Toast.makeText(this,"No se pudieron leer los datos de esta ficha. Confirmá que esté abierta.",Toast.LENGTH_LONG).show();}

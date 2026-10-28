@@ -243,7 +243,7 @@ public final class DashboardActivity extends Activity {
         tile.setContentDescription("Silla "+(index+1)+", "+(filled?occupant.name+", "+occupant.label():"libre"));
         if(filled){
             LeadStore.Lead selectedLead=occupant;
-            tile.setOnClickListener(v->openLead(selectedLead));
+            tile.setOnClickListener(v->showSeatOptions(selectedLead));
             tile.setOnLongClickListener(v->{showSeatOptions(selectedLead);return true;});
         }else tile.setOnClickListener(v->pickSeat(talk,index));
         return tile;
@@ -294,13 +294,13 @@ public final class DashboardActivity extends Activity {
             }).show();
     }
     private void showSeatOptions(LeadStore.Lead lead){
-        String[] options={"Abrir derivación","Mover a otra silla","Liberar silla"};
-        new AlertDialog.Builder(this).setTitle(lead.name)
+        String[] options={"Abrir derivación","Mover a otra silla","Liberar silla · Se retiró"};
+        new AlertDialog.Builder(this).setTitle(lead.name+" · Silla "+(lead.seatIndex+1))
             .setItems(options,(d,position)->{
                 if(position==0)openLead(lead);
                 else if(position==1)showMoveDialog(lead);
                 else new AlertDialog.Builder(this).setTitle("Liberar silla")
-                    .setMessage("La persona quedará en «Sin silla». Su ficha y PDF no se borrarán.")
+                    .setMessage("La silla volverá a quedar libre para otra persona. La ficha, descripción, impresión e historial del lead se conservarán. Esta acción no registra por sí sola que se retiró en el CRM.")
                     .setNegativeButton("Cancelar",(a,b)->{})
                     .setPositiveButton("Liberar",(a,b)->{
                         try{store.unseat(lead.id);refresh();}

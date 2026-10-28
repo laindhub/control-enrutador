@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.laind.masduenos.tablet">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <application android:label="Más Dueños · Enrutador" android:icon="@android:drawable/ic_menu_agenda"
+    <application android:name=".TabletApplication" android:label="Más Dueños · Enrutador" android:icon="@android:drawable/ic_menu_agenda"
         android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false"
         android:usesCleartextTraffic="true" android:supportsRtl="true">
         <activity android:name=".HostActivity" android:exported="false" android:process=":host" />

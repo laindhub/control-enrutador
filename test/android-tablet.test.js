@@ -10,7 +10,7 @@ test('tablet APK is independent from Salon with isolated Host WebView process',(
 });
 test('PDF is local-only, one A4 sheet, never sent to our website',()=>{
  const java=src('app/src/main/java/io/laind/masduenos/tablet/PdfComposer.java');
- assert.match(java,/PageInfo\.Builder\(595,842,1\)/);
+ assert.match(java,/PageInfo\.Builder\(A4_WIDTH,A4_HEIGHT,1\)/);
  assert.match(java,/PdfRenderer/);
  assert.match(java,/Charla de:/);
  assert.match(java,/Derivado a:/);
@@ -196,4 +196,37 @@ test('Host CRM always uses desktop UA and wide viewport even on mobile',()=>{
  assert.match(lookup,/HostDesktopMode\.enforce\(view/);
  assert.match(host,/HostDesktopMode\.enforce\(view/);
  assert.doesNotMatch(host,/La sesión Host expiró/);
+});
+
+test('full-test capture uses Letter-width report CSS and headings, never midpoint bisect',()=>{
+ const source=src('app/src/main/java/io/laind/masduenos/tablet/HostReportCapture.java');
+ assert.match(source,/CSS_WIDTH=816/);
+ assert.match(source,/CSS_HEIGHT=1056/);
+ assert.match(source,/setUseWideViewPort\(true\)/);
+ assert.match(source,/section-title/);
+ assert.match(source,/capacidad de pago/);
+ assert.match(source,/const scale=Math.min/);
+ assert.match(source,/Math.max\(cut,height-cut\)/);
+ assert.match(source,/clipRect\(margin,margin,612-margin,792-margin\)/);
+ assert.match(source,/picture.draw\(canvas\)/);
+ assert.match(source,/No se encontró un corte seguro entre secciones/);
+ assert.doesNotMatch(source,/sourceHeight\/2f|segmentHeight=sourceHeight\/2f|sourceHeight\/2/);
+});
+test('imposition matches original Edge 2-up portrait geometry and keeps a single copy',()=>{
+ const source=src('app/src/main/java/io/laind/masduenos/tablet/PdfComposer.java');
+ assert.match(source,/A4_WIDTH=595,A4_HEIGHT=842/);
+ assert.match(source,/slotH\+GUTTER/);
+ assert.match(source,/canvas.rotate\(-90f\)/);
+ assert.match(source,/page.getWidth\(\)\*factor/);
+ assert.match(source,/PageInfo.Builder\(A4_WIDTH,A4_HEIGHT,1\)/);
+ assert.match(source,/if\(renderer.getPageCount\(\)!=2\)/);
+});
+test('visual PDF proof is required before dispatching to Brother or Android',()=>{
+ const source=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ const preview=source.indexOf('previewBeforePrinting(direct)');
+ const send=source.indexOf('private void sendPreparedPrint(boolean direct)');
+ assert.ok(preview>0&&send>preview);
+ assert.match(source,/new android.widget.ImageView/);
+ assert.match(source,/setNegativeButton\("Cancelar"/);
+ assert.match(source,/setPositiveButton\("Imprimir 1 hoja"/);
 });

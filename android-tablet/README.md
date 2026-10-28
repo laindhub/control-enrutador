@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.5.2)
+# Más Dueños · Enrutador Tablet (prototipo 0.5.3)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -67,3 +67,14 @@ Corrección confirmada en código de la repetición de login al imprimir:
 - La interfaz nativa de Salón sigue responsive. No se cambia el perfil Enrutador ni se fuerzan 1280 px para toda la aplicación.
 - Se eliminó la afirmación incorrecta de que un redirect transitorio a /floor/login demuestra expiración de sesión.
 - El comportamiento depende del sitio CRM original y se debe verificar con una visita real en Android. No se guardan PINes ni se transfieren credenciales.
+
+## Corrección urgente de impresión 0.5.3
+La foto del 28 de octubre confirmó que la versión anterior producía dos bandas diminutas. Causa: una captura WebView a ancho móvil se cortaba exactamente por la mitad y después se componía sobre A4. **Eso NO reproduce la extensión de Edge**.
+
+En esta versión:
+- El popup del Full-test se maqueta al ancho real de una página Carta (816 CSS px), con las tipografías de impresión del CRM.
+- En vez de cortar por la mitad de una imagen larga, la app mide las secciones del HTML y pagina en un encabezado real; prioriza «Capacidad de Pago» cuando está disponible, como en el Full-test de dos páginas.
+- Ambas páginas se dibujan completas con la misma escala y se rechazan los reportes demasiado largos o incompletos antes de imprimir. No se omiten campos silenciosamente.
+- La composición 2-up copia la geometría A4 vertical de Impresión Más Dueños 2.3.1: página original 1 abajo y 2 arriba, rotación visual equivalente a 90 grados antihorarios, 1 copia en total. Se reserva una banda compacta para charla, asesor y descripción.
+- **Se muestra una vista previa A4 antes de enviar a la impresora**, para no gastar papel si el sitio cambia sus estilos.
+- Esto pasó compilación y pruebas de código; hay que aprobar visualmente el PDF renderizado en la Tab A8 antes de usarlo para archivo. La APK no tiene acceso al depurador CDP de Edge y por ello necesita su propia ruta de representación.

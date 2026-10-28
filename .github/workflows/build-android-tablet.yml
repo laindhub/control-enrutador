@@ -1,0 +1,36 @@
+name: Build Enrutador Tablet APK
+on:
+  push:
+    paths:
+      - 'android-tablet/**'
+      - 'test/android-tablet.test.js'
+      - '.github/workflows/build-android-tablet.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check tablet source invariants
+        run: node --test test/android-tablet.test.js
+      - name: Compile dedicated Android app
+        working-directory: android-tablet
+        run: gradle --no-daemon :app:assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masduenos-enrutador-tablet-0.1.0-unsigned
+          path: android-tablet/app/build/outputs/apk/release/*unsigned.apk
+          if-no-files-found: error

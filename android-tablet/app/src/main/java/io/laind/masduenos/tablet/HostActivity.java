@@ -66,7 +66,7 @@ public final class HostActivity extends Activity {
             "const main=document.querySelector('main');const body=(main||document.body).innerText||'';"+
             "const text=body.slice(0,4000);"+
             "const heading=text.match(/(?:Full-test|El Test del Dueño)[\\s\\S]{0,160}?Con\\s+([^\\n.]{2,100})/i)||text.match(/\\bCon\\s+([^\\n.]{2,100})/i);"+
-            "const phoneLink=main?.querySelector('a[href^=\\\"tel:\\"]')?.getAttribute('href')?.replace('tel:','');"+
+            "const phoneLink=main?.querySelector('a[href^=tel]')?.getAttribute('href')?.replace('tel:','');"+
             "const telephone=phoneLink||text.match(/(?:teléfono|celular|móvil)\\s*[:\\-]?\\s*([+()0-9 \\-]{8,20})/i)?.[1]||'';"+
             "const entered=text.match(/\\bentr[oó]\\s+(\\d{1,2}:\\d{2})/i)?.[1]||'';"+
             "return JSON.stringify({name:heading?.[1]?.trim()||'',phone:telephone.trim(),arrival:entered,path:location.pathname});"+

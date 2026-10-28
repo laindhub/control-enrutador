@@ -118,3 +118,35 @@ test('deferred print opens selected CRM visit and archives it under correct lead
  assert.match(store,/attachPdf/);
  assert.doesNotMatch(editor,/ACTION_OPEN_DOCUMENT/);
 });
+
+test('Host WebView process suffix is configured only once, before WebView creation',()=>{
+ const manifest=src('app/src/main/AndroidManifest.xml');
+ const app=src('app/src/main/java/io/laind/masduenos/tablet/TabletApplication.java');
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const host=src('app/src/main/java/io/laind/masduenos/tablet/HostActivity.java');
+ assert.match(manifest,/android:name="\.TabletApplication"/);
+ assert.match(app,/WebView\.setDataDirectorySuffix\("host"\)/);
+ assert.match(app,/process\.endsWith\(":host"\)/);
+ assert.doesNotMatch(lookup,/setDataDirectorySuffix/);
+ assert.doesNotMatch(host,/setDataDirectorySuffix/);
+ assert.match(lookup,/safePath=uri\.getPath\(\)==null/);
+});
+test('mobile bottom tabs and landscape tablet dock give Host and Router fast access',()=>{
+ const shell=src('app/src/main/java/io/laind/masduenos/tablet/NavigationShell.java');
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const router=src('app/src/main/java/io/laind/masduenos/tablet/RouterActivity.java');
+ assert.match(shell,/smallestScreenWidthDp>=600/);
+ assert.match(shell,/LinearLayout\.HORIZONTAL:LinearLayout\.VERTICAL/);
+ for(const label of ['Tablero','Atendidas','Enrutador'])assert.ok(shell.includes(label));
+ for(const java of [dash,lookup,router])assert.match(java,/NavigationShell\.install/);
+});
+test('shared CRM UUID opens direct assignment in own Router session',()=>{
+ const editor=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ const router=src('app/src/main/java/io/laind/masduenos/tablet/RouterActivity.java');
+ assert.match(editor,/putExtra\("crmPath",draft\.crmPath\)/);
+ assert.match(router,/assignment/);
+ assert.match(router,/getStringExtra\("crmPath"\)/);
+ assert.match(router,/returnedFromLogin/);
+ assert.doesNotMatch(router,/loadUrl\(ORIGIN\+"\/floor\/visits"\)/);
+});

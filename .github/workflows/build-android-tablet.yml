@@ -31,6 +31,6 @@ jobs:
         run: gradle --no-daemon :app:assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: masduenos-enrutador-tablet-0.4.0-unsigned
+          name: masduenos-enrutador-tablet-0.5.0-unsigned
           path: android-tablet/app/build/outputs/apk/release/*unsigned.apk
           if-no-files-found: error

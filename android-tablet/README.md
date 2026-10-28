@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.4.0)
+# Más Dueños · Enrutador Tablet (prototipo 0.5.0)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -44,3 +44,10 @@ La CI genera un APK **sin firma**, no instalable directamente. Firmarlo con una 
 - El PDF se captura solo al tocar «Imprimir» en esa tarjeta, cargando directamente su `crmPath` y comparando el nombre antes de preparar el archivo.
 - Host y Enrutador siguen en procesos separados; no se almacenan PINes en la base de datos propia.
 - **Pendiente de validar en la tablet real:** selectores de Atendidas, acceso a la sesión, captura HTML y resultado de impresión. No se automatiza el guardado final de la derivación.
+
+## Navegación y estabilidad (0.5.0)
+- La navegación se adapta a la pantalla: barra inferior en teléfonos y dock lateral en tablets con smallest width de 600dp o más. Atendidas, Tablero y Enrutador accesibles entre sí.
+- Se corrigió la inicialización repetida de WebView en el proceso :host, que podía generar cierres al abrir Atendidas por segunda vez. La configuración ahora sucede una sola vez en TabletApplication.
+- Se evitan accesos a rutas nulas durante carga/redirect del CRM y se suspenden sondeos del buscador cuando la pantalla no está activa.
+- Desde la ficha ya preparada se abre directamente /floor/visits/<uuid>/assignment usando la sesión exclusiva de Enrutador, y tras login se reabre la asignación elegida.
+- **El llenado automático de controles y el envío final NO están implementados en esta versión**; el formulario original sigue siendo la vía oficial de confirmación. Debe verificarse el control React y su resultado real antes de automatizar una operación irreversible.

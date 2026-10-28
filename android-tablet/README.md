@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.5.1)
+# Más Dueños · Enrutador Tablet (prototipo 0.5.2)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -60,3 +60,10 @@ Corrección confirmada en código de la repetición de login al imprimir:
 - Si la ficha seleccionada sigue abierta en ese WebView, la impresión usa el UUID actual sin volver a cargar la web ni repetir el login.
 - Si Android mata el proceso Host, se pierde el WebView en memoria; entonces el CRM puede pedir inicio de sesión legítimamente.
 - La validación real de la Brother y del reporte final sigue pendiente de una prueba en la Galaxy Tab A8.
+
+## Vista de escritorio obligatoria de Host (0.5.2)
+- El CRM de Full-test/Host oculta el flujo de escritorio en el diseño móvil. Por eso la misma sesión de Camila podía mostrar «Hola, Camila» sin dar acceso al Full-test, aun cuando el navegador seguía autenticado.
+- El WebView compartido de Host ahora usa User-Agent Chrome Windows, wide viewport y layout de 1280 píxeles con evento resize para componentes React. Esto se aplica a la búsqueda Atendidas y a la captura/impresión de un lead.
+- La interfaz nativa de Salón sigue responsive. No se cambia el perfil Enrutador ni se fuerzan 1280 px para toda la aplicación.
+- Se eliminó la afirmación incorrecta de que un redirect transitorio a /floor/login demuestra expiración de sesión.
+- El comportamiento depende del sitio CRM original y se debe verificar con una visita real en Android. No se guardan PINes ni se transfieren credenciales.

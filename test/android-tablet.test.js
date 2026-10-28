@@ -180,3 +180,20 @@ test('same Host visit remains selected between picking and printing',()=>{
  assert.match(host,/No se encontró la visita/);
  assert.doesNotMatch(host,/browser\.loadUrl\("https:\/\/"\+HOST\+\(printOnly\?targetPath/);
 });
+
+test('Host CRM always uses desktop UA and wide viewport even on mobile',()=>{
+ const desktop=src('app/src/main/java/io/laind/masduenos/tablet/HostDesktopMode.java');
+ const session=src('app/src/main/java/io/laind/masduenos/tablet/HostWebSession.java');
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const host=src('app/src/main/java/io/laind/masduenos/tablet/HostActivity.java');
+ assert.match(desktop,/Windows NT 10\.0; Win64; x64/);
+ assert.match(desktop,/setUseWideViewPort\(true\)/);
+ assert.match(desktop,/setLoadWithOverviewMode\(true\)/);
+ assert.match(desktop,/WIDTH=1280/);
+ assert.match(desktop,/meta\[name=viewport\]/);
+ assert.match(desktop,/dispatchEvent\(new Event\('resize'\)\)/);
+ assert.match(session,/HostDesktopMode\.configure\(shared\)/);
+ assert.match(lookup,/HostDesktopMode\.enforce\(view/);
+ assert.match(host,/HostDesktopMode\.enforce\(view/);
+ assert.doesNotMatch(host,/La sesión Host expiró/);
+});

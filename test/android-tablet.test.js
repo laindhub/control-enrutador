@@ -206,9 +206,10 @@ test('full-test capture uses Letter-width report CSS and headings, never midpoin
  assert.match(source,/section-title/);
  assert.match(source,/capacidad de pago/);
  assert.match(source,/final float scale=Math.min/);
- assert.match(source,/Math.max\(cut,height-cut\)/);
+ assert.match(source,/Math.max\(cutInPicture,heightInPicture-cutInPicture\)/);
  assert.match(source,/clipRect\(margin,margin,612-margin,792-margin\)/);
  assert.match(source,/picture.draw\(canvas\)/);
+ assert.match(source,/cssToPicture/);
  assert.match(source,/No se encontró un corte seguro entre secciones/);
  assert.doesNotMatch(source,/sourceHeight\/2f|segmentHeight=sourceHeight\/2f|sourceHeight\/2/);
 });

@@ -217,7 +217,8 @@ final class LeadStore {
     synchronized void unseat(String leadId) throws Exception{
         ArrayList<Lead> list=all();
         for(Lead lead:list)if(lead.id.equals(leadId)){
-            if(DONE.equals(lead.status))throw new IOException("No se puede liberar una derivación registrada.");
+            // Even a completed lead may physically leave its seat. Freeing the
+            // chair only clears location; it never alters CRM-related status.
             lead.talkId="";lead.seatIndex=-1;lead.updatedAt=System.currentTimeMillis();
             write(list);return;
         }

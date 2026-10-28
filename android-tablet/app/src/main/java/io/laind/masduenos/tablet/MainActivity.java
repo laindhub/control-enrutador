@@ -35,6 +35,7 @@ import java.util.Arrays;
  * verified write integration is available.
  */
 public final class MainActivity extends Activity {
+    private static final int HOST_REPORT=72;
     private static final String[] PRESENTERS={"Keren Botini","Nicolas Espinosa","Nicole Laquinta",
         "Thomas Núñez","Katherine Puppo","Priscila Zajama"};
     private static final String[] ADVISORS={"Nadia Abregu","Nicolás Artaza","Zair Baltazar",
@@ -58,6 +59,7 @@ public final class MainActivity extends Activity {
     private LeadStore.Lead draft;
     private final Handler autosave=new Handler(Looper.getMainLooper());
     private boolean editingReady=false,crmOpened=false,printBusy=false;
+    private boolean pendingPrintDirect=false;
     private Button paperButton,markDoneButton,removeButton;
     private final Runnable delayedSave=()->saveDraft();
     @Override public void onCreate(Bundle saved){
@@ -104,7 +106,7 @@ public final class MainActivity extends Activity {
         product=spinner(content,new String[]{"PAI","Pozo"});
 
         section(content,"03  HOJA DE ARCHIVO · IMPRESIÓN");
-        TextView printHelp=Ui.label(this,"El PDF se obtiene directamente del botón «Imprimir el Full-Test» del CRM. Conservamos ambas páginas en una hoja A4 y añadimos tus tres referencias.",13,false);
+        TextView printHelp=Ui.label(this,"No hace falta descargar ningún PDF. Al imprimir, la app abrirá el Full-test de este lead con la sesión Host y le agregará tus referencias.",13,false);
         printHelp.setTextColor(Ui.MUTED);content.addView(printHelp,Ui.spaced(this,8));
         pdfStatus=Ui.label(this,"Comprobando documento original…",12,false);
         pdfStatus.setTextColor(Ui.MUTED);content.addView(pdfStatus,Ui.spaced(this,7));
@@ -188,7 +190,7 @@ public final class MainActivity extends Activity {
         printAttempted=LeadStore.SENT.equals(draft.status)||LeadStore.PAPER.equals(draft.status)
             ||LeadStore.DONE.equals(draft.status);
         pdfStatus.setText(originalPdf.isFile()?"Full-test capturado desde Host · "+(originalPdf.length()/1024)+" KB":
-            "Falta el documento original. Volvé al tablero y recapturá la ficha.");
+            "El Full-test se capturará automáticamente cuando elijas imprimir.");
         boolean locked=LeadStore.DONE.equals(draft.status);
         presenter.setEnabled(!locked);advisor.setEnabled(!locked);description.setEnabled(!locked);
         outcome.setEnabled(!locked);product.setEnabled(!locked);
@@ -238,8 +240,10 @@ public final class MainActivity extends Activity {
         boolean sent=LeadStore.SENT.equals(draft.status);
         boolean verified=LeadStore.PAPER.equals(draft.status);
         boolean validPdf=originalPdf!=null&&originalPdf.isFile();
-        printDirect.setEnabled(!done&&!printBusy&&validPdf);
-        printAndroid.setEnabled(!done&&!printBusy&&validPdf);
+        printDirect.setEnabled(!done&&!printBusy);
+        printAndroid.setEnabled(!done&&!printBusy);
+        printDirect.setText(validPdf?"Imprimir directo en Brother":"Obtener test e imprimir en Brother");
+        printAndroid.setText(validPdf?"Imprimir con Android (respaldo)":"Obtener test e imprimir con Android");
         paperButton.setVisibility(sent?View.VISIBLE:View.GONE);
         complete.setEnabled(verified);
         complete.setAlpha(verified?1f:.45f);
@@ -255,9 +259,44 @@ public final class MainActivity extends Activity {
         if(!LeadStore.DONE.equals(draft.status))draft.status=prepared()?LeadStore.READY:LeadStore.NEW;
         updateStatus();
     }
+    @Override protected void onActivityResult(int request,int result,Intent data){
+        super.onActivityResult(request,result,data);
+        if(request!=HOST_REPORT||result!=RESULT_OK||data==null)return;
+        try{
+            String raw=data.getStringExtra("pdfPath");
+            String linkedPath=data.getStringExtra("crmPath");
+            if(raw==null||!draft.crmPath.equals(linkedPath))
+                throw new java.io.IOException("El Full-test devuelto no corresponde a este lead.");
+            File file=new File(raw);
+            String root=getCacheDir().getCanonicalPath()+File.separator;
+            if(!file.getCanonicalPath().startsWith(root))
+                throw new java.io.IOException("El archivo no pertenece a la sesión local.");
+            store.attachPdf(draft.id,file);
+            draft=store.get(draft.id);
+            originalPdf=store.sourceFile(draft);
+            outputPdf=store.archiveFile(draft);
+            pdfStatus.setText("Full-test original obtenido de Host · "+(originalPdf.length()/1024)+" KB");
+            updateStatus();
+            preparePrint(pendingPrintDirect);
+        }catch(Exception e){
+            pdfStatus.setText("No se pudo obtener el PDF del CRM. Volvé a intentar la impresión.");
+            updateStatus();
+        }
+    }
     private void preparePrint(boolean direct){
         if(!validate())return;
-        if(originalPdf==null||!originalPdf.isFile()){pdfStatus.setText("Recapturá el test desde Host para esta persona.");return;}
+        if(originalPdf==null||!originalPdf.isFile()){
+            // The report is fetched only when needed. Go directly to the
+            // selected CRM visit; never require another lead search.
+            pendingPrintDirect=direct;
+            saveDraft();
+            Intent capture=new Intent(this,HostActivity.class);
+            capture.putExtra("crmPath",draft.crmPath);
+            capture.putExtra("expectedName",draft.name);
+            startActivityForResult(capture,HOST_REPORT);
+            pdfStatus.setText("Obteniendo Full-test de esta persona desde Host…");
+            return;
+        }
         if(direct&&!PrintController.isPrivateIPv4(value(printerIp))){
             printerIp.setError("La IP debe estar en la red local.");return;
         }

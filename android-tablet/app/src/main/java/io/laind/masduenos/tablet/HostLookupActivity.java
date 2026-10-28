@@ -123,8 +123,16 @@ public final class HostLookupActivity extends Activity {
         Uri uri=Uri.parse(browser.getUrl()==null?"":browser.getUrl());
         if(!"https".equals(uri.getScheme())||!HOST.equals(uri.getHost())){status.setText("La sesión de Host no está disponible.");return;}
         if(!uri.getPath().startsWith("/floor/full-test")){
-            if(uri.getPath().equals("/floor/login")||uri.getPath().equals("/floor")){
+            if(uri.getPath().equals("/floor")){
+                // Host login normally redirects to the Salón landing page.
+                // Go straight to Full-test without another manual navigation.
+                status.setText("Abriendo Atendidas con tu sesión Host…");
+                browser.loadUrl(ORIGIN+"/floor/full-test");
+                return;
+            }
+            if(uri.getPath().equals("/floor/login")){
                 ready=false;showBrowser();
+                status.setText("Ingresá con el PIN de Host para activar el buscador.");
             }
             handler.postDelayed(poll,4000);return;
         }

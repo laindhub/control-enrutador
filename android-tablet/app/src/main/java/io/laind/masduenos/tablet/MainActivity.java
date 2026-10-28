@@ -68,7 +68,7 @@ public final class MainActivity extends Activity {
         String id=getIntent().getStringExtra("lead_id");
         try{draft=id==null?null:store.get(id);}catch(Exception error){draft=null;}
         if(draft==null){
-            Toast.makeText(this,"Abrí una persona desde el tablero.",Toast.LENGTH_LONG).show();
+            UiSheets.notice(this,"Abrí una persona desde el tablero.",true);
             finish();return;
         }
         ScrollView scroll=new ScrollView(this);
@@ -254,7 +254,7 @@ public final class MainActivity extends Activity {
         draft.outcome=String.valueOf(outcome.getSelectedItem());
         draft.product=String.valueOf(product.getSelectedItem());
         try{store.save(draft);}
-        catch(Exception error){Toast.makeText(this,"No se guardaron los cambios de esta persona.",Toast.LENGTH_LONG).show();}
+        catch(Exception error){UiSheets.notice(this,"No se guardaron los cambios de esta persona.",true);}
     }
     @Override protected void onPause(){
         autosave.removeCallbacks(delayedSave);saveDraft();super.onPause();
@@ -325,11 +325,10 @@ public final class MainActivity extends Activity {
         if(direct&&!PrintController.isPrivateIPv4(value(printerIp))){
             printerIp.setError("La IP debe estar en la red local.");return;
         }
-        new AlertDialog.Builder(this).setTitle("Imprimir archivo")
-            .setMessage(value(name)+"\nCharla de: "+value(presenter)+"\nDerivado a: "+value(advisor)+
-                "\nDescripción: "+value(description)+"\n\nA4 · 1 hoja · 1 copia · simple faz.")
-            .setNegativeButton("Corregir",(d,w)->{})
-            .setPositiveButton(direct?"Enviar a Brother":"Abrir impresión Android",(d,w)->doPrint(direct)).show();
+        UiSheets.confirm(this,"Preparar hoja de archivo",
+            value(name)+"\nCharla de: "+value(presenter)+"\nDerivado a: "+value(advisor)+
+                "\nDescripción: "+value(description)+"\n\nUna hoja A4, una copia, simple faz.",
+            "Corregir","Ver hoja",()->doPrint(direct));
     }
     private void doPrint(boolean direct){
         try{
@@ -366,15 +365,11 @@ public final class MainActivity extends Activity {
         int pad=Ui.dp(this,8);
         scroll.setPadding(pad,pad,pad,pad);
         scroll.addView(image,new android.widget.ScrollView.LayoutParams(-1,-2));
-        final AlertDialog confirm=new AlertDialog.Builder(this)
-            .setTitle("Revisar hoja de archivo")
-            .setMessage("Confirmá que se vean las dos páginas del test, completas y legibles. Se imprimirá UNA hoja A4.")
-            .setView(scroll)
-            .setNegativeButton("Cancelar",(d,w)->{})
-            .setPositiveButton("Imprimir 1 hoja",(d,w)->sendPreparedPrint(direct))
-            .create();
-        confirm.setOnDismissListener(d->bitmap.recycle());
-        confirm.show();
+        final android.app.Dialog confirm=UiSheets.open(this,"Vista previa · A4",
+            "Revisá que ambas páginas estén completas y legibles. Se enviará una sola hoja.",
+            scroll,"Cancelar","Imprimir 1 hoja",()->sendPreparedPrint(direct));
+        if(confirm!=null)confirm.setOnDismissListener(d->bitmap.recycle());
+        else bitmap.recycle();
     }
     private void sendPreparedPrint(boolean direct){
         if(outputPdf==null||!outputPdf.isFile())return;
@@ -403,49 +398,43 @@ public final class MainActivity extends Activity {
     }
     private void confirmPaper(){
         if(!LeadStore.SENT.equals(draft.status))return;
-        new AlertDialog.Builder(this).setTitle("Confirmar hoja de archivo")
-            .setMessage("¿Salió físicamente una hoja A4 del Full-test de "+draft.name+
-                " y coincide con el asesor, presentador y descripción?")
-            .setNegativeButton("Todavía no",(d,w)->{})
-            .setPositiveButton("Sí, la retiré",(d,w)->{
+        UiSheets.confirm(this,"Hoja de archivo",
+            "¿Salió físicamente el Full-test de "+draft.name+
+                " con el asesor, presentador y descripción correctos?",
+            "Todavía no","Sí, la retiré",()->{
                 draft.status=LeadStore.PAPER;saveDraft();updateStatus();
-            }).show();
+            });
     }
     private void confirmHandoff(){
         if(!LeadStore.PAPER.equals(draft.status)||outputPdf==null)return;
-        new AlertDialog.Builder(this).setTitle("Verificar antes de derivar")
-            .setMessage("La hoja de archivo está confirmada.\n\n"+
-                "Persona: "+value(name)+"\nCharla de: "+value(presenter)+"\nAsesor: "+value(advisor)+
+        UiSheets.confirm(this,"Confirmar datos",
+            "Persona: "+value(name)+"\nCharla de: "+value(presenter)+"\nAsesor: "+value(advisor)+
                 "\nResultado: "+outcome.getSelectedItem()+" · "+product.getSelectedItem()+
-                "\n\nSe abrirá el CRM oficial con tu sesión de Enrutador. Todavía deberás seleccionar y guardar allí la derivación.")
-            .setNegativeButton("Seguir revisando",(d,w)->{})
-            .setPositiveButton("Abrir CRM",(d,w)->{
+                "\n\nSe abrirá el CRM de Enrutador para registrar la derivación oficialmente.",
+            "Revisar","Abrir CRM",()->{
                 crmOpened=true;
                 Intent next=new Intent(this,RouterActivity.class);
                 next.putExtra("crmPath",draft.crmPath);
                 startActivity(next);
                 updateStatus();
-            }).show();
+            });
     }
     private void markRegistered(){
         if(!LeadStore.PAPER.equals(draft.status)||!crmOpened)return;
-        new AlertDialog.Builder(this).setTitle("¿Se guardó en el CRM?")
-            .setMessage("Confirmá solamente si registraste esta derivación en Liniers con tu cuenta de Enrutador.\n\n"+
-                "La app marcará la tarjeta como completada localmente; no modifica el CRM.")
-            .setNegativeButton("No, todavía no",(d,w)->{})
-            .setPositiveButton("Sí, registrada",(d,w)->{
+        UiSheets.confirm(this,"¿Registrada en el CRM?",
+            "Confirmá solo cuando hayas guardado la derivación en Liniers. La tarjeta cambiará su estado local; no registra automáticamente en el CRM.",
+            "Todavía no","Sí, registrada",()->{
                 draft.status=LeadStore.DONE;saveDraft();restoreDraft();updateStatus();
-                Toast.makeText(this,"Estado local actualizado.",Toast.LENGTH_SHORT).show();
-            }).show();
+                UiSheets.notice(this,"Derivación marcada como registrada.",false);
+            });
     }
     private void clearLead(){
-        new AlertDialog.Builder(this).setTitle("Quitar del tablero")
-            .setMessage("¿Querés eliminar esta persona y su PDF privado de la tablet?\n\nNo se modificará ningún dato del CRM original.")
-            .setNegativeButton("Cancelar",(d,w)->{})
-            .setPositiveButton("Quitar",(d,w)->{
+        UiSheets.confirm(this,"Quitar del tablero",
+            "Se borrará el borrador y el PDF privado de la tablet. El CRM original no se modificará.",
+            "Cancelar","Quitar",()->{
                 autosave.removeCallbacks(delayedSave);editingReady=false;
                 try{store.remove(draft.id);finish();}
-                catch(Exception error){Toast.makeText(this,"No se pudo eliminar el registro.",Toast.LENGTH_LONG).show();}
-            }).show();
+                catch(Exception error){UiSheets.notice(this,"No se pudo quitar el registro.",true);}
+            });
     }
 }

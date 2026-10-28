@@ -269,3 +269,19 @@ test('archive references match the questionnaire, stay outside content, omit hea
  assert.match(pdf,/GUTTER=0f/);
  assert.doesNotMatch(pdf,/drawHeader\(/);
 });
+
+test('Host lookup uses full-height native list instead of leaving invisible WebView half-screen',()=>{
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ assert.match(lookup,/private ScrollView scrolling;/);
+ assert.match(lookup,/private FrameLayout webHolder;/);
+ assert.match(lookup,/webHolder\.setVisibility\(show\?View\.VISIBLE:View\.GONE\)/);
+ assert.match(lookup,/scrolling\.setVisibility\(show\?View\.GONE:View\.VISIBLE\)/);
+ assert.doesNotMatch(lookup,/browser\.setVisibility\(show\?View\.VISIBLE:View\.GONE\)/);
+ assert.match(lookup,/status\.setText\("Atendidas de hoy: "\+candidates\.size\(\)/);
+});
+test('4-second Host sync does not rebuild 200+ cards if no lead changed',()=>{
+ const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ assert.match(lookup,/incoming\.size\(\)!=candidates\.size\(\)/);
+ assert.match(lookup,/if\(changed\|\|!wasReady\)draw\(\)/);
+ assert.match(lookup,/search\.addTextChangedListener/);
+});

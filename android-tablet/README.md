@@ -102,3 +102,10 @@ La composición y la paginación son una implementación nativa equivalente, no 
 - No se desplazan ni achican las páginas originales: se conserva la composición de Edge.
 - Antes de añadir los campos se comprueba que la zona reservada del PDF original esté realmente vacía. Si tiene contenido, se cancela la composición para no taparlo.
 - Iconos vectoriales y referencias destacadas en negrita.
+
+## 0.5.8 · Atendidas con lista completa
+
+- Solucionado el espacio vacío debajo de los primeros tres leads: el WebView de Host estaba oculto, pero su `FrameLayout` seguía ocupando el 50% del espacio disponible debido al reparto del `layout_weight`.
+- Ahora **el contenedor completo** queda `GONE` cuando se muestra el buscador, y la lista ocupa toda la altura libre. El modo «Ver CRM / Ingresar» muestra el navegador en lugar de la lista.
+- Se conservan los 226 registros que reporte el CRM y el filtro por nombre se aplica a todos ellos, no solo a los visibles.
+- El sondeo periódico compara los resultados antes de recrear cientos de tarjetas, evitando saltos de scroll y trabajo innecesario en Android.

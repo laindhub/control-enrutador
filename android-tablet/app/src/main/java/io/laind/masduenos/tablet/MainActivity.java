@@ -106,13 +106,20 @@ public final class MainActivity extends Activity {
         product=spinner(content,new String[]{"PAI","Pozo"});
 
         section(content,"03  HOJA DE ARCHIVO · IMPRESIÓN");
-        TextView printHelp=Ui.label(this,"No hace falta descargar ningún PDF. Al imprimir, la app abrirá el Full-test de este lead con la sesión Host y le agregará tus referencias.",13,false);
+        TextView printHelp=Ui.label(this,"El test se obtiene desde Host automáticamente al imprimir. Una hoja A4, una copia.",13,false);
         printHelp.setTextColor(Ui.MUTED);content.addView(printHelp,Ui.spaced(this,8));
         pdfStatus=Ui.label(this,"Comprobando documento original…",12,false);
         pdfStatus.setTextColor(Ui.MUTED);content.addView(pdfStatus,Ui.spaced(this,7));
-        printerIp=field(content,"IP de la Brother en la red Más Dueños","192.168.2.33",false);
+        Button printerSettings=Ui.button(this,"Brother · Ajustar conexión",false);
+        content.addView(printerSettings,Ui.spaced(this,9));
+        LinearLayout printerPanel=Ui.column(this,5);
+        printerIp=field(printerPanel,"Dirección de la Brother","192.168.2.33",false);
         printerIp.setText(getPreferences(MODE_PRIVATE).getString("printer_ip","192.168.2.33"));
         printerIp.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
+        printerPanel.setVisibility(View.GONE);
+        content.addView(printerPanel);
+        printerSettings.setOnClickListener(v->printerPanel.setVisibility(
+            printerPanel.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));
         printDirect=Ui.button(this,"Imprimir directo en Brother",true);
         printDirect.setOnClickListener(v->preparePrint(true));
         content.addView(printDirect,Ui.spaced(this,14));
@@ -121,7 +128,7 @@ public final class MainActivity extends Activity {
         content.addView(printAndroid,Ui.spaced(this,9));
 
         section(content,"04  COMPLETAR DERIVACIÓN");
-        TextView finalInfo=Ui.label(this,"Primero verificá que haya salido la hoja. Luego entrá con tu PIN de Enrutador para registrar la operación definitiva.",13,false);
+        TextView finalInfo=Ui.label(this,"Retirá la hoja y verificá sus datos antes de confirmar la derivación en el CRM.",13,false);
         finalInfo.setTextColor(Ui.MUTED);content.addView(finalInfo,Ui.spaced(this,8));
         paperButton=Ui.button(this,"Ya retiré la hoja impresa",false);
         paperButton.setOnClickListener(v->confirmPaper());
@@ -140,7 +147,7 @@ public final class MainActivity extends Activity {
     }
     private void section(LinearLayout content,String title){
         TextView item=Ui.label(this,title,13,true);item.setTextColor(Ui.RED);
-        content.addView(item,Ui.spaced(this,27));
+        content.addView(item,Ui.spaced(this,19));
         View line=new View(this);line.setBackgroundColor(Ui.LINE);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,Ui.dp(this,1));lp.topMargin=Ui.dp(this,7);
         content.addView(line,lp);
@@ -169,7 +176,7 @@ public final class MainActivity extends Activity {
         input.setTextSize(16);input.setTextColor(Ui.INK);input.setHint(hint);
         input.setBackground(Ui.bg(this,Color.WHITE,13,Ui.LINE));
         input.setPadding(Ui.dp(this,14),Ui.dp(this,11),Ui.dp(this,14),Ui.dp(this,11));
-        if(longText){input.setMinLines(3);input.setMaxLines(4);input.setGravity(Gravity.TOP);}
+        if(longText){input.setMinLines(2);input.setMaxLines(3);input.setGravity(Gravity.TOP);}
         else input.setSingleLine(true);
         target.addView(input,Ui.spaced(this,7));return input;
     }

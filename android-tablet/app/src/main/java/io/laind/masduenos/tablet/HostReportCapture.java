@@ -18,9 +18,9 @@ import java.util.function.Consumer;
  * new window. Read only the actual report's section-title / summary-box /
  * info-item DOM and construct native vector PDF Letter pages.
  *
- * The previous WebView.capturePicture() was not a print renderer: on smaller
+ * The previous image snapshots were not a print renderer: on smaller
  * devices it rendered the report as narrow bands with immense blank areas.
- * There are now NO screenshots or arbitrary picture cuts in this path.
+ * There are now NO screenshots or arbitrary cuts in this path.
  */
 final class HostReportCapture {
     private final Activity activity;

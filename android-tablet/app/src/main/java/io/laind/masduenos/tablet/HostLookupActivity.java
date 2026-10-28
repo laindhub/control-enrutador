@@ -168,17 +168,32 @@ public final class HostLookupActivity extends Activity {
                 JSONObject payload=new JSONObject(serialized);
                 if(!payload.optBoolean("ready")){ready=false;showBrowser();status.setText("Entrá al Full-test con el rol autorizado de Host.");}
                 else if(!payload.optBoolean("changing")){
-                    candidates.clear();JSONArray rows=payload.optJSONArray("items");
+                    ArrayList<Item> incoming=new ArrayList<>();
+                    JSONArray rows=payload.optJSONArray("items");
                     if(rows!=null)for(int i=0;i<rows.length();i++){
                         JSONObject r=rows.getJSONObject(i);
                         String path=r.optString("path"),name=r.optString("name");
                         if(path.matches("/floor/visits/[0-9a-f-]{36}(?:/full-test)?")&&name.length()>1)
-                            candidates.add(new Item(name,r.optString("time"),path));
+                            incoming.add(new Item(name,r.optString("time"),path));
                     }
+                    boolean changed=incoming.size()!=candidates.size();
+                    if(!changed)for(int i=0;i<incoming.size();i++){
+                        Item a=incoming.get(i),b=candidates.get(i);
+                        if(!a.path.equals(b.path)||!a.name.equals(b.name)||!a.time.equals(b.time)){
+                            changed=true;break;
+                        }
+                    }
+                    if(changed){
+                        candidates.clear();
+                        candidates.addAll(incoming);
+                    }
+                    boolean wasReady=ready;
                     ready=true;
                     if(!manual)showBrowser();
                     status.setText("Atendidas de hoy: "+candidates.size()+" · Sesión Host · actualización automática");
-                    draw();
+                    // Polling happens every few seconds. Recreating hundreds of
+                    // cards each time caused jank and lost the scroll position.
+                    if(changed||!wasReady)draw();
                 }
             }catch(Exception e){status.setText("No pudimos leer Atendidas. Podés abrir la pantalla original.");}
             handler.postDelayed(poll,4200);

@@ -171,7 +171,7 @@ final class HostReportCapture {
             final float maxSegment=Math.max(cutInPicture,heightInPicture-cutInPicture);
             final float margin=18f, contentWidth=612f-2*margin, contentHeight=792f-2*margin;
             final float scale=Math.min(contentWidth/width,contentHeight/maxSegment);
-            if(scale<.44f)throw new IllegalStateException("El informe es demasiado largo para dos páginas legibles.");
+            if(scale<.58f)throw new IllegalStateException("El informe es demasiado largo para dos páginas legibles.");
             PdfDocument pdf=new PdfDocument();
             try{
                 for(int index=0;index<2;index++){

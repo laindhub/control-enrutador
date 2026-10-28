@@ -19,7 +19,7 @@ public final class RouterActivity extends Activity {
     private WebView page;
     @Override public void onCreate(Bundle state){
         super.onCreate(state);Ui.statusBars(this);
-        LinearLayout root=Ui.column(this,12);root.setBackgroundColor(-1);setContentView(root);
+        LinearLayout root=Ui.column(this,12);root.setBackgroundColor(-1);NavigationShell.install(this,root,NavigationShell.ROUTER);
         TextView heading=Ui.label(this,"Enrutador · CRM original",21,true);root.addView(heading);
         TextView hint=Ui.label(this,"Ingresá con tu PIN de Enrutador. La app nunca registra el PIN ni completa derivaciones sin confirmar los campos.",13,false);
         hint.setTextColor(Ui.MUTED);root.addView(hint,Ui.spaced(this,6));

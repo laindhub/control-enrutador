@@ -359,7 +359,9 @@ public final class MainActivity extends Activity {
             .setNegativeButton("Seguir revisando",(d,w)->{})
             .setPositiveButton("Abrir CRM",(d,w)->{
                 crmOpened=true;
-                startActivity(new Intent(this,RouterActivity.class));
+                Intent next=new Intent(this,RouterActivity.class);
+                next.putExtra("crmPath",draft.crmPath);
+                startActivity(next);
                 updateStatus();
             }).show();
     }

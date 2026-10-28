@@ -68,7 +68,7 @@ final class HostReportCapture {
                 });
                 WebView.WebViewTransport transfer=(WebView.WebViewTransport)message.obj;
                 transfer.setWebView(popup);message.sendToTarget();
-                popup.postDelayed(this::pollReport,350);
+                popup.postDelayed(()->pollReport(),350);
                 return true;
             }
         };

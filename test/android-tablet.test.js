@@ -45,7 +45,7 @@ test('Host report is captured from the original popup without importing files',(
  assert.doesNotMatch(capture,/adapter.onLayout|adapter.onWrite/);
  assert.match(capture,/report-container/);
  assert.match(capture,/renderer.getPageCount\(\)!=2/);
- assert.match(src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java'),/getStringExtra\("pdfPath"\)/);
+ assert.match(main,/getStringExtra\("pdfPath"\)/);
  assert.doesNotMatch(main,/ACTION_OPEN_DOCUMENT|Importar PDF original del CRM|choosePdf\(/);
 });
 
@@ -54,12 +54,12 @@ test('tablet opens with the board, not the single-lead form',()=>{
  const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
  assert.match(manifest,/DashboardActivity" android:exported="true"/);
  assert.match(manifest,/MainActivity" android:exported="false"/);
- assert.match(dash,/Buscar en Host/);
+ assert.match(dash,/Buscar en Atendidas/);
  assert.match(dash,/Personas en gestión/);
  assert.match(dash,/Por imprimir/);
  assert.match(dash,/Por confirmar/);
- assert.match(dash,/getStringExtra\("pdfPath"\)/);
- assert.match(dash,/store.addFromHost/);
+ assert.match(dash,/HostLookupActivity/);
+ assert.match(dash,/store.addFromHostMetadata/);
  assert.match(dash,/lead.id/);
  assert.match(dash,/getResources\(\).getConfiguration\(\).orientation/);
 });
@@ -87,4 +87,34 @@ test('printing and CRM completion are distinct confirmed states',()=>{
  assert.match(editor,/CRM oficial/);
  assert.match(control,/Consumer<Result>/);
  assert.match(control,/new Result\(false/);
+});
+
+test('Atendidas native picker mirrors the real Full-test list in the Host session',()=>{
+ const java=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ const manifest=src('app/src/main/AndroidManifest.xml');
+ assert.match(java,/Atendidas/);
+ assert.match(java,/aria-pressed/);
+ assert.match(java,/full-test/);
+ assert.match(java,/sync\(\)/);
+ assert.match(java,/candidates/);
+ assert.match(java,/setResult\(RESULT_OK/);
+ assert.match(java,/Confirmar persona/);
+ assert.match(dash,/HostLookupActivity\.class/);
+ assert.match(dash,/store.addFromHostMetadata/);
+ assert.match(manifest,/HostLookupActivity" android:exported="false" android:process=":host"/);
+});
+test('deferred print opens selected CRM visit and archives it under correct lead',()=>{
+ const editor=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ const host=src('app/src/main/java/io/laind/masduenos/tablet/HostActivity.java');
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
+ assert.match(editor,/putExtra\("crmPath",draft\.crmPath\)/);
+ assert.match(editor,/putExtra\("expectedName",draft\.name\)/);
+ assert.match(editor,/store.attachPdf\(draft.id,file\)/);
+ assert.match(host,/targetPath\.equals\(path\)/);
+ assert.match(host,/printOnly/);
+ assert.match(store,/sourceFile\(item\)/);
+ assert.match(store,/addFromHostMetadata/);
+ assert.match(store,/attachPdf/);
+ assert.doesNotMatch(editor,/ACTION_OPEN_DOCUMENT/);
 });

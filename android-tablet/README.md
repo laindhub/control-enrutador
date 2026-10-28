@@ -1,4 +1,4 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.3.0)
+# Más Dueños · Enrutador Tablet (prototipo 0.4.0)
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 
@@ -35,3 +35,12 @@ La CI genera un APK **sin firma**, no instalable directamente. Firmarlo con una 
 - Los leads anteriores siguen accesibles mediante «Ver días anteriores». Se pueden quitar desde la ficha.
 
 **A verificar en el salón:** captura del reporte HTML del CRM, legibilidad de PDF, conexión IPP, navegación entre varias fichas y confirmación manual de CRM. No ingreses PINes ni datos personales en issues o capturas públicas.
+
+## Búsqueda rápida de Atendidas 0.4.0
+
+- «Buscar en Atendidas» abre el buscador nativo de la app. La lista se lee cada ~4 segundos desde el CRM original de Host, usando la sesión autenticada del dispositivo. Si la sesión expira, se muestra el login original.
+- El buscador cambia a la pestaña «Atendidas» y lee sus enlaces de visita. El sincronizador de servidor `/floor/visits` no garantiza pertenencia a esa pestaña; esta consulta es específica del rol Host.
+- Una persona se incorpora al tablero sin generar ni importar PDFs. Antes de agregarla se verifica su ficha, nombre, teléfono y hora.
+- El PDF se captura solo al tocar «Imprimir» en esa tarjeta, cargando directamente su `crmPath` y comparando el nombre antes de preparar el archivo.
+- Host y Enrutador siguen en procesos separados; no se almacenan PINes en la base de datos propia.
+- **Pendiente de validar en la tablet real:** selectores de Atendidas, acceso a la sesión, captura HTML y resultado de impresión. No se automatiza el guardado final de la derivación.

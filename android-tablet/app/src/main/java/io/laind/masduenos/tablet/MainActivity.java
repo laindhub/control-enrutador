@@ -333,35 +333,72 @@ public final class MainActivity extends Activity {
     }
     private void doPrint(boolean direct){
         try{
-            // Every lead keeps a separate archive.pdf; printing a second person
-            // never overwrites the first person's source or spool file.
             outputPdf=PdfComposer.compose(originalPdf,store.archiveFile(draft),
                 value(presenter),value(advisor),value(description));
             saveDraft();
-            if(direct){
-                String ip=value(printerIp);
-                getPreferences(MODE_PRIVATE).edit().putString("printer_ip",ip).apply();
-                printBusy=true;updateStatus();
-                operationStatus.setText("Enviando una copia a la Brother "+ip+"…");
-                PrintController.direct(ip,outputPdf,result->runOnUiThread(()->{
-                    printBusy=false;
-                    if(result.ok){
-                        printAttempted=true;draft.status=LeadStore.SENT;saveDraft();
-                    }else{
-                        draft.status=LeadStore.READY;printAttempted=false;saveDraft();
-                    }
-                    updateStatus();
-                    operationStatus.setText(result.message+"\nEl CRM todavía no registra una derivación.");
-                }));
-            }else{
-                try{
-                    PrintController.androidPrint(this,outputPdf);
-                    printAttempted=true;draft.status=LeadStore.SENT;saveDraft();updateStatus();
-                    operationStatus.setText("Se abrió el diálogo de impresión Android. Solo confirmá la hoja si realmente se imprimió.");
-                }catch(Exception e){operationStatus.setText("No se pudo abrir la impresión: "+e.getMessage());}
+            // Never send an unreviewed new layout to the salon printer.
+            previewBeforePrinting(direct);
+        }catch(Exception error){
+            operationStatus.setText("No se pudo preparar la hoja: "+error.getMessage());
+            invalidatePrint();
+        }
+    }
+    private void previewBeforePrinting(boolean direct) throws Exception {
+        android.graphics.Bitmap bitmap;
+        try(android.os.ParcelFileDescriptor fd=android.os.ParcelFileDescriptor.open(
+                outputPdf,android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+            android.graphics.pdf.PdfRenderer renderer=new android.graphics.pdf.PdfRenderer(fd)){
+            if(renderer.getPageCount()!=1)
+                throw new java.io.IOException("El archivo final no tiene una única hoja A4.");
+            try(android.graphics.pdf.PdfRenderer.Page page=renderer.openPage(0)){
+                bitmap=android.graphics.Bitmap.createBitmap(page.getWidth()*2,
+                    page.getHeight()*2,android.graphics.Bitmap.Config.ARGB_8888);
+                bitmap.eraseColor(android.graphics.Color.WHITE);
+                page.render(bitmap,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
             }
-        }catch(Exception ex){
-            operationStatus.setText("No se pudo crear el PDF: "+ex.getMessage());invalidatePrint();
+        }
+        android.widget.ImageView image=new android.widget.ImageView(this);
+        image.setImageBitmap(bitmap);
+        image.setAdjustViewBounds(true);
+        image.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        image.setContentDescription("Vista previa de la hoja A4 con ambas páginas del Full-test");
+        android.widget.ScrollView scroll=new android.widget.ScrollView(this);
+        int pad=Ui.dp(this,8);
+        scroll.setPadding(pad,pad,pad,pad);
+        scroll.addView(image,new android.widget.ScrollView.LayoutParams(-1,-2));
+        final AlertDialog confirm=new AlertDialog.Builder(this)
+            .setTitle("Revisar hoja de archivo")
+            .setMessage("Confirmá que se vean las dos páginas del test, completas y legibles. Se imprimirá UNA hoja A4.")
+            .setView(scroll)
+            .setNegativeButton("Cancelar",(d,w)->{})
+            .setPositiveButton("Imprimir 1 hoja",(d,w)->sendPreparedPrint(direct))
+            .create();
+        confirm.setOnDismissListener(d->bitmap.recycle());
+        confirm.show();
+    }
+    private void sendPreparedPrint(boolean direct){
+        if(outputPdf==null||!outputPdf.isFile())return;
+        if(direct){
+            String ip=value(printerIp);
+            getPreferences(MODE_PRIVATE).edit().putString("printer_ip",ip).apply();
+            printBusy=true;updateStatus();
+            operationStatus.setText("Enviando una copia a la Brother "+ip+"…");
+            PrintController.direct(ip,outputPdf,result->runOnUiThread(()->{
+                printBusy=false;
+                if(result.ok){
+                    printAttempted=true;draft.status=LeadStore.SENT;saveDraft();
+                }else{
+                    draft.status=LeadStore.READY;printAttempted=false;saveDraft();
+                }
+                updateStatus();
+                operationStatus.setText(result.message+"\\nEl CRM todavía no registra una derivación.");
+            }));
+        }else{
+            try{
+                PrintController.androidPrint(this,outputPdf);
+                printAttempted=true;draft.status=LeadStore.SENT;saveDraft();updateStatus();
+                operationStatus.setText("Se abrió el diálogo de impresión Android. Confirmá la hoja solamente si salió físicamente.");
+            }catch(Exception e){operationStatus.setText("No se pudo abrir la impresión: "+e.getMessage());}
         }
     }
     private void confirmPaper(){

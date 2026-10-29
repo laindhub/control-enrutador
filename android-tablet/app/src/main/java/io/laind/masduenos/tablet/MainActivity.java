@@ -95,6 +95,12 @@ public final class MainActivity extends Activity {
 
         section(content,"02  PREPARAR DERIVACIÓN");
         presenter=autocomplete(content,"Charla de · Presentador",PRESENTERS);
+        if(!draft.talkId.isEmpty()){
+            TextView inherited=Ui.label(this,
+                "Se completa según el presentador asignado a esta charla.",12,false);
+            inherited.setTextColor(Ui.MUTED);
+            content.addView(inherited,Ui.spaced(this,4));
+        }
         advisor=autocomplete(content,"Derivado a · Asesor",ADVISORS);
         description=field(content,"Descripción · Referencia visual","Ej.: campera azul, lentes, está cerca de recepción",true);
         TextView internal=Ui.label(this,"La descripción es un dato interno de esta tablet y de la hoja impresa. No se agrega al CRM.",12,false);
@@ -206,6 +212,17 @@ public final class MainActivity extends Activity {
     private void restoreDraft(){
         editingReady=false;
         name.setText(draft.name);phone.setText(draft.phone);arrival.setText(draft.arrival);
+        String talkPresenter="";
+        if(!draft.talkId.isEmpty()){
+            try{
+                for(TalkStore.Talk talk:new TalkStore(this).all()){
+                    if(draft.talkId.equals(talk.id)){
+                        talkPresenter=talk.presenter;break;
+                    }
+                }
+            }catch(Exception ignored){}
+        }
+        if(!talkPresenter.isEmpty())draft.presenter=talkPresenter;
         presenter.setText(draft.presenter,false);advisor.setText(draft.advisor,false);
         description.setText(draft.description);
         for(int i=0;i<outcome.getCount();i++)if(draft.outcome.equals(outcome.getItemAtPosition(i)))outcome.setSelection(i);
@@ -217,7 +234,8 @@ public final class MainActivity extends Activity {
         pdfStatus.setText(originalPdf.isFile()?"Full-test capturado desde Host · "+(originalPdf.length()/1024)+" KB":
             "El Full-test se capturará automáticamente cuando elijas imprimir.");
         boolean locked=LeadStore.DONE.equals(draft.status);
-        presenter.setEnabled(!locked);advisor.setEnabled(!locked);description.setEnabled(!locked);
+        presenter.setEnabled(!locked&&draft.talkId.isEmpty());
+        advisor.setEnabled(!locked);description.setEnabled(!locked);
         outcome.setEnabled(!locked);product.setEnabled(!locked);
         editingReady=true;
     }
@@ -250,6 +268,8 @@ public final class MainActivity extends Activity {
     private void saveDraft(){
         if(!editingReady||draft==null)return;
         draft.presenter=value(presenter);draft.advisor=value(advisor);
+        // LeadStore.save enforces the presenter's talk assignment once more.
+        // This remains editable only for legacy unseated leads.
         draft.description=value(description);
         draft.outcome=String.valueOf(outcome.getSelectedItem());
         draft.product=String.valueOf(product.getSelectedItem());

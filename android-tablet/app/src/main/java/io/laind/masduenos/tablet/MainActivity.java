@@ -39,8 +39,8 @@ public final class MainActivity extends Activity {
     private static final String[] PRESENTERS={"Keren Botini","Nicolas Espinosa","Nicole Laquinta",
         "Thomas Núñez","Katherine Puppo","Priscila Zajama"};
     private static final String[] ADVISORS={"Nadia Abregu","Nicolás Artaza","Zair Baltazar",
-        "Milagros Bonacciet","Nicolás Calvino","Federico Correa","Agustín Cristaldo",
-        "Matias Fernandez","Diana Florenti","Patricio Galeano","Belén Balvan",
+        "Milagros Blanquicet","Nicolás Calvino","Federico Correa","Agustín Cristaldo",
+        "Matias Fernandez","Diana Florentin","Patricio Galeano","Belén Balvan",
         "Matías Gómez","Camila González","Eliana González","Ivon Guzmán",
         "Samuel Lee","Milena Lezcano","Gabriel Molina","Marina Mendoza",
         "Pablo Moreira","Thomas Núñez","Sebastian Paglia","Maria Palenque",

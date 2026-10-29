@@ -29,7 +29,7 @@ public final class DashboardActivity extends Activity {
     private TalkStore chats;
     private ArrayList<TalkStore.Talk> talks=new ArrayList<>();
     private ArrayList<LeadStore.Lead> current=new ArrayList<>();
-    private String selectedTalkId="",pendingTalkId="";
+    private String selectedTalkId="",pendingTalkId="",presenterFilter="";
     private int pendingSeat=-1;
     private boolean showHistory=false,initialised=false;
     private LinearLayout tabs,body;
@@ -40,6 +40,10 @@ public final class DashboardActivity extends Activity {
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);Ui.statusBars(this);
         store=new LeadStore(this);chats=new TalkStore(this);
+        presenterFilter=getIntent().getStringExtra("presenter_filter");
+        if(presenterFilter==null)presenterFilter="";
+        String requested=getIntent().getStringExtra("talk_id");
+        if(requested!=null&&requested.matches("[a-fA-F0-9-]{36}"))selectedTalkId=requested;
         if(saved!=null){
             selectedTalkId=saved.getString("talk_id","");
             pendingTalkId=saved.getString("pending_talk_id","");
@@ -106,7 +110,12 @@ public final class DashboardActivity extends Activity {
     private void refresh(){
         if(!initialised)return;
         try{
-            talks=showHistory?chats.all():chats.today();
+            ArrayList<TalkStore.Talk> available=showHistory?chats.all():chats.today();
+            talks=new ArrayList<>();
+            for(TalkStore.Talk t:available){
+                if(presenterFilter.isEmpty()||presenterFilter.equals(t.presenter))
+                    talks.add(t);
+            }
             current.clear();
             for(LeadStore.Lead lead:store.all()){
                 if(showHistory||LeadStore.today().equals(lead.date))current.add(lead);
@@ -119,10 +128,11 @@ public final class DashboardActivity extends Activity {
     }
     private void createChat(){
         if(showHistory){showHistory=false;historyButton.setText("Historial");}
-        try{
-            TalkStore.Talk created=chats.createToday();
-            selectedTalkId=created.id;refresh();
-        }catch(Exception e){alert("Error al crear charla",e.getMessage());}
+        TalkPrompts.create(this,chats,presenterFilter,created->{
+            presenterFilter=created.presenter;
+            selectedTalkId=created.id;
+            refresh();
+        });
     }
     private TalkStore.Talk selected(){
         for(TalkStore.Talk t:talks)if(t.id.equals(selectedTalkId))return t;
@@ -137,7 +147,9 @@ public final class DashboardActivity extends Activity {
             if(LeadStore.SENT.equals(l.status)||LeadStore.PAPER.equals(l.status))pending++;
         }
         summary.setText("Personas en gestión: "+management+"   ·   Por imprimir: "+printing+"   ·   Por confirmar: "+pending);
-        dayCaption.setText((showHistory?"Todas las fechas":"Hoy, "+LeadStore.today())+"   ·   4 × 3 sillas por charla");
+        dayCaption.setText((showHistory?"Todas las fechas":"Hoy, "+LeadStore.today())+
+            (presenterFilter.isEmpty()?"":"   ·   "+presenterFilter)+
+            "   ·   4 × 3 sillas por charla");
         for(TalkStore.Talk t:talks){
             int occupied=0;
             for(LeadStore.Lead l:current)if(t.id.equals(l.talkId))occupied++;
@@ -154,12 +166,15 @@ public final class DashboardActivity extends Activity {
         }
         TalkStore.Talk talk=selected();
         if(talk==null){
-            TextView empty=Ui.label(this,"No hay charlas en este período.",17,false);
+            TextView empty=Ui.label(this,"No hay charlas en este período. Iniciá una y elegí quién la dará.",17,false);
             body.addView(empty,Ui.spaced(this,24));return;
         }
         LinearLayout titleRow=new LinearLayout(this);titleRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout titleBox=new LinearLayout(this);titleBox.setOrientation(LinearLayout.VERTICAL);
         TextView label=Ui.label(this,talk.display(),20,true);titleBox.addView(label);
+        TextView owner=Ui.label(this,
+            "Charla de: "+(talk.presenter.isEmpty()?"Sin asignar":talk.presenter),13,true);
+        owner.setTextColor(Ui.RED);titleBox.addView(owner,Ui.spaced(this,4));
         TextView hint=Ui.label(this,"Silla libre: buscar en Atendidas  ·  Ocupada: abrir ficha  ·  Mantener: opciones",12,false);
         hint.setTextColor(Ui.MUTED);titleBox.addView(hint,Ui.spaced(this,4));
         titleRow.addView(titleBox,new LinearLayout.LayoutParams(0,-2,1));
@@ -254,6 +269,11 @@ public final class DashboardActivity extends Activity {
         return tile;
     }
     private void pickSeat(TalkStore.Talk t,int seat){
+        if(t.presenter.trim().isEmpty()){
+            alert("Falta el presentador","Asigná quién da esta charla antes de cargar personas.");
+            TalkPrompts.changePresenter(this,chats,t,store,this::refresh);
+            return;
+        }
         if(showHistory&&!LeadStore.today().equals(t.date)){
             alert("Charla anterior","Solo se pueden ocupar sillas del día actual.");return;
         }
@@ -269,9 +289,13 @@ public final class DashboardActivity extends Activity {
         editor.putExtra("lead_id",lead.id);startActivity(editor);
     }
     private void showChatOptions(TalkStore.Talk talk){
-        String[] choices={"Cambiar nombre y hora","Eliminar charla vacía"};
+        String[] choices={"Cambiar nombre y hora","Cambiar presentador","Eliminar charla vacía"};
         UiSheets.options(this,talk.display(),choices,index->{
                 if(index==0)renameTalk(talk);
+                else if(index==1)TalkPrompts.changePresenter(this,chats,talk,store,()->{
+                    if(!presenterFilter.isEmpty())presenterFilter="";
+                    refresh();
+                });
                 else UiSheets.confirm(this,"Eliminar charla vacía",
                     "Solo se eliminará si no tiene personas asignadas.","Cancelar","Eliminar",()->{
                         try{chats.removeEmpty(talk,store);selectedTalkId="";refresh();}
@@ -321,7 +345,7 @@ public final class DashboardActivity extends Activity {
                     occupied=true;break;
                 }
                 if(!occupied){
-                    labels.add(t.name+" · Silla "+(seat+1));
+                    labels.add(t.name+" · "+(t.presenter.isEmpty()?"Sin asignar":t.presenter)+" · Silla "+(seat+1));
                     talkIds.add(t.id);indices.add(seat);
                 }
             }

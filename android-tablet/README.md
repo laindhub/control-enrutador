@@ -127,3 +127,14 @@ La composición y la paginación son una implementación nativa equivalente, no 
 - Toque de silla ocupada abre la ficha; pulsación larga ofrece mover o liberar.
 - Errores, acciones y confirmaciones usan componentes visuales propios. El diálogo de impresión Android queda solo como alternativa explícita a la Brother directa.
 - No cambia los permisos del CRM ni el registro oficial de derivaciones.
+
+## Charlas agrupadas por presentador (0.7.0)
+
+- La segunda pestaña de navegación se llama **Charlas**, no Atendidas.
+- Charlas presenta un directorio de presentadores responsables, en bloques de **cuatro tarjetas (2 × 2)**. Si hay más de cuatro presentadores, continúan en bloques adicionales desplazables.
+- Al tocar un presentador aparecen **todas las charlas de ese presentador creadas hoy**. Cada charla abre su distribución de 12 sillas, conservando los UUID, el estado y los PDFs por lead.
+- «Iniciar charla» solicita primero quién la da; se puede elegir una sugerencia o escribir el nombre real del presentador.
+- El campo «Charla de» de cada lead asignado a una silla se carga automáticamente desde la charla. No puede sobrescribirse individualmente mientras tenga charla asignada.
+- Las charlas creadas con versiones anteriores siguen guardadas; aparecen bajo **Sin asignar** hasta seleccionar quién las da. No se inventa un presentador histórico.
+- Para evitar inconsistencias, una charla con test ya impreso o derivación cerrada no permite cambiar de presentador sin resolver antes el documento ya emitido.
+- El rol Host y el buscador real de Atendidas siguen disponibles al tocar una silla libre. No se cambia la autenticación ni la fuente de datos del CRM.

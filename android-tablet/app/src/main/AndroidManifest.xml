@@ -7,6 +7,7 @@
         <activity android:name=".HostActivity" android:exported="false" android:process=":host" />
         <activity android:name=".HostLookupActivity" android:exported="false" android:process=":host" />
         <activity android:name=".RouterActivity" android:exported="false" />
+        <activity android:name=".CharlasActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".DashboardActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>

@@ -30,7 +30,7 @@ final class NavigationShell {
         }
         int[] ids={BOARD,HOST,ROUTER};
         String[] icons={"▦","⌕","⇄"};
-        String[] labels={"Tablero","Atendidas","Enrutador"};
+        String[] labels={"Tablero","Charlas","Enrutador"};
         for(int i=0;i<ids.length;i++){
             final int destination=ids[i];
             LinearLayout item=new LinearLayout(activity);
@@ -74,7 +74,7 @@ final class NavigationShell {
         shell.requestApplyInsets();
     }
     private static void navigate(Activity context,int screen){
-        Class<? extends Activity> destination=screen==HOST?HostLookupActivity.class:
+        Class<? extends Activity> destination=screen==HOST?CharlasActivity.class:
             screen==ROUTER?RouterActivity.class:DashboardActivity.class;
         if(context.getClass()==destination)return;
         Intent intent=new Intent(context,destination);

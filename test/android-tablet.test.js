@@ -140,7 +140,7 @@ test('mobile bottom tabs and landscape tablet dock give Host and Router fast acc
  const router=src('app/src/main/java/io/laind/masduenos/tablet/RouterActivity.java');
  assert.match(shell,/smallestScreenWidthDp>=600/);
  assert.match(shell,/LinearLayout\.HORIZONTAL:LinearLayout\.VERTICAL/);
- for(const label of ['Tablero','Atendidas','Enrutador'])assert.ok(shell.includes(label));
+ for(const label of ['Tablero','Charlas','Enrutador'])assert.ok(shell.includes(label));
  for(const java of [dash,lookup,router])assert.match(java,/NavigationShell\.install/);
 });
 test('shared CRM UUID opens direct assignment in own Router session',()=>{
@@ -361,4 +361,47 @@ test('no standard dialogs or Toasts in primary routing flow',()=>{
  const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
  assert.match(dash,/tile\.setOnClickListener\(v->openLead\(selectedLead\)\)/);
  assert.match(dash,/tile\.setOnLongClickListener/);
+});
+
+test('Charlas nav opens grouped presenter 2x2 choices and daily session list',()=>{
+ const shell=src('app/src/main/java/io/laind/masduenos/tablet/NavigationShell.java');
+ const activity=src('app/src/main/java/io/laind/masduenos/tablet/CharlasActivity.java');
+ const manifest=src('app/src/main/AndroidManifest.xml');
+ assert.match(shell,/"Tablero","Charlas","Enrutador"/);
+ assert.match(shell,/HOST\?CharlasActivity\.class/);
+ assert.match(manifest,/CharlasActivity" android:exported="false"/);
+ assert.match(activity,/LinkedHashMap<String,ArrayList<TalkStore\.Talk>>/);
+ assert.match(activity,/int blocks=\(presenters\.size\(\)\+3\)\/4/);
+ assert.match(activity,/for\(int row=0;row<2;row\+\+\)/);
+ assert.match(activity,/for\(int col=0;col<2;col\+\+\)/);
+ assert.match(activity,/drawTalks\(\)/);
+ assert.match(activity,/talk\.presenter/);
+ assert.match(activity,/startActivity\(intent\)/);
+});
+test('starting a talk always asks presenter; legacy talks remain unassigned for migration',()=>{
+ const prompts=src('app/src/main/java/io/laind/masduenos/tablet/TalkPrompts.java');
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/TalkStore.java');
+ const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
+ assert.match(prompts,/¿De quién es esta charla\?/);
+ assert.match(prompts,/store\.createToday\(owner\)/);
+ assert.match(store,/synchronized Talk createToday\(String presenter\)/);
+ assert.match(store,/chat\.presenter=owner/);
+ assert.match(store,/o\.put\("presenter",presenter\)/);
+ assert.match(store,/o\.optString\("presenter",""\)/);
+ assert.match(store,/updatePresenterForTalk/);
+ assert.doesNotMatch(store,/items\.isEmpty\(\)\)\{items\.add\(createToday\(\)\)/);
+ assert.match(dash,/TalkPrompts\.create\(this,chats,presenterFilter/);
+ assert.match(dash,/Charla de:/);
+ assert.match(dash,/TalkPrompts\.changePresenter/);
+});
+test('talk owner is automatically inherited by seated leads, never overwritten manually',()=>{
+ const store=src('app/src/main/java/io/laind/masduenos/tablet/LeadStore.java');
+ const editor=src('app/src/main/java/io/laind/masduenos/tablet/MainActivity.java');
+ assert.match(store,/resolveTalk\(talkId\)/);
+ assert.match(store,/target\.presenter=talk\.presenter/);
+ assert.match(store,/item\.presenter=t\.presenter/);
+ assert.match(store,/updatePresenterForTalk/);
+ assert.match(store,/SENT\.equals\(target\.status\)\|\|PAPER\.equals\(target\.status\)/);
+ assert.match(editor,/presenter\.setEnabled\(!locked&&draft\.talkId\.isEmpty\(\)\)/);
+ assert.match(editor,/draft\.presenter=talkPresenter/);
 });

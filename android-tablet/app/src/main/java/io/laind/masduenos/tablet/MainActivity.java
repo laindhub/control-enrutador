@@ -45,7 +45,7 @@ public final class MainActivity extends Activity {
         "Samuel Lee","Milena Lezcano","Gabriel Molina","Marina Mendoza",
         "Pablo Moreira","Thomas Núñez","Sebastian Paglia","Maria Palenque",
         "Nuria Pereyra","Tamara Pereyra","Jackeline Pernambuco","Matias Picallo",
-        "Rocio Urrea","Milena Zorondo"};
+        "Rocio Urrea","Melina Zorondo"};
     private EditText name,phone,arrival,description,printerIp;
     private AutoCompleteTextView presenter,advisor;
     private Spinner outcome,product;

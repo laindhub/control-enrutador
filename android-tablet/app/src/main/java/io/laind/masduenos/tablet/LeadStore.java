@@ -128,6 +128,10 @@ final class LeadStore {
     }
     synchronized Lead save(Lead item) throws Exception {
         if(item.id==null||item.id.isEmpty())item.id=UUID.randomUUID().toString();
+        if(!item.talkId.isEmpty()){
+            for(TalkStore.Talk t:new TalkStore(context).all())
+                if(t.id.equals(item.talkId)&&!t.presenter.isEmpty()){item.presenter=t.presenter;break;}
+        }
         item.updatedAt=System.currentTimeMillis();
         ArrayList<Lead> list=all();
         boolean replaced=false;
@@ -165,10 +169,31 @@ final class LeadStore {
             "^/floor/visits/([0-9a-fA-F-]{36})(?:/full-test)?$").matcher(path);
         return m.matches()?m.group(1).toLowerCase(Locale.ROOT):"";
     }
+    synchronized void updatePresenterForTalk(String talkId,String presenter) throws Exception {
+        ArrayList<Lead> list=all();
+        for(Lead lead:list)if(talkId.equals(lead.talkId)){
+            if((SENT.equals(lead.status)||PAPER.equals(lead.status)||DONE.equals(lead.status))
+                &&!presenter.equalsIgnoreCase(lead.presenter))
+                throw new IOException("Hay un Full-test impreso para otro presentador.");
+        }
+        boolean changed=false;
+        for(Lead lead:list)if(talkId.equals(lead.talkId)&&!presenter.equals(lead.presenter)){
+            lead.presenter=presenter;lead.status=lead.prepared()?READY:NEW;
+            lead.updatedAt=System.currentTimeMillis();changed=true;
+        }
+        if(changed)write(list);
+    }
+    private TalkStore.Talk resolveTalk(String talkId) throws Exception {
+        for(TalkStore.Talk t:new TalkStore(context).all())if(t.id.equals(talkId))return t;
+        throw new IOException("No se encontró la charla asignada.");
+    }
     synchronized Lead placeFromHost(String name,String phone,String arrival,String crmPath,
                                     String talkId,int seatIndex) throws Exception{
         if(!talkId.matches("[a-fA-F0-9-]{36}")||seatIndex<0||seatIndex>=TalkStore.CAPACITY)
             throw new IOException("La silla o charla seleccionada no es válida.");
+        TalkStore.Talk talk=resolveTalk(talkId);
+        if(!today().equals(talk.date)||talk.presenter.trim().isEmpty())
+            throw new IOException("Primero asigná un presentador a esta charla.");
         String uuid=visitKey(crmPath);
         if(uuid.isEmpty()||name==null||name.trim().length()<2)
             throw new IOException("La persona de Atendidas no es válida.");
@@ -194,6 +219,12 @@ final class LeadStore {
         }
         target.name=name.trim();target.phone=phone==null?"":phone.trim();
         target.arrival=arrival==null?"":arrival.trim();target.crmPath=crmPath;
+        if(!talk.presenter.equals(target.presenter)){
+            if(SENT.equals(target.status)||PAPER.equals(target.status))
+                throw new IOException("El archivo impreso pertenece a otro presentador. Corregí la impresión antes de moverlo.");
+            target.presenter=talk.presenter;
+            if(!DONE.equals(target.status))target.status=target.prepared()?READY:NEW;
+        }
         target.talkId=talkId;target.seatIndex=seatIndex;
         target.updatedAt=System.currentTimeMillis();
         write(list);return target;
@@ -201,6 +232,9 @@ final class LeadStore {
     synchronized void moveToSeat(String leadId,String talkId,int seatIndex) throws Exception{
         if(!talkId.matches("[a-fA-F0-9-]{36}")||seatIndex<0||seatIndex>=TalkStore.CAPACITY)
             throw new IOException("Destino inválido.");
+        TalkStore.Talk talk=resolveTalk(talkId);
+        if(!today().equals(talk.date)||talk.presenter.trim().isEmpty())
+            throw new IOException("La charla de destino necesita un presentador.");
         ArrayList<Lead> list=all();Lead target=null;
         for(Lead lead:list){
             if(lead.id.equals(leadId))target=lead;
@@ -210,6 +244,12 @@ final class LeadStore {
         if(target==null)throw new IOException("No se encontró el lead.");
         if(!today().equals(target.date))throw new IOException("Solo podés ubicar personas del día.");
         if(DONE.equals(target.status))throw new IOException("La derivación ya está registrada.");
+        if(!talk.presenter.equals(target.presenter)){
+            if(SENT.equals(target.status)||PAPER.equals(target.status))
+                throw new IOException("El test ya está impreso con otro presentador.");
+            target.presenter=talk.presenter;
+            target.status=target.prepared()?READY:NEW;
+        }
         target.talkId=talkId;target.seatIndex=seatIndex;
         target.updatedAt=System.currentTimeMillis();
         write(list);

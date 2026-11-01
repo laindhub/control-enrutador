@@ -38,18 +38,11 @@ public final class MainActivity extends Activity {
     private static final int HOST_REPORT=72;
     private static final String[] PRESENTERS={"Keren Botini","Nicolas Espinosa","Nicole Laquinta",
         "Thomas Núñez","Katherine Puppo","Priscila Zajama"};
-    private static final String[] ADVISORS={"Nadia Abregu","Nicolás Artaza","Zair Baltazar",
-        "Milagros Blanquicet","Nicolás Calvino","Federico Correa","Agustín Cristaldo",
-        "Matias Fernandez","Diana Florentin","Patricio Galeano","Belén Balvan",
-        "Matías Gómez","Camila González","Eliana González","Ivon Guzmán",
-        "Samuel Lee","Milena Lezcano","Gabriel Molina","Marina Mendoza",
-        "Pablo Moreira","Thomas Núñez","Sebastian Paglia","Maria Palenque",
-        "Nuria Pereyra","Tamara Pereyra","Jackeline Pernambuco","Matias Picallo",
-        "Rocio Urrea","Melina Zorondo"};
     private EditText name,phone,arrival,description,printerIp;
     private AutoCompleteTextView presenter,advisor;
     private Spinner outcome,product;
-    private TextView pdfStatus,operationStatus;
+    private TextView pdfStatus,operationStatus,directoryStatus;
+    private AdvisorDirectory advisorDirectory;
     private Button printDirect,printAndroid,complete;
     private File originalPdf;
     private File outputPdf;
@@ -65,6 +58,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);Ui.statusBars(this);
         store=new LeadStore(this);
+        advisorDirectory=new AdvisorDirectory(this);
         String id=getIntent().getStringExtra("lead_id");
         try{draft=id==null?null:store.get(id);}catch(Exception error){draft=null;}
         if(draft==null){
@@ -101,7 +95,12 @@ public final class MainActivity extends Activity {
             inherited.setTextColor(Ui.MUTED);
             content.addView(inherited,Ui.spaced(this,4));
         }
-        advisor=autocomplete(content,"Derivado a · Asesor",ADVISORS);
+        advisor=autocomplete(content,"Derivado a · Asesor",advisorDirectory.current().names());
+        directoryStatus=Ui.label(this,"Lista guardada de asesores",12,false);
+        directoryStatus.setTextColor(Ui.MUTED);content.addView(directoryStatus,Ui.spaced(this,4));
+        Button refreshAdvisors=Ui.button(this,"Actualizar asesores",false);
+        refreshAdvisors.setOnClickListener(v->refreshAdvisors());
+        content.addView(refreshAdvisors,Ui.spaced(this,5));
         description=field(content,"Descripción · Referencia visual","Ej.: campera azul, lentes, está cerca de recepción",true);
         TextView internal=Ui.label(this,"La descripción es un dato interno de esta tablet y de la hoja impresa. No se agrega al CRM.",12,false);
         internal.setTextColor(Ui.MUTED);content.addView(internal,Ui.spaced(this,6));
@@ -150,6 +149,25 @@ public final class MainActivity extends Activity {
         removeButton=Ui.button(this,"Quitar persona del tablero",false);
         removeButton.setOnClickListener(v->clearLead());content.addView(removeButton,Ui.spaced(this,22));
         restoreDraft();installDraftListeners();updateStatus();
+    }
+    @Override protected void onResume(){
+        super.onResume();
+        if(advisor!=null)refreshAdvisors();
+    }
+    private void refreshAdvisors(){
+        directoryStatus.setText("Actualizando asesores…");
+        advisorDirectory.refresh((data,online)->{
+            if(isFinishing()||isDestroyed())return;
+            advisor.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line,data.names()));
+            // Correct only drafts that have no issued sheet. Never rewrite history
+            // or silently change the advisor the operator has already selected.
+            if(LeadStore.NEW.equals(draft.status)||LeadStore.READY.equals(draft.status)){
+                String before=value(advisor),corrected=data.canonical(before);
+                if(!before.equals(corrected))advisor.setText(corrected,false);
+            }
+            directoryStatus.setText(online?"Asesores actualizados":"Sin conexión · se usa la lista guardada");
+        });
     }
     private void section(LinearLayout content,String title){
         TextView item=Ui.label(this,title,13,true);item.setTextColor(Ui.RED);

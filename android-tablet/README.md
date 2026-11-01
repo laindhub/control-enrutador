@@ -138,3 +138,12 @@ La composición y la paginación son una implementación nativa equivalente, no 
 - Las charlas creadas con versiones anteriores siguen guardadas; aparecen bajo **Sin asignar** hasta seleccionar quién las da. No se inventa un presentador histórico.
 - Para evitar inconsistencias, una charla con test ya impreso o derivación cerrada no permite cambiar de presentador sin resolver antes el documento ya emitido.
 - El rol Host y el buscador real de Atendidas siguen disponibles al tocar una silla libre. No se cambia la autenticación ni la fuente de datos del CRM.
+
+## 0.7.2 · Asesores actualizables desde el servidor
+
+- La lista de asesores se mantiene en `public/tablet/directory.json` y se sirve por HTTPS en `https://masduenos.laind.io/assets/tablet/directory.json`, incluso si la base de datos principal está fuera de servicio. El servidor exige revalidación de recursos sin versión; la app solicita esta lista sin caché HTTP.
+- Al abrir una ficha se consulta la lista. «Actualizar asesores» permite volver a consultarla sin reiniciar ni instalar otra versión.
+- La respuesta válida queda guardada en la tablet. Ante falta de conexión, una respuesta inválida o un error del servidor se conserva la última lista; la primera instalación incluye este mismo JSON como respaldo inicial. Se puede seguir escribiendo un nombre manualmente.
+- Para agregar, quitar o corregir nombres, editar `advisors` en ese archivo y desplegar el servidor. **No hace falta volver a compilar o instalar el APK** en dispositivos con 0.7.2 o posterior. `version: 1` identifica el formato, no cambia con cada edición de nombres.
+- `aliases` permite corregir nombres anteriores en borradores sin hoja emitida, por ejemplo `Rocio Urrea` → `Rocio Ureña`. Cada destino debe existir en `advisors`; no se cambian fichas ya enviadas a impresión, confirmadas o registradas.
+- El APK 0.7.2 usa versionCode 18 y debe firmarse con el certificado original de la app, conservando datos al actualizar desde 0.7.1. Las claves privadas permanecen fuera del repositorio.

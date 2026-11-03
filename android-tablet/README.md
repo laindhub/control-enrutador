@@ -1,4 +1,12 @@
-# Más Dueños · App unificada para celulares (1.0.1)
+# Más Dueños · App unificada para celulares (1.0.3)
+
+## 1.0.3 · Derivación sin interrumpir la carga del CRM
+
+- La integración de derivaciones ya no inyecta navegación a los 500 ms, antes de terminar el documento de Next.js. Se instala al finalizar el documento original.
+- En el formulario, ocultar el dock web no navega el marco principal para notificar pestañas: la selección nativa sigue siendo Salón. La confirmación de guardado utiliza un mensaje nativo con nonce de la visita y validación de origen, sin cambiar la URL del CRM.
+- Una máscara nativa mantiene la animación hasta que aparece un control real del formulario (el encabezado no alcanza). A los 30 segundos ofrece reabrir mediante GET; nunca repite automáticamente un POST ni marca una derivación como guardada por un timeout.
+- Mismo paquete, certificado e ícono rojo. `versionCode 22`, `versionName 1.0.3`.
+- QA: `verify-assignment-return.cjs`, `verify-unified-navigation.cjs` y `verify-assignment-loading.cjs`. Las pruebas usan formularios sintéticos y una respuesta HTML transmitida por partes; no envían derivaciones reales.
 
 ## 1.0.2 · Ícono Android rojo
 

@@ -38,6 +38,13 @@ const {chromium}=require('playwright');
  });
  await page.waitForFunction(()=>window.__mdUnifiedDestination==='');
  assert.equal(await page.evaluate(()=>window.clicked),'yo');
+ // Assignment mode hides the duplicate dock without navigating the main frame.
+ await page.goto(origin+'/floor/visits/11111111-1111-4111-8111-111111111111/assignment');
+ await page.evaluate(()=>{window.__mdUnifiedHideOnly=true;document.querySelector('#original-tabs a').setAttribute('aria-current','page');});
+ await page.evaluate(script);
+ await page.waitForFunction(()=>document.getElementById('original-tabs').dataset.mdUnifiedNav==='1');
+ assert.deepEqual(await page.evaluate(()=>window.__nativeNotifications||[]),[]);
+ assert.equal(await page.locator('#crm-content').isVisible(),true);
  // An unrelated origin never gets navigation interception.
  await page.goto('https://untrusted.example/floor');await page.evaluate(script);
  assert.equal(await page.evaluate(()=>window.__mdUnifiedNavigation),undefined);

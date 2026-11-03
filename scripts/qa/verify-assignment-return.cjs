@@ -5,8 +5,7 @@ const {chromium}=require('playwright');
  const browser=await chromium.launch({headless:true,executablePath:process.env.QA_CHROMIUM||undefined,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:393,height:852}});
  const origin='https://liniers.xn--somosmasdueos-skb.com',uuid='11111111-1111-4111-8111-111111111111';
- const asset=fs.readFileSync(path.join(__dirname,'../../android-tablet/app/src/main/assets/assignment-return.js'),'utf8')
-  .replace("location.href='masduenos://assignment-complete/'+state.nonce;","(window.__completed ||= []).push(state.nonce);");
+ const asset=fs.readFileSync(path.join(__dirname,'../../android-tablet/app/src/main/assets/assignment-return.js'),'utf8');
  let reply={status:200,type:'application/json',body:'{"ok":true}',headers:{}};
  await page.route('**/*',route=>{
   if(route.request().resourceType()==='document')return route.fulfill({contentType:'text/html',body:'<main><h1>Charla y derivación</h1><button type="button" id="save">Guardar derivación</button></main>'});
@@ -15,7 +14,7 @@ const {chromium}=require('playwright');
  async function setup(next={}){
   reply={status:200,type:'application/json',body:'{"ok":true}',headers:{},...next};
   await page.goto(origin+'/floor/visits/'+uuid+'/assignment');
-  await page.evaluate(({uuid})=>{window.__mdAssignment={uuid,nonce:'current-request'};},{uuid});
+  await page.evaluate(({uuid})=>{window.__mdAssignment={uuid,nonce:'current-request'};window.MdAssignment={complete:nonce=>(window.__completed ||= []).push(nonce)};},{uuid});
   await page.evaluate(asset);
  }
  async function save(url='/api/floor/visits/'+uuid+'/assignment',method='POST',tap=true){

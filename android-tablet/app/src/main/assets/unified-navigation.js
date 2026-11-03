@@ -7,6 +7,9 @@
   const normalize=node=>(node.textContent||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('es');
   let controls=[],scheduled=false,lastNotified='';
   const notify=(tab,force=false)=>{
+    // The assignment screen has a fixed native Salón selection. Never navigate its
+    // main frame just to report a tab: that can abort a streamed Next.js response.
+    if (window.__mdUnifiedHideOnly) return;
     if (!labels.includes(tab)||(!force&&lastNotified===tab)) return;
     lastNotified=tab;
     location.href='masduenos://tab/'+tab;

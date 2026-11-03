@@ -18,7 +18,8 @@
  }
  function complete(state){
   if(current()!==state||state.done||state.failed)return;
-  state.done=true;location.href='masduenos://assignment-complete/'+state.nonce;
+  if (!window.MdAssignment || typeof window.MdAssignment.complete !== 'function') return;
+  state.done=true;window.MdAssignment.complete(state.nonce);
  }
  const returned=url=>{try{const u=new URL(url,origin);return u.origin===origin&&/^\/floor\/(router|visits)\/?$/.test(u.pathname);}catch{return false;}};
  function jsonResult(state,data){

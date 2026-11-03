@@ -9,7 +9,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const template=fs.readFileSync(path.join(root,'views/presenter.ejs'),'utf8');
 const browser=await chromium.launch({headless:true,executablePath:process.env.QA_CHROMIUM,args:['--no-sandbox']});
 const page=await browser.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
-let embedded=false,postCount=0,policies=new Map([['2026-10',{unlock:650,baseRate:1350,elite:780,eliteRate:1500}]]);
+let embedded=false,postCount=0,total=600,policies=new Map([['2026-10',{unlock:650,baseRate:1350,elite:780,eliteRate:1500}]]);
 function current(month){const key=[...policies.keys()].filter(k=>k<=month).sort().at(-1);return {key,policy:normalizeLeadPolicy(policies.get(key))};}
 const render=()=>ejs.render(template,{user:{username:'Prueba',role:'presenter_admin'},csrfToken:'test',embedded,assetUrl:p=>'/assets/'+p})
  .replace(/<script[^>]+src="([^"]+)"[^>]*><\/script>/g,(tag,url)=>url.endsWith('/presenter-policy.js')||(embedded&&url.endsWith('/presenter-leads.js'))?tag:'');
@@ -31,7 +31,7 @@ await page.route('**/*',async route=>{
  }
  if(url.pathname.endsWith('/lead-state')){
   const month=url.searchParams.get('month')||'2026-11',policy=current(month).policy;
-  return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan:{goal:780},entries:[],snapshot:{quantity:600,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:600,policy})})});
+  return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan:{goal:780},entries:[],snapshot:{quantity:total,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:total,policy})})});
  }
  return route.fulfill({contentType:'application/json',body:'{}'});
 });
@@ -68,6 +68,24 @@ try{
   assert.equal((await page.locator('#lead-goal-projection-value').innerText()).replace(/\D/g,''),String(amount),'UI projection at '+goal);
  }
  assert.ok((await page.locator('#lead-metrics').innerText()).includes(ars.format(720000)));
+ // Generated earnings use the attained tier; potential compares unlock and elite.
+ const metric=label=>page.locator('#lead-metrics .metric').filter({has:page.locator('span',{hasText:label})});
+ const generated=metric('Comisión generada'),potential=metric('Acumulado potencial');
+ for(const [count,earned,level,unlockPotential,elitePotential]of [[600,720000,'básico',810000,900000],[650,877500,'desbloqueo',877500,975000],[780,1170000,'élite',1053000,1170000]]){
+  total=count;await page.reload();
+  await page.waitForFunction(count=>document.querySelector('#lead-metrics .metric strong')?.textContent.trim()===String(count),count);
+  assert.equal((await generated.locator('strong').innerText()).replace(/\D/g,''),String(earned),'earned at '+count);
+  assert.equal(await generated.locator('.metric-note').innerText(),'('+level+')');
+  assert.equal((await potential.locator('strong').innerText()).replace(/\D/g,''),String(unlockPotential),'unlock potential at '+count);
+  assert.equal(await potential.locator('.metric-note').innerText(),'(élite: '+ars.format(elitePotential)+')');
+ }
+ total=600;await page.reload();
+ await page.waitForFunction(()=>document.querySelector('#lead-metrics').textContent.includes('720.000'));
+ for(const width of [320,393,1280]){
+  await page.setViewportSize({width,height:1000});
+  await page.evaluate(()=>{document.querySelector('#panel-sales').hidden=true;document.querySelector('#panel-leads').hidden=false;});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'potential card does not overflow at '+width);
+ }
  // Saving in Gestión refreshes the embedded calculation, without an APK or reload.
  await page.evaluate(()=>{document.querySelector('#panel-leads').hidden=true;document.querySelector('#panel-admin').hidden=false;});
  await page.waitForFunction(()=>document.querySelector('#lead-policy-form [name=basicRate]').value==='1200');
@@ -75,5 +93,5 @@ try{
  await page.waitForFunction(()=>document.querySelector('#lead-metrics').textContent.includes('750.000'));
  assert.equal(await form.locator('[name=basicRate]').inputValue(),'1250','lead refresh cannot overwrite the editor');
  assert.deepEqual(errors,[]);
- console.log('PASS: web Gestión, six persisted fields, validation, 320/393/1280 layouts, original web logo, tier projections and embedded refresh.');
+ console.log('PASS: web Gestión, six persisted fields, validation, 320/393/1280 layouts, original web logo, generated earnings by tier, unlock/elite potential and embedded refresh.');
 }finally{await browser.close();}

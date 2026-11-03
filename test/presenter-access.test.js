@@ -12,6 +12,10 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
   const calls = [];
   const originalExecute = pool.execute;
   const originalQuery = pool.query;
+  const originalGetConnection = pool.getConnection;
+  // Account creation now writes its audit record in the same transaction.
+  pool.getConnection=async()=>({beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},release(){},
+    execute:async(sql,params)=>{const result=await pool.execute(sql,params);return sql.startsWith('INSERT INTO users')?[{insertId:9}]:result;}});
   pool.execute = async (sql, params) => {
     calls.push({sql, params});
     return sql.startsWith('UPDATE') ? [{affectedRows:0}] : [[]];
@@ -56,7 +60,9 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
     calls.length=0;
     assert.equal((await request('/lead-entries/99','DELETE')).status,404);
     assert.deepEqual(calls[0].params,[99,7]);
-    assert.equal((await request('/lead-plan','POST','presenter',{month:'2026-10',goal:650,offDays:[1]})).status,400);
+    // Fixed off-days are legacy input; current planning deliberately uses rotating shifts.
+    assert.equal((await request('/lead-plan','POST','presenter',{month:'2026-10',goal:650,offDays:[1]})).status,200);
+    assert.equal((await request('/lead-plan','POST','presenter',{month:'2026-10',goal:0})).status,400);
     for (const password of ['', '123', '1234567']) {
       calls.length=0;
       const response=await request('/users','POST','presenter_admin',{username:'nicole',password});
@@ -74,6 +80,7 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
     await new Promise(resolve => server.close(resolve));
     pool.execute=originalExecute;
     pool.query=originalQuery;
+    pool.getConnection=originalGetConnection;
     await sessionStore.onReady();
     await sessionStore.close();
     await pool.end();

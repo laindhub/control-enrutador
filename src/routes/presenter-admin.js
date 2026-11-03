@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import {randomUUID} from 'node:crypto';
 import {pool,withTransaction} from '../db.js';
 import {nowLocal} from '../time.js';
-import {leadMonth,leadInteger,leadSummary,defaultLeadPolicy} from '../presenter-leads.js';
+import {leadMonth,leadInteger,leadSummary,defaultLeadPolicy,normalizeLeadPolicy} from '../presenter-leads.js';
 import {validDate,money} from '../presenter-sales.js';
 
 // Every route here is administrator-only. Presenter IDs come only from validated
@@ -33,7 +33,7 @@ export function createPresenterAdminRouter({id,text,saleValues,saleFingerprint,l
    pool.execute('SELECT policy_json FROM presenter_lead_policies WHERE month<=? ORDER BY month DESC LIMIT 1',[month]),
    pool.execute('SELECT plan_json FROM presenter_lead_plans WHERE user_id=? AND month=?',[userId,month])
   ]);
-  const policy=safeJson(policies[0]?.policy_json)||defaultLeadPolicy;
+  const policy=normalizeLeadPolicy(safeJson(policies[0]?.policy_json)||defaultLeadPolicy);
   const plan=safeJson(plans[0]?.plan_json)||{goal:policy.elite};
   const snapshot=snapshots[0]||null;
   const summary=leadSummary({month,today:nowLocal().toISODate(),policy,plan,

@@ -2,11 +2,13 @@ import express from 'express';
 import {pool} from '../db.js';
 import {nowLocal} from '../time.js';
 import {validDate} from '../presenter-sales.js';
-import {defaultLeadPolicy,leadMonth,leadInteger,leadPolicy,leadPlan,leadSummary} from '../presenter-leads.js';
+import {defaultLeadPolicy,normalizeLeadPolicy,leadMonth,leadInteger,leadPolicy,leadPlan,leadSummary} from '../presenter-leads.js';
 const json=v=>typeof v==='string'?JSON.parse(v):v;
 const admin=(req,res,next)=>req.session.user.role==='presenter_admin'?next():res.status(403).json({error:'Solo el administrador puede modificar el esquema.'});
+async function policyForMonth(month){const [rows]=await pool.execute('SELECT month,policy_json FROM presenter_lead_policies WHERE month<=? ORDER BY month DESC LIMIT 1',[month]);return {policy:json(rows[0]?.policy_json)||defaultLeadPolicy,policyMonth:rows[0]?.month||null};}
 export function createPresenterLeadsRouter(){
  const router=express.Router();
+ router.get('/lead-policy',admin,async(req,res)=>{const month=leadMonth(req.query.month||nowLocal().toFormat('yyyy-MM')),stored=await policyForMonth(month);res.set('Cache-Control','no-store').json({month,policy:normalizeLeadPolicy(stored.policy),policyMonth:stored.policyMonth});});
  router.get('/lead-state',async(req,res)=>{
   const month=leadMonth(req.query.month||nowLocal().toFormat('yyyy-MM')),userId=req.session.user.id;
   const [[policies],[snapshots],[entries],[plans]]=await Promise.all([
@@ -14,7 +16,7 @@ export function createPresenterLeadsRouter(){
    pool.execute('SELECT * FROM presenter_lead_snapshots WHERE user_id=? AND month=?',[userId,month]),
    pool.execute('SELECT id,entry_date,quantity,notes FROM presenter_lead_entries WHERE user_id=? AND entry_date>=? AND entry_date<LAST_DAY(?) + INTERVAL 1 DAY AND deleted_at IS NULL ORDER BY entry_date DESC,id DESC',[userId,month+'-01',month+'-01']),
    pool.execute('SELECT plan_json FROM presenter_lead_plans WHERE user_id=? AND month=?',[userId,month])]);
-  const policy=json(policies[0]?.policy_json)||defaultLeadPolicy,plan=json(plans[0]?.plan_json)||{goal:policy.elite,offDays:null};
+  const policy=normalizeLeadPolicy(json(policies[0]?.policy_json)||defaultLeadPolicy),plan=json(plans[0]?.plan_json)||{goal:policy.elite,offDays:null};
   const snapshot=snapshots[0]||null,today=nowLocal().toISODate();
   res.set('Cache-Control','no-store').json({month,today,user:req.session.user,policy,policyMonth:policies[0]?.month||null,plan,snapshot,entries,summary:leadSummary({month,today,policy,plan,sourceCount:snapshot?Number(snapshot.quantity):null,manualCount:entries.reduce((sum,e)=>sum+Number(e.quantity),0)})});
  });
@@ -32,6 +34,11 @@ export function createPresenterLeadsRouter(){
   const [result]=await pool.execute('UPDATE presenter_lead_entries SET deleted_at=UTC_TIMESTAMP() WHERE id=? AND user_id=? AND deleted_at IS NULL',[leadInteger(req.params.id,1,Number.MAX_SAFE_INTEGER),req.session.user.id]);res.status(result.affectedRows?200:404).json(result.affectedRows?{ok:true}:{error:'Carga no encontrada.'});
  });
  router.post('/lead-plan',async(req,res)=>{const month=leadMonth(req.body.month),plan=leadPlan(req.body);await pool.execute('INSERT INTO presenter_lead_plans (user_id,month,plan_json) VALUES (?,?,?) ON DUPLICATE KEY UPDATE plan_json=VALUES(plan_json)',[req.session.user.id,month,JSON.stringify(plan)]);res.json({ok:true});});
- router.post('/lead-policy',admin,async(req,res)=>{const month=leadMonth(req.body.month),policy=leadPolicy(req.body);await pool.execute('INSERT INTO presenter_lead_policies (month,policy_json,updated_by) VALUES (?,?,?) ON DUPLICATE KEY UPDATE policy_json=VALUES(policy_json),updated_by=VALUES(updated_by)',[month,JSON.stringify(policy),req.session.user.id]);res.json({ok:true});});
+ router.post('/lead-policy',admin,async(req,res)=>{
+  const month=leadMonth(req.body.month),{policy:stored}=await policyForMonth(month);
+  // A cached older editor must not erase an already configured Básico tier.
+  const values={...req.body};
+  if(req.body.basic===undefined&&req.body.basicRate===undefined&&Number(stored.basic)>0){values.basic=stored.basic;values.basicRate=stored.basicRate;}
+  const policy=leadPolicy(values);await pool.execute('INSERT INTO presenter_lead_policies (month,policy_json,updated_by) VALUES (?,?,?) ON DUPLICATE KEY UPDATE policy_json=VALUES(policy_json),updated_by=VALUES(updated_by)',[month,JSON.stringify(policy),req.session.user.id]);res.json({ok:true});});
  return router;
 }

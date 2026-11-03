@@ -45,3 +45,20 @@ test('personal goal earnings use month-specific configured rates and thresholds'
  assert.deepEqual(leadGoalProjection(500,policy),{target:500,rate:2200,amount:1100000,level:'elite'});
  assert.throws(()=>leadGoalProjection(0,policy));
 });
+
+
+test('three configured tiers apply to the entire total, including external interviews',()=>{
+ const policy=leadPolicy({basic:500,basicRate:1200,unlock:650,baseRate:1350,elite:780,eliteRate:1500});
+ for(const [total,amount,level]of [[499,0,'locked'],[500,600000,'basic'],[649,778800,'basic'],[650,877500,'unlocked'],[779,1051650,'unlocked'],[780,1170000,'elite']]){
+  assert.equal(summary(total,{policy}).earned,amount,'earned at '+total);
+  assert.equal(summary(total,{policy}).level,level,'level at '+total);
+  assert.equal(leadGoalProjection(total,policy).amount,amount,'projection at '+total);
+ }
+ assert.equal(summary(490,{manualCount:10,policy}).earned,600000);
+ assert.equal(summary(490,{policy}).toBasic,10);
+});
+test('basic configuration rejects partial, invalid and out-of-order tiers',()=>{
+ const policy={basic:500,basicRate:1200,unlock:650,baseRate:1350,elite:780,eliteRate:1500};
+ for(const change of [{basic:0},{basic:700},{basicRate:1400},{basicRate:-1},{basic:500.5},{elite:640},{eliteRate:1300}])assert.throws(()=>leadPolicy({...policy,...change}));
+ const {basicRate,...partial}=policy;assert.throws(()=>leadPolicy(partial));
+});

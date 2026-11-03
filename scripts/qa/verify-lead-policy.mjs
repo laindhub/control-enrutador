@@ -53,8 +53,7 @@ try{
  for(const width of [320,393,1280]){
   await page.setViewportSize({width,height:1000});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow at '+width);
-  assert.equal(await page.locator('.brand-mark').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(214, 39, 29)');
-  assert.equal(await page.locator('.brand img').isVisible(),true,'logo visible at '+width);
+  assert.equal(await page.locator('.brand img').isVisible(),width>700,'original web logo at '+width);
  }
  await page.setViewportSize({width:393,height:1000});
  fs.mkdirSync(path.join(root,'../web-qa'),{recursive:true});
@@ -76,5 +75,5 @@ try{
  await page.waitForFunction(()=>document.querySelector('#lead-metrics').textContent.includes('750.000'));
  assert.equal(await form.locator('[name=basicRate]').inputValue(),'1250','lead refresh cannot overwrite the editor');
  assert.deepEqual(errors,[]);
- console.log('PASS: web Gestión, six persisted fields, validation, 320/393/1280 layouts, red logo, tier projections and embedded refresh.');
+ console.log('PASS: web Gestión, six persisted fields, validation, 320/393/1280 layouts, original web logo, tier projections and embedded refresh.');
 }finally{await browser.close();}

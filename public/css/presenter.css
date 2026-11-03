@@ -84,10 +84,8 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; gap: 18px; align-items: center; font-weight: 600; }
-.brand-mark { display:grid; place-items:center; flex-shrink:0; padding:10px 12px; border-radius:10px; background:var(--brand-deep); }
-.brand-mark picture { display:block; line-height:0; }
-.brand img { display:block; width:110px; height:32px; object-fit:contain; }
-.brand > .brand-copy { border-left: 1px solid var(--border); padding-left: 18px; }
+.brand img { width: 110px; height: 32px; object-fit: contain; filter: brightness(0); }
+.brand > span { border-left: 1px solid var(--border); padding-left: 18px; }
 .brand small { display: block; font-size: 11px; color: var(--faint); font-weight: 400; }
 .identity { display: flex; align-items: center; gap: 16px; font-size: 12px; min-width: 0; }
 .identity form { margin: 0; }
@@ -187,10 +185,8 @@ footer { padding: 32px 0 8px; text-align: center; font-size: 11px; color: var(--
   body { font-size: 14px; }
   .top { padding: 14px 16px; gap: 12px; }
   .brand { gap: 10px; }
-  .brand small { display:none; }
-  .brand-mark { width:38px; height:38px; padding:7px; border-radius:9px; }
-  .brand img { display:block; width:24px; height:24px; }
-  .brand > .brand-copy { border: 0; padding-left: 0; font-size: 17px; font-weight: 500; }
+  .brand img, .brand small { display: none; }
+  .brand > span { border: 0; padding-left: 0; font-size: 17px; font-weight: 500; }
   .identity { gap: 4px; font-size: 12px; max-width: 64%; }
   .account-pill { max-width: 100%; }
   .account-location { display: none; }
@@ -230,7 +226,7 @@ footer { padding: 32px 0 8px; text-align: center; font-size: 11px; color: var(--
 }
 @media (max-width: 360px) {
   .top { padding-inline: 12px; gap: 6px; }
-  .brand > .brand-copy { font-size: 15px; }
+  .brand > span { font-size: 15px; }
   .identity { max-width: 58%; }
   .account-pill { padding-right: 6px; }
   .identity .quiet { padding-inline: 6px; }
@@ -318,4 +314,3 @@ dialog[open].is-closing::backdrop { animation:backdrop-out 160ms ease both; }
 .policy-values { display:grid; gap:12px; }
 #lead-policy-status { min-height:22px; }
 @media (max-width:700px) { .lead-policy-tiers { grid-template-columns:1fr; gap:16px; } .policy-values { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (max-width:380px) { .brand > .brand-copy { display:none; } }

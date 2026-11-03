@@ -1,5 +1,9 @@
 # Más Dueños · App unificada para celulares (1.0.1)
 
+## 1.0.2 · Ícono Android rojo
+
+Ícono adaptativo con fondo rojo opaco `#D6271D` y el símbolo blanco original. Se declara también como `roundIcon` para que el launcher aplique su máscara sin convertir la transparencia del PNG en un ícono blanco. Mismo paquete y certificado; versionCode 21 para actualizar sobre 1.0.1 conservando datos.
+
 ## 1.0.1 · Carga privada y regreso a Enrutar
 
 - Atendidas, la verificación de la persona y la recuperación del test usan una máscara nativa opaca con animación. El WebView sigue montado al tamaño completo, pero con opacidad cero y sin accesibilidad mientras trabaja; no aparece el proceso interno. El login original de Host se muestra solamente si es necesario.

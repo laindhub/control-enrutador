@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import {pool} from '../src/db.js';
 import {initializeDatabase} from '../src/schema.js';
 import {createPresenterRouter} from '../src/routes/presenters.js';
+import {sessionStore} from '../src/auth.js';
 import {createPresenterAdminRouter} from '../src/routes/presenter-admin.js';
 
 const value=Number;
@@ -166,5 +167,8 @@ test('existing schema v6 repairs missing admin audit table and permits creating 
  }finally{
   if(server)await new Promise(resolve=>server.close(resolve));
   pool.getConnection=originalGetConnection;pool.query=originalQuery;
+  // createPresenterRouter imports auth.js; close its MySQLStore cleanup interval,
+  // otherwise the Node test process stays alive even after HTTP server.close().
+  await sessionStore.close();
  }
 });

@@ -4,6 +4,8 @@ import express from 'express';
 import ejs from 'ejs';
 import {readFileSync} from 'node:fs';
 import {pool} from '../src/db.js';
+import {initializeDatabase} from '../src/schema.js';
+import {createPresenterRouter} from '../src/routes/presenters.js';
 import {createPresenterAdminRouter} from '../src/routes/presenter-admin.js';
 
 const value=Number;
@@ -103,4 +105,66 @@ test('admin template exposes team controls while ordinary presenters cannot see 
  }
  assert.match(admin,/js\/presenter-admin\.js/);
  assert.doesNotMatch(presenter,/js\/presenter-admin\.js/);
+});
+
+test('existing schema v6 repairs missing admin audit table and permits creating a presenter',async()=>{
+ const originalGetConnection=pool.getConnection,originalQuery=pool.query;
+ let auditTableCreated=false;
+ const queries=[],writes=[];
+ const connection={
+  release(){},beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},
+  query:async(sql)=>{
+   queries.push(sql);
+   if(sql.includes('CREATE TABLE IF NOT EXISTS presenter_admin_audit'))auditTableCreated=true;
+   return [[]];
+  },
+  execute:async(sql,args=[])=>{
+   if(sql.includes("meta_key = 'schema_version'"))return [[{meta_value:'6'}]];
+   if(sql.includes("meta_key = 'credential_fingerprint'"))return [[]];
+   if(sql.includes('INSERT INTO users (username,password_hash,role)')){
+    writes.push({sql,args});return [{insertId:721}];
+   }
+   if(sql.includes('INSERT INTO presenter_admin_audit')){
+    if(!auditTableCreated)throw Object.assign(Error('Audit table missing'),{code:'ER_NO_SUCH_TABLE'});
+    writes.push({sql,args});return [{insertId:23}];
+   }
+   return [[]];
+  }
+ };
+ pool.getConnection=async()=>connection;
+ pool.query=async(sql)=>{
+  if(sql.includes('FROM presenter_admin_audit')){
+   if(!auditTableCreated)throw Object.assign(Error('Audit table missing'),{code:'ER_NO_SUCH_TABLE'});
+   return [[{id:23,action:'account_created',record_id:null,created_at:'2026-11-03',actor:'Admin',presenter:'prueba_nueva'}]];
+  }
+  throw Error('Unexpected query '+sql);
+ };
+ let server;
+ try{
+  // Simulate a production database that had already completed version 6
+  // before the audit table was added to the schema statements.
+  await initializeDatabase();
+  assert.equal(auditTableCreated,true,'skipped v6 migration must be repaired');
+  assert.equal(queries.filter(sql=>sql.includes('CREATE TABLE IF NOT EXISTS presenter_admin_audit')).length,1);
+  assert.equal(queries.some(sql=>sql.includes('CREATE TABLE IF NOT EXISTS presenter_sales')),false,'avoid re-running unrelated migrations');
+  await initializeDatabase();
+  assert.equal(queries.filter(sql=>sql.includes('CREATE TABLE IF NOT EXISTS presenter_admin_audit')).length,2,'repair remains idempotent');
+
+  const app=express();app.use(express.json());
+  app.use((req,_res,next)=>{req.session={user:{id:900,role:'presenter_admin'}};next();});
+  app.use('/api/presenters',createPresenterRouter());
+  app.use((error,_req,res,_next)=>res.status(error.status||500).json({error:error.message}));
+  server=app.listen(0);await new Promise(resolve=>server.once('listening',resolve));
+  const url='http://127.0.0.1:'+server.address().port+'/api/presenters';
+  const created=await fetch(url+'/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'prueba_nueva',password:''})});
+  assert.equal(created.status,201,JSON.stringify(await created.clone().json()));
+  assert.equal(writes.filter(q=>q.sql.includes('INSERT INTO users')).length,1);
+  assert.deepEqual(writes.find(q=>q.sql.includes('INSERT INTO presenter_admin_audit')).args,[900,721,'account_created']);
+  const response=await fetch(url+'/admin/audit');
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).activity[0].action,'account_created');
+ }finally{
+  if(server)await new Promise(resolve=>server.close(resolve));
+  pool.getConnection=originalGetConnection;pool.query=originalQuery;
+ }
 });

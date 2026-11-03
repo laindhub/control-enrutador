@@ -4,6 +4,17 @@ import { pool } from './db.js';
 import { config } from './config.js';
 
 const SCHEMA_VERSION = '6';
+const PRESENTER_ADMIN_AUDIT_DDL = `CREATE TABLE IF NOT EXISTS presenter_admin_audit (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    actor_id INT UNSIGNED NOT NULL,
+    target_id INT UNSIGNED NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    record_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_presenter_admin_audit (created_at),
+    FOREIGN KEY (actor_id) REFERENCES users(id),
+    FOREIGN KEY (target_id) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
 const META_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS system_meta (
   meta_key VARCHAR(100) PRIMARY KEY,
   meta_value TEXT NOT NULL,
@@ -24,6 +35,11 @@ export async function initializeDatabase() {
       );
       await setMeta(connection, 'schema_version', SCHEMA_VERSION);
     }
+    // Existing installations may already be at schema_version=6: the audit table
+    // was introduced later without incrementing that version. Repair it independently
+    // on startup so administrative writes never fail for a skipped CREATE TABLE.
+    // CREATE TABLE IF NOT EXISTS preserves all existing accounts and audit rows.
+    await connection.query(PRESENTER_ADMIN_AUDIT_DDL);
     await seedUsers(connection);
   } finally {
     connection.release();
@@ -221,17 +237,7 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS app_locks (
     lock_name VARCHAR(80) PRIMARY KEY
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS presenter_admin_audit (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    actor_id INT UNSIGNED NOT NULL,
-    target_id INT UNSIGNED NOT NULL,
-    action VARCHAR(50) NOT NULL,
-    record_id BIGINT UNSIGNED NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    KEY idx_presenter_admin_audit (created_at),
-    FOREIGN KEY (actor_id) REFERENCES users(id),
-    FOREIGN KEY (target_id) REFERENCES users(id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  PRESENTER_ADMIN_AUDIT_DDL,
   `CREATE TABLE IF NOT EXISTS presenter_commissions (
     effective_date DATE PRIMARY KEY, amount INT UNSIGNED NOT NULL,
     updated_by INT UNSIGNED NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

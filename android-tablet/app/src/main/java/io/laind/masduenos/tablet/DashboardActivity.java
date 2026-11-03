@@ -31,9 +31,11 @@ public final class DashboardActivity extends Activity {
     private ArrayList<LeadStore.Lead> current=new ArrayList<>();
     private String selectedTalkId="",pendingTalkId="",presenterFilter="";
     private int pendingSeat=-1;
-    private boolean showHistory=false,initialised=false;
+    private boolean showHistory=false,initialised=false,listMode=false;
     private LinearLayout tabs,body;
-    private TextView summary,dayCaption;
+    private TextView dayCaption;
+    private final TextView[] metrics=new TextView[3];
+    private final TextView[] viewTabs=new TextView[2];
     private Button historyButton;
     private ScrollView scroll;
 
@@ -48,6 +50,7 @@ public final class DashboardActivity extends Activity {
             selectedTalkId=saved.getString("talk_id","");
             pendingTalkId=saved.getString("pending_talk_id","");
             pendingSeat=saved.getInt("pending_seat",-1);
+            listMode=saved.getBoolean("list_mode",false);
         }
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(Ui.dp(this,15),Ui.dp(this,13),Ui.dp(this,15),0);
@@ -56,7 +59,7 @@ public final class DashboardActivity extends Activity {
 
         LinearLayout heading=new LinearLayout(this);heading.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout headText=new LinearLayout(this);headText.setOrientation(LinearLayout.VERTICAL);
-        TextView title=Ui.label(this,"Charlas de hoy",26,true);headText.addView(title);
+        TextView title=Ui.label(this,"Sillas",25,true);headText.addView(title);
         dayCaption=Ui.label(this,"12 sillas por charla · 4 × 3",12,false);
         dayCaption.setTextColor(Ui.MUTED);headText.addView(dayCaption,Ui.spaced(this,4));
         heading.addView(headText,new LinearLayout.LayoutParams(0,-2,1));
@@ -71,9 +74,24 @@ public final class DashboardActivity extends Activity {
         horizontal.addView(tabs);
         root.addView(horizontal,Ui.spaced(this,16));
 
-        summary=Ui.label(this,"Personas en gestión · Por imprimir · Por confirmar",12,false);
-        summary.setTextColor(Ui.MUTED);
-        root.addView(summary,Ui.spaced(this,9));
+        LinearLayout totals=new LinearLayout(this);
+        String[] captions={"En gestión","Por imprimir","Por confirmar"};
+        for(int i=0;i<captions.length;i++){
+            LinearLayout card=Ui.column(this,11);card.setBackground(Ui.bg(this,Color.rgb(248,248,249),14,0));
+            metrics[i]=Ui.label(this,"0",23,true);card.addView(metrics[i]);
+            TextView label=Ui.label(this,captions[i],10,false);label.setTextColor(Ui.MUTED);card.addView(label,Ui.spaced(this,3));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=Ui.dp(this,7);totals.addView(card,lp);
+        }
+        root.addView(totals,Ui.spaced(this,12));
+        LinearLayout switcher=new LinearLayout(this);
+        String[] modes={"Plano de sillas","Personas"};
+        for(int i=0;i<2;i++){
+            final boolean asList=i==1;TextView choice=Ui.label(this,modes[i],12,true);choice.setGravity(Gravity.CENTER);
+            choice.setPadding(0,Ui.dp(this,11),0,Ui.dp(this,11));viewTabs[i]=choice;
+            choice.setOnClickListener(v->{listMode=asList;draw();});
+            switcher.addView(choice,new LinearLayout.LayoutParams(0,-2,1));
+        }
+        root.addView(switcher,Ui.spaced(this,9));
 
         scroll=new ScrollView(this);scroll.setFillViewport(true);
         body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);
@@ -87,7 +105,7 @@ public final class DashboardActivity extends Activity {
             historyButton.setText(showHistory?"Volver a hoy":"Historial");refresh();
         });
         foot.addView(historyButton,new LinearLayout.LayoutParams(Ui.dp(this,120),Ui.dp(this,45)));
-        TextView notice=Ui.label(this,"Las sillas no modifican el CRM original",11,false);
+        TextView notice=Ui.label(this,"12 lugares por charla",11,false);
         notice.setTextColor(Ui.MUTED);notice.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(0,-1,1);np.leftMargin=Ui.dp(this,10);
         foot.addView(notice,np);
@@ -96,12 +114,22 @@ public final class DashboardActivity extends Activity {
 
         initialised=true;refresh();
     }
+    @Override protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);setIntent(intent);
+        String requested=intent.getStringExtra("talk_id");
+        if(requested!=null&&requested.matches("[a-fA-F0-9-]{36}")){
+            selectedTalkId=requested;presenterFilter=intent.getStringExtra("presenter_filter");
+            if(presenterFilter==null)presenterFilter="";showHistory=false;historyButton.setText("Historial");
+        }else if(intent.getBooleanExtra("show_all_presenters",false))presenterFilter="";
+        if(initialised)refresh();
+    }
     @Override protected void onSaveInstanceState(Bundle state){
-        state.putString("talk_id",selectedTalkId);
+        state.putBoolean("list_mode",listMode);state.putString("talk_id",selectedTalkId);
         state.putString("pending_talk_id",pendingTalkId);
         state.putInt("pending_seat",pendingSeat);
         super.onSaveInstanceState(state);
     }
+    @Override public void onBackPressed(){NavigationShell.openRouting(this);}
     @Override protected void onResume(){super.onResume();if(initialised)refresh();}
     private void alert(String title,String message){
         if(isFinishing())return;
@@ -146,7 +174,12 @@ public final class DashboardActivity extends Activity {
             if(l.prepared()&&!LeadStore.DONE.equals(l.status)&&!LeadStore.PAPER.equals(l.status))printing++;
             if(LeadStore.SENT.equals(l.status)||LeadStore.PAPER.equals(l.status))pending++;
         }
-        summary.setText("Personas en gestión: "+management+"   ·   Por imprimir: "+printing+"   ·   Por confirmar: "+pending);
+        metrics[0].setText(String.valueOf(management));metrics[1].setText(String.valueOf(printing));metrics[2].setText(String.valueOf(pending));
+        for(int i=0;i<2;i++){
+            boolean active=(i==1)==listMode;viewTabs[i].setTextColor(active?Ui.INK:Ui.MUTED);
+            viewTabs[i].setBackground(Ui.ripple(this,active?Color.rgb(240,240,241):Color.WHITE,12,0));
+            viewTabs[i].setSelected(active);
+        }
         dayCaption.setText((showHistory?"Todas las fechas":"Hoy, "+LeadStore.today())+
             (presenterFilter.isEmpty()?"":"   ·   "+presenterFilter)+
             "   ·   4 × 3 sillas por charla");
@@ -175,7 +208,7 @@ public final class DashboardActivity extends Activity {
         TextView owner=Ui.label(this,
             "Charla de: "+(talk.presenter.isEmpty()?"Sin asignar":talk.presenter),13,true);
         owner.setTextColor(Ui.RED);titleBox.addView(owner,Ui.spaced(this,4));
-        TextView hint=Ui.label(this,"Silla libre: buscar en Atendidas  ·  Ocupada: abrir ficha  ·  Mantener: opciones",12,false);
+        TextView hint=Ui.label(this,"Tocá una silla para agregar o abrir una persona",12,false);
         hint.setTextColor(Ui.MUTED);titleBox.addView(hint,Ui.spaced(this,4));
         titleRow.addView(titleBox,new LinearLayout.LayoutParams(0,-2,1));
         Button rename=Ui.button(this,"Editar",false);
@@ -183,6 +216,7 @@ public final class DashboardActivity extends Activity {
         titleRow.addView(rename,new LinearLayout.LayoutParams(Ui.dp(this,82),Ui.dp(this,44)));
         body.addView(titleRow,Ui.spaced(this,17));
 
+        if(!listMode){
         LinearLayout room=Ui.column(this,9);
         room.setBackground(Ui.bg(this,Color.rgb(250,250,250),18,Ui.LINE));
         TextView front=Ui.label(this,"FRENTE DE LA CHARLA",11,true);
@@ -200,7 +234,7 @@ public final class DashboardActivity extends Activity {
                 }
                 LinearLayout tile=seat(talk,chair,occupant);
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,Ui.dp(this,
-                    getResources().getConfiguration().smallestScreenWidthDp>=600?112:95),1);
+                    getResources().getConfiguration().smallestScreenWidthDp>=600?112:104),1);
                 if(c!=0)lp.leftMargin=Ui.dp(this,7);
                 row.addView(tile,lp);
             }
@@ -210,6 +244,7 @@ public final class DashboardActivity extends Activity {
         rear.setGravity(Gravity.CENTER);rear.setTextColor(Ui.MUTED);
         room.addView(rear,Ui.spaced(this,8));
         body.addView(room,Ui.spaced(this,13));
+        }else drawPeople(talk);
 
         int occupied=0,done=0;
         for(LeadStore.Lead l:current)if(talk.id.equals(l.talkId)){
@@ -239,12 +274,43 @@ public final class DashboardActivity extends Activity {
         }
         View gap=new View(this);body.addView(gap,new LinearLayout.LayoutParams(-1,Ui.dp(this,20)));
     }
+    private void drawPeople(TalkStore.Talk talk){
+        int count=0;
+        for(LeadStore.Lead lead:current){
+            if(!talk.id.equals(lead.talkId))continue;count++;
+            LinearLayout card=Ui.column(this,13);card.setBackground(Ui.bg(this,Color.WHITE,17,Ui.LINE));
+            LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);
+            TextView number=Ui.label(this,String.format(Locale.ROOT,"%02d",lead.seatIndex+1),17,true);
+            number.setTextColor(Ui.RED);number.setGravity(Gravity.CENTER);
+            number.setBackground(Ui.bg(this,Color.rgb(253,239,237),12,0));
+            line.addView(number,new LinearLayout.LayoutParams(Ui.dp(this,42),Ui.dp(this,44)));
+            LinearLayout text=Ui.column(this,0);TextView name=Ui.label(this,lead.name,16,true);text.addView(name);
+            TextView detail=Ui.label(this,lead.label()+(lead.advisor.isEmpty()?"":" · "+lead.advisor),12,false);
+            detail.setTextColor(Ui.MUTED);text.addView(detail,Ui.spaced(this,4));
+            LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(0,-2,1);tp.leftMargin=Ui.dp(this,12);line.addView(text,tp);
+            TextView more=Ui.label(this,"⋯",23,true);more.setGravity(Gravity.CENTER);more.setContentDescription("Opciones de "+lead.name);
+            more.setBackground(Ui.ripple(this,Color.WHITE,12,0));more.setOnClickListener(v->showSeatOptions(lead));
+            line.addView(more,new LinearLayout.LayoutParams(Ui.dp(this,42),Ui.dp(this,48)));card.addView(line);
+            card.setOnClickListener(v->openLead(lead));body.addView(card,Ui.spaced(this,9));
+        }
+        if(count==0){TextView empty=Ui.label(this,"Esta charla todavía no tiene personas.",15,false);empty.setTextColor(Ui.MUTED);body.addView(empty,Ui.spaced(this,18));}
+        if(count<TalkStore.CAPACITY){
+            Button add=Ui.button(this,"+ Agregar persona",true);
+            add.setOnClickListener(v->{
+                for(int seat=0;seat<TalkStore.CAPACITY;seat++){
+                    boolean occupied=false;
+                    for(LeadStore.Lead item:current)if(talk.id.equals(item.talkId)&&item.seatIndex==seat){occupied=true;break;}
+                    if(!occupied){pickSeat(talk,seat);return;}
+                }
+            });body.addView(add,Ui.spaced(this,14));
+        }
+    }
     private LinearLayout seat(TalkStore.Talk talk,int index,LeadStore.Lead occupant){
         boolean filled=occupant!=null;
         boolean done=filled&&LeadStore.DONE.equals(occupant.status);
         int background=!filled?Color.WHITE:done?Color.rgb(231,248,238):Color.rgb(254,245,237);
         int stroke=!filled?Ui.LINE:done?Color.rgb(42,145,96):Color.rgb(218,126,85);
-        LinearLayout tile=Ui.column(this,8);
+        LinearLayout tile=Ui.column(this,6);
         tile.setGravity(Gravity.CENTER);
         tile.setMinimumWidth(0);
         tile.setBackground(Ui.bg(this,background,13,stroke));

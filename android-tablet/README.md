@@ -1,4 +1,22 @@
-# Más Dueños · Enrutador Tablet (prototipo 0.6.1)
+# Más Dueños · App unificada para celulares (1.0.0)
+
+## Versión unificada actual
+
+Una APK combina Salón (incluida su integración de leads, ventas y comisiones) con las charlas, sillas, fichas, captura del Full-test e impresión de Enrutador. El módulo histórico conserva el directorio `android-tablet` para no cambiar el identificador Android ni perder el almacenamiento cifrado de las instalaciones existentes.
+
+- Navegación inferior única: **Salón · Enrutar · Yo**. No hay botón «Hoy».
+- Enrutación tiene secciones Charlas, Sillas y CRM. El tablero permite alternar plano 4 × 3 y lista de personas.
+- Las fichas se organizan en Datos → Hoja → Confirmar. Se conserva la vista previa obligatoria de la hoja y el registro manual final en el CRM.
+- Salón usa su WebView y almacenamiento en `:salon`; Host mantiene `:host`; Enrutador conserva el proceso principal. Los perfiles no intercambian cookies, PINes ni tokens. El proceso Salón incorpora intacta la integración de ventas y los reintentos seguros del APK de referencia.
+- Los controles originales de Salón se conservan en el DOM y la barra nativa los activa por su etiqueta real. No se adivinan rutas del perfil. El dock web se oculta únicamente cuando se identifica su contenedor inferior, sin ocultar formularios ni contenido.
+- Los cambios de pestaña reutilizan pantallas abiertas. La barra respeta los márgenes del sistema y se oculta cuando aparece el teclado.
+- Se actualiza sobre Enrutador 0.7.2: mismo `applicationId`, certificado, preferencias cifradas y clave Android Keystore. Conserva charlas, fichas, PDFs y sesiones de Enrutador/Host. La app Salón anterior tiene otro identificador Android: su sesión privada no se puede importar automáticamente; será necesario ingresar una vez en Salón dentro de la app unificada.
+- Asesores siguen viniendo de `https://masduenos.laind.io/assets/tablet/directory.json`, con copia local válida para trabajar sin conexión.
+- Distribución: `versionCode 19`, `versionName 1.0.0`; firmar con la misma clave de la serie Enrutador. Nunca incluir las claves en el repositorio.
+
+Verificación del dock web en Chromium: `node scripts/qa/verify-unified-navigation.cjs` (requiere Playwright y su Chromium; opcionalmente `QA_CHROMIUM` apunta a un ejecutable existente). La prueba utiliza una página sintética, sin sesión ni datos del CRM.
+
+## Historial del módulo Enrutador
 
 Proyecto Android dedicado para Samsung Galaxy Tab A8; **no modifica** la app existente de Salón.
 

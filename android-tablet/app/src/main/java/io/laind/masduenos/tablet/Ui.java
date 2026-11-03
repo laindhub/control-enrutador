@@ -5,6 +5,8 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.content.res.ColorStateList;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -29,11 +31,17 @@ final class Ui {
         if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         return t;
     }
+    static RippleDrawable ripple(Activity a,int color,int radius,int border){
+        return new RippleDrawable(ColorStateList.valueOf(Color.argb(26,23,23,23)),bg(a,color,radius,border),bg(a,Color.WHITE,radius,0));
+    }
     static Button button(Activity a,String text,boolean primary){
         Button b=new Button(a);b.setText(text);b.setAllCaps(false);b.setTextSize(15);
         b.setTextColor(primary?Color.WHITE:INK);
-        b.setBackground(bg(a,primary?RED:Color.WHITE,13,primary?0:LINE));
-        b.setMinHeight(dp(a,54));return b;
+        b.setBackground(ripple(a,primary?RED:Color.WHITE,14,primary?0:LINE));
+        b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
+        b.setStateListAnimator(null);b.setElevation(0);b.setMinimumWidth(0);
+        b.setPadding(dp(a,14),dp(a,9),dp(a,14),dp(a,9));
+        b.setMinHeight(dp(a,48));return b;
     }
     static LinearLayout.LayoutParams spaced(Activity a,int top){
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(a,top);return lp;

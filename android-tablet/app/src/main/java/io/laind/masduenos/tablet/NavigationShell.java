@@ -3,84 +3,114 @@ package io.laind.masduenos.tablet;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.Typeface;
+import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** Persistent responsive navigation: bottom bar on phones, left dock on tablets. */
+/** One phone-first dock shared by Salón and all native routing screens. */
 final class NavigationShell {
     static final int BOARD=0,HOST=1,ROUTER=2;
-    static void install(Activity activity,View content,int active){
-        boolean tablet=activity.getResources().getConfiguration().smallestScreenWidthDp>=600;
-        LinearLayout shell=new LinearLayout(activity);
-        shell.setOrientation(tablet?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
+    private static final String DOCK="unified_mobile_dock";
+    static void install(Activity activity,View content,int active){install(activity,content,active,false);}
+    static void installSalon(Activity activity,View content){install(activity,content,-1,true);}
+    private static void install(Activity activity,View content,int active,boolean salon){
+        LinearLayout shell=new LinearLayout(activity);shell.setOrientation(LinearLayout.VERTICAL);
         shell.setBackgroundColor(Color.WHITE);
-        LinearLayout dock=new LinearLayout(activity);
-        dock.setOrientation(tablet?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);
-        dock.setGravity(tablet?Gravity.TOP:Gravity.CENTER);
-        dock.setPadding(Ui.dp(activity,tablet?8:5),Ui.dp(activity,tablet?18:5),
-            Ui.dp(activity,tablet?8:5),Ui.dp(activity,tablet?8:5));
-        dock.setBackgroundColor(Color.rgb(250,250,250));
-        if(tablet){
-            TextView mark=Ui.label(activity,"MD",20,true);
-            mark.setTextColor(Ui.RED);mark.setGravity(Gravity.CENTER);
-            dock.addView(mark,new LinearLayout.LayoutParams(-1,Ui.dp(activity,65)));
-        }
-        int[] ids={BOARD,HOST,ROUTER};
-        String[] icons={"▦","⌕","⇄"};
-        String[] labels={"Tablero","Charlas","Enrutador"};
-        for(int i=0;i<ids.length;i++){
-            final int destination=ids[i];
-            LinearLayout item=new LinearLayout(activity);
-            item.setOrientation(LinearLayout.VERTICAL);item.setGravity(Gravity.CENTER);
-            item.setBackground(Ui.bg(activity,i==active?Color.rgb(252,235,233):Color.TRANSPARENT,14,0));
-            TextView icon=Ui.label(activity,icons[i],tablet?25:21,false);
-            icon.setTextColor(i==active?Ui.RED:Ui.MUTED);icon.setGravity(Gravity.CENTER);item.addView(icon);
-            TextView label=Ui.label(activity,labels[i],tablet?12:11,i==active);
-            label.setTextColor(i==active?Ui.RED:Ui.MUTED);label.setGravity(Gravity.CENTER);item.addView(label);
-            item.setContentDescription(labels[i]);
-            item.setOnClickListener(v->navigate(activity,destination));
-            if(tablet){
-                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,Ui.dp(activity,77));lp.bottomMargin=Ui.dp(activity,9);
-                dock.addView(item,lp);
-            }else{
-                dock.addView(item,new LinearLayout.LayoutParams(0,Ui.dp(activity,64),1));
+        if(!salon && !(activity instanceof MainActivity)){
+            LinearLayout header=new LinearLayout(activity);header.setGravity(Gravity.CENTER_VERTICAL);
+            header.setPadding(Ui.dp(activity,20),Ui.dp(activity,9),Ui.dp(activity,20),Ui.dp(activity,8));
+            TextView brand=Ui.label(activity,"Más Dueños",18,true);
+            header.addView(brand,new LinearLayout.LayoutParams(0,Ui.dp(activity,32),1));
+            TextView area=Ui.label(activity,"Enrutación",12,false);area.setTextColor(Ui.MUTED);header.addView(area);
+            shell.addView(header);
+            LinearLayout tabs=new LinearLayout(activity);tabs.setGravity(Gravity.CENTER);
+            tabs.setPadding(Ui.dp(activity,4),Ui.dp(activity,4),Ui.dp(activity,4),Ui.dp(activity,4));
+            tabs.setBackground(Ui.bg(activity,Color.rgb(245,245,246),15,0));
+            String[] labels={"Charlas","Sillas","CRM"};int[] screens={HOST,BOARD,ROUTER};
+            for(int i=0;i<labels.length;i++){
+                int screen=screens[i];boolean selected=active==screen;
+                TextView tab=Ui.label(activity,labels[i],13,selected);tab.setGravity(Gravity.CENTER);
+                tab.setTextColor(selected?Ui.INK:Ui.MUTED);
+                tab.setBackground(Ui.ripple(activity,selected?Color.WHITE:Color.TRANSPARENT,11,0));
+                tab.setContentDescription(labels[i]);tab.setSelected(selected);
+                tab.setOnClickListener(v->navigate(activity,screen));
+                tabs.addView(tab,new LinearLayout.LayoutParams(0,Ui.dp(activity,38),1));
             }
+            LinearLayout.LayoutParams tl=new LinearLayout.LayoutParams(-1,-2);
+            tl.setMargins(Ui.dp(activity,16),0,Ui.dp(activity,16),Ui.dp(activity,3));shell.addView(tabs,tl);
         }
-        if(tablet){
-            shell.addView(dock,new LinearLayout.LayoutParams(Ui.dp(activity,104),-1));
-            View sep=new View(activity);sep.setBackgroundColor(Ui.LINE);
-            shell.addView(sep,new LinearLayout.LayoutParams(Ui.dp(activity,1),-1));
-            shell.addView(content,new LinearLayout.LayoutParams(0,-1,1));
-        }else{
-            shell.addView(content,new LinearLayout.LayoutParams(-1,0,1));
-            View sep=new View(activity);sep.setBackgroundColor(Ui.LINE);
-            shell.addView(sep,new LinearLayout.LayoutParams(-1,Ui.dp(activity,1)));
-            shell.addView(dock,new LinearLayout.LayoutParams(-1,Ui.dp(activity,80)));
+        shell.addView(content,new LinearLayout.LayoutParams(-1,0,1));
+        View separator=new View(activity);separator.setBackgroundColor(Ui.LINE);
+        shell.addView(separator,new LinearLayout.LayoutParams(-1,Ui.dp(activity,1)));
+        LinearLayout dock=new LinearLayout(activity);dock.setTag(DOCK);dock.setGravity(Gravity.CENTER);
+        dock.setPadding(Ui.dp(activity,8),Ui.dp(activity,3),Ui.dp(activity,8),Ui.dp(activity,3));
+        String[] labels={"Salón","Enrutar","Yo"};
+        int[] iconKinds={UiIcon.HOME,UiIcon.ROUTE,UiIcon.USER};
+        for(int i=0;i<labels.length;i++){
+            final int tab=i;
+            LinearLayout item=new LinearLayout(activity);item.setOrientation(LinearLayout.VERTICAL);item.setGravity(Gravity.CENTER);
+            item.setTag("unified_tab_"+i);item.setBackground(Ui.ripple(activity,Color.WHITE,14,0));
+            UiIcon icon=new UiIcon(activity,iconKinds[i],Ui.MUTED);item.addView(icon,new LinearLayout.LayoutParams(Ui.dp(activity,23),Ui.dp(activity,23)));
+            TextView text=Ui.label(activity,labels[i],11,false);text.setGravity(Gravity.CENTER);text.setTextColor(Ui.MUTED);
+            LinearLayout.LayoutParams caption=new LinearLayout.LayoutParams(-1,-2);caption.topMargin=Ui.dp(activity,4);item.addView(text,caption);
+            item.setContentDescription(labels[i]);item.setFocusable(true);
+            item.setOnClickListener(v->{if(tab==1)openRouting(activity);else openSalon(activity,tab==2?"yo":"puestos");});
+            dock.addView(item,new LinearLayout.LayoutParams(0,Ui.dp(activity,60),1));
         }
-        // Android 15 enforces edge-to-edge for target 35. Keep both the header
-        // and the dock outside status/navigation bar cutouts.
+        shell.addView(dock,new LinearLayout.LayoutParams(-1,-2));
+        activity.setContentView(shell);selectDock(activity,salon?0:1);
         shell.setOnApplyWindowInsetsListener((view,insets)->{
-            android.graphics.Insets bars=insets.getInsets(
-                android.view.WindowInsets.Type.statusBars() |
-                android.view.WindowInsets.Type.navigationBars() |
-                android.view.WindowInsets.Type.displayCutout());
-            view.setPadding(bars.left,bars.top,bars.right,bars.bottom);
-            return insets;
+            int left,top,right,bottom;boolean keyboard=false;
+            if(Build.VERSION.SDK_INT>=30){
+                android.graphics.Insets bars=insets.getInsets(android.view.WindowInsets.Type.systemBars()|android.view.WindowInsets.Type.displayCutout());
+                left=bars.left;top=bars.top;right=bars.right;bottom=bars.bottom;
+                keyboard=insets.isVisible(android.view.WindowInsets.Type.ime());
+                if(keyboard)bottom=Math.max(bottom,insets.getInsets(android.view.WindowInsets.Type.ime()).bottom);
+            }else{
+                left=insets.getSystemWindowInsetLeft();top=insets.getSystemWindowInsetTop();right=insets.getSystemWindowInsetRight();bottom=insets.getSystemWindowInsetBottom();
+                keyboard=bottom>Ui.dp(activity,150);
+            }
+            view.setPadding(left,top,right,bottom);
+            dock.setVisibility(keyboard?View.GONE:View.VISIBLE);separator.setVisibility(keyboard?View.GONE:View.VISIBLE);
+            return insets.consumeSystemWindowInsets();
         });
-        activity.setContentView(shell);
         shell.requestApplyInsets();
     }
-    private static void navigate(Activity context,int screen){
-        Class<? extends Activity> destination=screen==HOST?CharlasActivity.class:
-            screen==ROUTER?RouterActivity.class:DashboardActivity.class;
-        if(context.getClass()==destination)return;
-        Intent intent=new Intent(context,destination);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        context.startActivity(intent);
-        if(context instanceof HostLookupActivity||context instanceof RouterActivity)context.finish();
+    static void selectSalonTab(Activity activity,String tab){selectDock(activity,"yo".equals(tab)?2:0);}
+    private static void selectDock(Activity activity,int active){
+        ViewGroup root=activity.findViewById(android.R.id.content);
+        if(root==null)return;
+        for(int i=0;i<3;i++){
+            LinearLayout item=root.findViewWithTag("unified_tab_"+i);if(item==null)continue;
+            boolean selected=i==active;item.setSelected(selected);
+            ((UiIcon)item.getChildAt(0)).color(selected?Ui.RED:Ui.MUTED);
+            TextView label=(TextView)item.getChildAt(1);label.setTextColor(selected?Ui.RED:Ui.MUTED);
+            label.setTypeface(android.graphics.Typeface.DEFAULT,selected?android.graphics.Typeface.BOLD:android.graphics.Typeface.NORMAL);
+        }
+    }
+    static void openRouting(Activity activity){
+        if(activity instanceof CharlasActivity)return;
+        open(activity,new Intent(activity,CharlasActivity.class));
+    }
+    static void openSalon(Activity activity,String tab){
+        if(activity instanceof SalonActivity){((SalonActivity)activity).openSalonTab(tab);return;}
+        Intent intent=new Intent(activity,SalonActivity.class);intent.putExtra("salon_destination",tab);open(activity,intent);
+    }
+    private static void navigate(Activity activity,int screen){
+        Class<? extends Activity> destination=screen==HOST?CharlasActivity.class:screen==ROUTER?RouterActivity.class:DashboardActivity.class;
+        if(activity.getClass()==destination)return;
+        Intent intent=new Intent(activity,destination);
+        if(destination==DashboardActivity.class)intent.putExtra("show_all_presenters",true);
+        open(activity,intent);
+    }
+    static void open(Activity activity,Intent intent){
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        activity.startActivity(intent);activity.overridePendingTransition(0,0);
+        if(activity instanceof MainActivity && intent.getComponent()!=null &&
+                !RouterActivity.class.getName().equals(intent.getComponent().getClassName()))activity.finish();
     }
     private NavigationShell(){}
 }

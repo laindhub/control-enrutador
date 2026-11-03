@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.laind.masduenos.tablet">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <application android:name=".TabletApplication" android:label="Más Dueños · Enrutador" android:icon="@android:drawable/ic_menu_agenda"
+    <application android:name=".TabletApplication" android:label="Más Dueños" android:icon="@drawable/app_icon"
         android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false"
         android:usesCleartextTraffic="true" android:supportsRtl="true">
         <activity android:name=".HostActivity" android:exported="false" android:process=":host" />
@@ -9,7 +9,8 @@
         <activity android:name=".RouterActivity" android:exported="false" />
         <activity android:name=".CharlasActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".DashboardActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
+        <activity android:name=".DashboardActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".SalonActivity" android:process=":salon" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize" android:enableOnBackInvokedCallback="false">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
     </application>

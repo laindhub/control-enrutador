@@ -54,6 +54,9 @@ public final class MainActivity extends Activity {
     private boolean editingReady=false,crmOpened=false,printBusy=false;
     private boolean pendingPrintDirect=false;
     private Button paperButton,markDoneButton,removeButton;
+    private final LinearLayout[] stages=new LinearLayout[3];
+    private final TextView[] stageTabs=new TextView[3];
+    private int stage=0;
     private final Runnable delayedSave=()->saveDraft();
     @Override public void onCreate(Bundle saved){
         super.onCreate(saved);Ui.statusBars(this);
@@ -65,29 +68,47 @@ public final class MainActivity extends Activity {
             UiSheets.notice(this,"Abrí una persona desde el tablero.",true);
             finish();return;
         }
-        ScrollView scroll=new ScrollView(this);
-        LinearLayout content=Ui.column(this,16);content.setBackgroundColor(Color.WHITE);
-        scroll.setFillViewport(true);
-        scroll.addView(content);NavigationShell.install(this,scroll,NavigationShell.BOARD);
+        LinearLayout screen=Ui.column(this,0);screen.setBackgroundColor(Color.WHITE);
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(Ui.dp(this,12),Ui.dp(this,9),Ui.dp(this,20),Ui.dp(this,9));
+        TextView back=Ui.label(this,"‹",32,false);back.setGravity(Gravity.CENTER);
+        back.setBackground(Ui.ripple(this,Color.WHITE,14,0));back.setContentDescription("Volver al tablero");
+        back.setOnClickListener(v->onBackPressed());bar.addView(back,new LinearLayout.LayoutParams(Ui.dp(this,44),Ui.dp(this,48)));
+        TextView title=Ui.label(this,"Derivación",24,true);bar.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        screen.addView(bar);
+        LinearLayout progressTabs=new LinearLayout(this);
+        progressTabs.setPadding(Ui.dp(this,16),0,Ui.dp(this,16),Ui.dp(this,10));
+        String[] labels={"1  Datos","2  Hoja","3  Confirmar"};
+        for(int i=0;i<labels.length;i++){
+            final int index=i;TextView tab=Ui.label(this,labels[i],12,true);
+            tab.setGravity(Gravity.CENTER);tab.setPadding(0,Ui.dp(this,12),0,Ui.dp(this,12));
+            tab.setOnClickListener(v->requestStage(index));stageTabs[i]=tab;
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);if(i>0)lp.leftMargin=Ui.dp(this,6);
+            progressTabs.addView(tab,lp);
+        }
+        screen.addView(progressTabs);
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        LinearLayout holder=Ui.column(this,18);holder.setBackgroundColor(Color.WHITE);scroll.addView(holder);
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        NavigationShell.install(this,screen,NavigationShell.BOARD);
+        for(int i=0;i<stages.length;i++){stages[i]=Ui.column(this,0);holder.addView(stages[i],new LinearLayout.LayoutParams(-1,-2));}
+        LinearLayout content=stages[0];
 
-        Button back=Ui.button(this,"‹ Volver al tablero",false);
-        back.setOnClickListener(v->{saveDraft();finish();});
-        content.addView(back,new LinearLayout.LayoutParams(-1,Ui.dp(this,47)));
-        TextView eyebrow=Ui.label(this,"MÁS DUEÑOS · LINIERS",12,true);
-        eyebrow.setTextColor(Ui.RED);content.addView(eyebrow);
-        TextView title=Ui.label(this,"Preparar derivación",24,true);content.addView(title,Ui.spaced(this,5));
-        section(content,"01  PERSONA · VERIFICADA EN HOST");
         LinearLayout identity=new LinearLayout(this);
-        identity.setOrientation(LinearLayout.HORIZONTAL);
+        identity.setOrientation(LinearLayout.VERTICAL);
         identity.setGravity(Gravity.CENTER_VERTICAL);
         identity.setBackground(Ui.bg(this,Color.rgb(247,247,247),16,Ui.LINE));
         identity.setPadding(Ui.dp(this,13),Ui.dp(this,10),Ui.dp(this,11),Ui.dp(this,10));
-        name=identityField(identity,"Nombre","Nombre",2.3f);
-        phone=identityField(identity,"Teléfono","Teléfono",1.7f);
-        arrival=identityField(identity,"Llegó","Hora",.9f);
+        LinearLayout nameRow=new LinearLayout(this);
+        name=identityField(nameRow,"PERSONA · VERIFICADA EN HOST","Nombre",1f);name.setTextSize(19);
+        identity.addView(nameRow,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout details=new LinearLayout(this);
+        phone=identityField(details,"Teléfono","Teléfono",1.7f);
+        arrival=identityField(details,"Llegó","Hora",.9f);
+        identity.addView(details,Ui.spaced(this,8));
         content.addView(identity,Ui.spaced(this,11));
 
-        section(content,"02  PREPARAR DERIVACIÓN");
+        section(content,"Datos de la derivación");
         presenter=autocomplete(content,"Charla de · Presentador",PRESENTERS);
         if(!draft.talkId.isEmpty()){
             TextView inherited=Ui.label(this,
@@ -98,11 +119,12 @@ public final class MainActivity extends Activity {
         advisor=autocomplete(content,"Derivado a · Asesor",advisorDirectory.current().names());
         directoryStatus=Ui.label(this,"Lista guardada de asesores",12,false);
         directoryStatus.setTextColor(Ui.MUTED);content.addView(directoryStatus,Ui.spaced(this,4));
-        Button refreshAdvisors=Ui.button(this,"Actualizar asesores",false);
+        Button refreshAdvisors=Ui.button(this,"Actualizar lista de asesores",false);
+        refreshAdvisors.setTextSize(12);refreshAdvisors.setMinHeight(Ui.dp(this,38));
         refreshAdvisors.setOnClickListener(v->refreshAdvisors());
         content.addView(refreshAdvisors,Ui.spaced(this,5));
         description=field(content,"Descripción · Referencia visual","Ej.: campera azul, lentes, está cerca de recepción",true);
-        TextView internal=Ui.label(this,"La descripción es un dato interno de esta tablet y de la hoja impresa. No se agrega al CRM.",12,false);
+        TextView internal=Ui.label(this,"La descripción es un dato interno de este dispositivo y de la hoja impresa. No se agrega al CRM.",12,false);
         internal.setTextColor(Ui.MUTED);content.addView(internal,Ui.spaced(this,6));
 
         Ui.addLabel(this,content,"¿Cómo le fue en la charla?",14);
@@ -110,7 +132,10 @@ public final class MainActivity extends Activity {
         Ui.addLabel(this,content,"¿Qué producto?",14);
         product=spinner(content,new String[]{"PAI","Pozo"});
 
-        section(content,"03  HOJA DE ARCHIVO · IMPRESIÓN");
+        Button next=Ui.button(this,"Continuar a impresión  ›",true);
+        next.setOnClickListener(v->requestStage(1));content.addView(next,Ui.spaced(this,22));
+        content=stages[1];
+        section(content,"Hoja de archivo");
         TextView printHelp=Ui.label(this,"El test se obtiene desde Host automáticamente al imprimir. Una hoja A4, una copia.",13,false);
         printHelp.setTextColor(Ui.MUTED);content.addView(printHelp,Ui.spaced(this,8));
         pdfStatus=Ui.label(this,"Comprobando documento original…",12,false);
@@ -132,12 +157,13 @@ public final class MainActivity extends Activity {
         printAndroid.setOnClickListener(v->preparePrint(false));
         content.addView(printAndroid,Ui.spaced(this,9));
 
-        section(content,"04  COMPLETAR DERIVACIÓN");
+        paperButton=Ui.button(this,"Ya retiré la hoja · Continuar",true);
+        paperButton.setOnClickListener(v->confirmPaper());
+        content.addView(paperButton,Ui.spaced(this,20));
+        content=stages[2];
+        section(content,"Confirmar derivación");
         TextView finalInfo=Ui.label(this,"Retirá la hoja y verificá sus datos antes de confirmar la derivación en el CRM.",13,false);
         finalInfo.setTextColor(Ui.MUTED);content.addView(finalInfo,Ui.spaced(this,8));
-        paperButton=Ui.button(this,"Ya retiré la hoja impresa",false);
-        paperButton.setOnClickListener(v->confirmPaper());
-        content.addView(paperButton,Ui.spaced(this,12));
         complete=Ui.button(this,"Completar derivación · CRM",true);
         complete.setOnClickListener(v->confirmHandoff());
         content.addView(complete,Ui.spaced(this,9));
@@ -145,10 +171,35 @@ public final class MainActivity extends Activity {
         markDoneButton.setOnClickListener(v->markRegistered());
         content.addView(markDoneButton,Ui.spaced(this,9));
         operationStatus=Ui.label(this,"Comprobando estado de esta persona…",12,false);
-        operationStatus.setTextColor(Ui.MUTED);content.addView(operationStatus,Ui.spaced(this,9));
+        operationStatus.setTextColor(Ui.MUTED);holder.addView(operationStatus,Ui.spaced(this,14));
         removeButton=Ui.button(this,"Quitar persona del tablero",false);
         removeButton.setOnClickListener(v->clearLead());content.addView(removeButton,Ui.spaced(this,22));
         restoreDraft();installDraftListeners();updateStatus();
+        int initial=LeadStore.SENT.equals(draft.status)?1:
+            (LeadStore.PAPER.equals(draft.status)||LeadStore.DONE.equals(draft.status)?2:0);
+        showStage(saved==null?initial:saved.getInt("editor_stage",initial));
+    }
+    private void requestStage(int index){
+        if(index==1&&!LeadStore.DONE.equals(draft.status)&&!validate())return;
+        if(index==2&&!LeadStore.PAPER.equals(draft.status)&&!LeadStore.DONE.equals(draft.status)){
+            UiSheets.notice(this,"Primero imprimí y confirmá que retiraste la hoja.",false);return;
+        }
+        saveDraft();showStage(index);
+    }
+    private void showStage(int index){
+        stage=Math.max(0,Math.min(2,index));
+        for(int i=0;i<stages.length;i++){
+            stages[i].setVisibility(i==stage?View.VISIBLE:View.GONE);
+            stageTabs[i].setBackground(Ui.ripple(this,i==stage?Color.rgb(253,239,237):Color.rgb(247,247,248),12,0));
+            stageTabs[i].setTextColor(i==stage?Ui.RED:Ui.MUTED);stageTabs[i].setSelected(i==stage);
+        }
+    }
+    @Override protected void onSaveInstanceState(Bundle state){
+        state.putInt("editor_stage",stage);super.onSaveInstanceState(state);
+    }
+    @Override public void onBackPressed(){
+        if(stage>0){showStage(stage-1);return;}
+        saveDraft();super.onBackPressed();
     }
     @Override protected void onResume(){
         super.onResume();
@@ -363,10 +414,7 @@ public final class MainActivity extends Activity {
         if(direct&&!PrintController.isPrivateIPv4(value(printerIp))){
             printerIp.setError("La IP debe estar en la red local.");return;
         }
-        UiSheets.confirm(this,"Preparar hoja de archivo",
-            value(name)+"\nCharla de: "+value(presenter)+"\nDerivado a: "+value(advisor)+
-                "\nDescripción: "+value(description)+"\n\nUna hoja A4, una copia, simple faz.",
-            "Corregir","Ver hoja",()->doPrint(direct));
+        doPrint(direct);
     }
     private void doPrint(boolean direct){
         try{
@@ -436,12 +484,7 @@ public final class MainActivity extends Activity {
     }
     private void confirmPaper(){
         if(!LeadStore.SENT.equals(draft.status))return;
-        UiSheets.confirm(this,"Hoja de archivo",
-            "¿Salió físicamente el Full-test de "+draft.name+
-                " con el asesor, presentador y descripción correctos?",
-            "Todavía no","Sí, la retiré",()->{
-                draft.status=LeadStore.PAPER;saveDraft();updateStatus();
-            });
+        draft.status=LeadStore.PAPER;saveDraft();updateStatus();showStage(2);
     }
     private void confirmHandoff(){
         if(!LeadStore.PAPER.equals(draft.status)||outputPdf==null)return;
@@ -453,7 +496,7 @@ public final class MainActivity extends Activity {
                 crmOpened=true;
                 Intent next=new Intent(this,RouterActivity.class);
                 next.putExtra("crmPath",draft.crmPath);
-                startActivity(next);
+                NavigationShell.open(this,next);
                 updateStatus();
             });
     }
@@ -468,7 +511,7 @@ public final class MainActivity extends Activity {
     }
     private void clearLead(){
         UiSheets.confirm(this,"Quitar del tablero",
-            "Se borrará el borrador y el PDF privado de la tablet. El CRM original no se modificará.",
+            "Se borrará el borrador y el PDF privado del dispositivo. El CRM original no se modificará.",
             "Cancelar","Quitar",()->{
                 autosave.removeCallbacks(delayedSave);editingReady=false;
                 try{store.remove(draft.id);finish();}

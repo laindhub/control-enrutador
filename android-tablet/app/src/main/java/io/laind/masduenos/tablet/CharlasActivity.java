@@ -59,7 +59,7 @@ public final class CharlasActivity extends Activity {
         Intent intent=new Intent(this,DashboardActivity.class);
         intent.putExtra("talk_id",t.id);
         intent.putExtra("presenter_filter",t.presenter);
-        startActivity(intent);
+        NavigationShell.open(this,intent);
     }
     private void render(){
         contents.removeAllViews();
@@ -116,11 +116,17 @@ public final class CharlasActivity extends Activity {
             }
         }
     }
+    private String initials(String name){
+        String[] parts=name.trim().split("\\s+");
+        return parts.length==0?"MD":parts[0].substring(0,1)+(parts.length>1?parts[parts.length-1].substring(0,1):"");
+    }
     private LinearLayout presenterCard(String presenter,ArrayList<TalkStore.Talk> owned){
         LinearLayout card=Ui.column(this,13);
-        card.setBackground(Ui.bg(this,Color.rgb(251,244,243),18,Ui.LINE));
-        TextView icon=Ui.label(this,"◉",22,true);
-        icon.setTextColor(Ui.RED);card.addView(icon);
+        card.setBackground(Ui.ripple(this,Color.WHITE,20,Ui.LINE));
+        TextView icon=Ui.label(this,initials(presenter),17,true);
+        icon.setTextColor(Ui.RED);icon.setGravity(Gravity.CENTER);
+        icon.setBackground(Ui.bg(this,Color.rgb(253,239,237),13,0));
+        card.addView(icon,new LinearLayout.LayoutParams(Ui.dp(this,38),Ui.dp(this,38)));
         TextView name=Ui.label(this,presenter,16,true);
         name.setMaxLines(2);card.addView(name,Ui.spaced(this,5));
         int present=0;
@@ -173,6 +179,6 @@ public final class CharlasActivity extends Activity {
     }
     @Override public void onBackPressed(){
         if(!selectedPresenter.isEmpty()){selectedPresenter="";render();return;}
-        super.onBackPressed();
+        NavigationShell.openSalon(this,"puestos");
     }
 }

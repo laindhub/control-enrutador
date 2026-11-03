@@ -50,12 +50,13 @@ test('Host report is captured from the original popup without importing files',(
  assert.doesNotMatch(main,/ACTION_OPEN_DOCUMENT|Importar PDF original del CRM|choosePdf\(/);
 });
 
-test('tablet opens with the board, not the single-lead form',()=>{
+test('unified app opens Salón while native routing screens stay internal',()=>{
  const manifest=src('app/src/main/AndroidManifest.xml');
  const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
- assert.match(manifest,/DashboardActivity" android:exported="true"/);
+ assert.match(manifest,/SalonActivity" android:process=":salon" android:exported="true"/);
+ assert.match(manifest,/DashboardActivity" android:exported="false"/);
  assert.match(manifest,/MainActivity" android:exported="false"/);
- assert.match(dash,/Charlas de hoy/);
+ assert.match(dash,/"Sillas"/);
  assert.match(dash,/SILLA /);
  assert.match(dash,/Por imprimir/);
  assert.match(dash,/Por confirmar/);
@@ -133,14 +134,15 @@ test('Host WebView process suffix is configured only once, before WebView creati
  assert.doesNotMatch(host,/setDataDirectorySuffix/);
  assert.match(lookup,/safePath=uri\.getPath\(\)==null/);
 });
-test('mobile bottom tabs and landscape tablet dock give Host and Router fast access',()=>{
+test('one mobile dock links Salón, routing and activity without reloading tabs',()=>{
  const shell=src('app/src/main/java/io/laind/masduenos/tablet/NavigationShell.java');
  const dash=src('app/src/main/java/io/laind/masduenos/tablet/DashboardActivity.java');
  const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
  const router=src('app/src/main/java/io/laind/masduenos/tablet/RouterActivity.java');
- assert.match(shell,/smallestScreenWidthDp>=600/);
- assert.match(shell,/LinearLayout\.HORIZONTAL:LinearLayout\.VERTICAL/);
- for(const label of ['Tablero','Charlas','Enrutador'])assert.ok(shell.includes(label));
+ assert.match(shell,/"Salón","Enrutar","Yo"/);
+ assert.match(shell,/FLAG_ACTIVITY_REORDER_TO_FRONT/);
+ assert.match(shell,/WindowInsets.Type.ime/);
+ for(const label of ['Charlas','Sillas','CRM'])assert.ok(shell.includes(label));
  for(const java of [dash,lookup,router])assert.match(java,/NavigationShell\.install/);
 });
 test('shared CRM UUID opens direct assignment in own Router session',()=>{
@@ -367,7 +369,7 @@ test('Charlas nav opens grouped presenter 2x2 choices and daily session list',()
  const shell=src('app/src/main/java/io/laind/masduenos/tablet/NavigationShell.java');
  const activity=src('app/src/main/java/io/laind/masduenos/tablet/CharlasActivity.java');
  const manifest=src('app/src/main/AndroidManifest.xml');
- assert.match(shell,/"Tablero","Charlas","Enrutador"/);
+ assert.match(shell,/"Charlas","Sillas","CRM"/);
  assert.match(shell,/HOST\?CharlasActivity\.class/);
  assert.match(manifest,/CharlasActivity" android:exported="false"/);
  assert.match(activity,/LinkedHashMap<String,ArrayList<TalkStore\.Talk>>/);
@@ -376,7 +378,7 @@ test('Charlas nav opens grouped presenter 2x2 choices and daily session list',()
  assert.match(activity,/for\(int col=0;col<2;col\+\+\)/);
  assert.match(activity,/drawTalks\(\)/);
  assert.match(activity,/talk\.presenter/);
- assert.match(activity,/startActivity\(intent\)/);
+ assert.match(activity,/NavigationShell\.open\(this,intent\)/);
 });
 test('starting a talk always asks presenter; legacy talks remain unassigned for migration',()=>{
  const prompts=src('app/src/main/java/io/laind/masduenos/tablet/TalkPrompts.java');

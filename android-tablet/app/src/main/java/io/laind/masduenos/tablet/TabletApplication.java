@@ -13,6 +13,8 @@ public final class TabletApplication extends Application {
             if(process!=null&&process.endsWith(":host")){
                 WebView.setDataDirectorySuffix("host");
                 WebView.enableSlowWholeDocumentDraw();
+            }else if(process!=null&&process.endsWith(":salon")){
+                WebView.setDataDirectorySuffix("salon");
             }
         }
     }

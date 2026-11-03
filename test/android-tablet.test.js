@@ -142,7 +142,7 @@ test('one mobile dock links Salón, routing and activity without reloading tabs'
  assert.match(shell,/"Salón","Enrutar","Yo"/);
  assert.match(shell,/FLAG_ACTIVITY_REORDER_TO_FRONT/);
  assert.match(shell,/WindowInsets.Type.ime/);
- for(const label of ['Charlas','Sillas','CRM'])assert.ok(shell.includes(label));
+ for(const label of ['Charlas','Sillas'])assert.ok(shell.includes(label));
  for(const java of [dash,lookup,router])assert.match(java,/NavigationShell\.install/);
 });
 test('shared CRM UUID opens direct assignment in own Router session',()=>{
@@ -276,9 +276,10 @@ test('archive references match the questionnaire, stay outside content, omit hea
 test('Host lookup uses full-height native list instead of leaving invisible WebView half-screen',()=>{
  const lookup=src('app/src/main/java/io/laind/masduenos/tablet/HostLookupActivity.java');
  assert.match(lookup,/private ScrollView scrolling;/);
- assert.match(lookup,/private FrameLayout webHolder;/);
- assert.match(lookup,/webHolder\.setVisibility\(show\?View\.VISIBLE:View\.GONE\)/);
- assert.match(lookup,/scrolling\.setVisibility\(show\|\|reviewed!=null\?View\.GONE:View\.VISIBLE\)/);
+ assert.match(lookup,/private FrameLayout webHolder,workspace;/);
+ assert.match(lookup,/webHolder\.setAlpha\(show\?1f:0f\)/);
+ assert.match(lookup,/workspace.addView\(scrolling,new FrameLayout.LayoutParams\(-1,-1\)\)/);
+ assert.match(lookup,/scrolling\.setVisibility\(!show&&!waiting&&reviewed==null\?View\.VISIBLE:View\.GONE\)/);
  assert.doesNotMatch(lookup,/browser\.setVisibility\(show\?View\.VISIBLE:View\.GONE\)/);
  assert.match(lookup,/status\.setText\("Atendidas de hoy: "\+candidates\.size\(\)/);
 });
@@ -369,7 +370,7 @@ test('Charlas nav opens grouped presenter 2x2 choices and daily session list',()
  const shell=src('app/src/main/java/io/laind/masduenos/tablet/NavigationShell.java');
  const activity=src('app/src/main/java/io/laind/masduenos/tablet/CharlasActivity.java');
  const manifest=src('app/src/main/AndroidManifest.xml');
- assert.match(shell,/"Charlas","Sillas","CRM"/);
+ assert.match(shell,/"Charlas","Sillas"/);
  assert.match(shell,/HOST\?CharlasActivity\.class/);
  assert.match(manifest,/CharlasActivity" android:exported="false"/);
  assert.match(activity,/LinkedHashMap<String,ArrayList<TalkStore\.Talk>>/);

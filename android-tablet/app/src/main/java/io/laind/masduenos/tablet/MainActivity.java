@@ -495,9 +495,9 @@ public final class MainActivity extends Activity {
             "Revisar","Abrir CRM",()->{
                 crmOpened=true;
                 Intent next=new Intent(this,RouterActivity.class);
-                next.putExtra("crmPath",draft.crmPath);
+                next.putExtra("crmPath",draft.crmPath);next.putExtra("lead_id",draft.id);
                 NavigationShell.open(this,next);
-                updateStatus();
+                finish();
             });
     }
     private void markRegistered(){

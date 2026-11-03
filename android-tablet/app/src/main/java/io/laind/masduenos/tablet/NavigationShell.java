@@ -19,7 +19,7 @@ final class NavigationShell {
     private static void install(Activity activity,View content,int active,boolean salon){
         LinearLayout shell=new LinearLayout(activity);shell.setOrientation(LinearLayout.VERTICAL);
         shell.setBackgroundColor(Color.WHITE);
-        if(!salon && !(activity instanceof MainActivity)){
+        if(!salon && !(activity instanceof MainActivity) && !(activity instanceof HostActivity)){
             LinearLayout header=new LinearLayout(activity);header.setGravity(Gravity.CENTER_VERTICAL);
             header.setPadding(Ui.dp(activity,20),Ui.dp(activity,9),Ui.dp(activity,20),Ui.dp(activity,8));
             TextView brand=Ui.label(activity,"Más Dueños",18,true);
@@ -29,7 +29,7 @@ final class NavigationShell {
             LinearLayout tabs=new LinearLayout(activity);tabs.setGravity(Gravity.CENTER);
             tabs.setPadding(Ui.dp(activity,4),Ui.dp(activity,4),Ui.dp(activity,4),Ui.dp(activity,4));
             tabs.setBackground(Ui.bg(activity,Color.rgb(245,245,246),15,0));
-            String[] labels={"Charlas","Sillas","CRM"};int[] screens={HOST,BOARD,ROUTER};
+            String[] labels={"Charlas","Sillas"};int[] screens={HOST,BOARD};
             for(int i=0;i<labels.length;i++){
                 int screen=screens[i];boolean selected=active==screen;
                 TextView tab=Ui.label(activity,labels[i],13,selected);tab.setGravity(Gravity.CENTER);
@@ -96,6 +96,7 @@ final class NavigationShell {
         open(activity,new Intent(activity,CharlasActivity.class));
     }
     static void openSalon(Activity activity,String tab){
+        if(activity instanceof RouterActivity&&"puestos".equals(tab))return;
         if(activity instanceof SalonActivity){((SalonActivity)activity).openSalonTab(tab);return;}
         Intent intent=new Intent(activity,SalonActivity.class);intent.putExtra("salon_destination",tab);open(activity,intent);
     }
@@ -109,6 +110,7 @@ final class NavigationShell {
     static void open(Activity activity,Intent intent){
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         activity.startActivity(intent);activity.overridePendingTransition(0,0);
+        if(activity instanceof HostActivity||activity instanceof HostLookupActivity)activity.finish();
         if(activity instanceof MainActivity && intent.getComponent()!=null &&
                 !RouterActivity.class.getName().equals(intent.getComponent().getClassName()))activity.finish();
     }

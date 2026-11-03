@@ -27,7 +27,7 @@ final class HostReportCapture {
     private final FrameLayout container;
     private WebView popup;
     private int attempts;
-    private boolean armed,writing;
+    private volatile boolean armed,writing;
     private Consumer<File> success;
     private Consumer<String> failure;
 
@@ -123,9 +123,16 @@ final class HostReportCapture {
                     rows+=section.optJSONArray("rows")==null?0:section.getJSONArray("rows").length();
                 }
                 if(rows<12)throw new IllegalStateException("El reporte tiene campos insuficientes.");
-                File output=new File(activity.getCacheDir(),"crm-fulltest-original.pdf");
-                NativeFullTestPdf.write(report,output);
-                validate(output);
+                File output=File.createTempFile("crm-fulltest-",".pdf",activity.getCacheDir());
+                new Thread(()->{
+                    try{
+                        NativeFullTestPdf.write(report,output);
+                        activity.runOnUiThread(()->{
+                            if(!armed||activity.isFinishing()){output.delete();return;}
+                            validate(output);
+                        });
+                    }catch(Exception error){output.delete();activity.runOnUiThread(()->{if(armed)fail("No se pudo preparar el Full-test completo.");});}
+                },"full-test-pdf").start();
             }catch(Exception error){fail("No se pudo reconstruir el Full-test completo: "+error.getMessage());}
         });
     }

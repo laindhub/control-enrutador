@@ -42,7 +42,9 @@ public final class HostLookupActivity extends Activity {
     private LinearLayout root,results,actions,reviewPanel;
     private TextView resultSummary;
     private ScrollView scrolling;
-    private FrameLayout webHolder;
+    private FrameLayout webHolder,workspace;
+    private LoadingScreen loading;
+    private boolean loginRequired=false,loadTimedOut=false;
     private EditText search;
     private TextView status;
     private Button toggle;
@@ -117,9 +119,11 @@ public final class HostLookupActivity extends Activity {
         Button refresh=Ui.button(this,"Actualizar lista",false);
         refresh.setOnClickListener(v->{
             if(selecting)return;
-            if(!ready){showBrowser();return;}
+            if(!ready){restartLoading();return;}
+            ready=false;loadTimedOut=false;manual=false;showBrowser();
             browser.evaluateJavascript("(()=>{const b=[...document.querySelectorAll('button')].find(x=>/actualizar lista/i.test(x.textContent||''));if(b)b.click();return !!b})()",v2->{
-                handler.postDelayed(this::sync,900);
+                if(!"true".equals(v2))browser.loadUrl(ORIGIN+"/floor/full-test");
+                handler.postDelayed(this::sync,900);handler.postDelayed(this::checkLoadingTimeout,30000);
             });
         });
         buttons.addView(refresh,new LinearLayout.LayoutParams(0,Ui.dp(this,50),1));
@@ -146,8 +150,10 @@ public final class HostLookupActivity extends Activity {
         scrolling.setFillViewport(true);
         scrolling.setVerticalScrollBarEnabled(false);
         results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);
-        scrolling.addView(results);root.addView(scrolling,new LinearLayout.LayoutParams(-1,0,1));
-        webHolder=new FrameLayout(this);
+        scrolling.addView(results);
+        workspace=new FrameLayout(this);
+        root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
+        webHolder=new FrameLayout(this);workspace.addView(webHolder,new FrameLayout.LayoutParams(-1,-1));
         browser=HostWebSession.attach(this,webHolder);
         browser.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
@@ -155,6 +161,12 @@ public final class HostLookupActivity extends Activity {
                 Uri uri=req.getUrl();
                 if("https".equals(uri.getScheme())&&HOST.equals(uri.getHost()))return false;
                 return true;
+            }
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
+                if(!"/floor/login".equals(Uri.parse(url).getPath())){loginRequired=false;manual=false;showBrowser();}
+            }
+            @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){
+                if(request.isForMainFrame()){ready=false;loadTimedOut=true;showBrowser();loading.error("No pudimos cargar Atendidas","Revisá la conexión y volvé a intentar.",HostLookupActivity.this::restartLoading);}
             }
             @Override public void onPageFinished(WebView view,String url){
                 HostDesktopMode.enforce(view,()->{
@@ -164,8 +176,10 @@ public final class HostLookupActivity extends Activity {
                 });
             }
         });
-        LinearLayout.LayoutParams webParams=new LinearLayout.LayoutParams(-1,0,1);
-        root.addView(webHolder,webParams);
+        workspace.addView(scrolling,new FrameLayout.LayoutParams(-1,-1));
+        loading=new LoadingScreen(this);workspace.addView(loading,new FrameLayout.LayoutParams(-1,-1));
+        loading.loading("Cargando Atendidas","Estamos preparando la lista de personas.");
+        handler.postDelayed(this::checkLoadingTimeout,30000);
         if(!HostWebSession.initialized()){
             browser.loadUrl(ORIGIN+"/floor/full-test");
         }else{
@@ -175,22 +189,37 @@ public final class HostLookupActivity extends Activity {
         }
         showBrowser();
     }
+    private void restartLoading(){
+        handler.removeCallbacks(poll);ready=false;manual=false;loginRequired=false;selecting=false;reviewed=null;loadTimedOut=false;
+        loading.loading("Cargando Atendidas","Estamos preparando la lista de personas.");
+        showBrowser();browser.loadUrl(ORIGIN+"/floor/full-test");
+        handler.postDelayed(this::checkLoadingTimeout,30000);
+    }
+    private void checkLoadingTimeout(){
+        if(isFinishing()||ready||manual||loginRequired||reviewed!=null)return;
+        loadTimedOut=true;loading.error("La lista todavía no está lista","Revisá la conexión y volvé a intentar.",this::restartLoading);
+    }
     private void showBrowser(){
-        boolean show=manual||!ready;
-        // Both scrolling and webHolder use layout_weight=1. Hiding only
-        // the inner WebView left an EMPTY half-height container below the
-        // cards, so only three of 200+ attended leads were visible.
-        // Hide the full container so the native results take all space.
-        webHolder.setVisibility(show?View.VISIBLE:View.GONE);
-        scrolling.setVisibility(show||reviewed!=null?View.GONE:View.VISIBLE);
-        search.setVisibility(show||reviewed!=null?View.GONE:View.VISIBLE);
-        actions.setVisibility(reviewed!=null?View.GONE:View.VISIBLE);
-        resultSummary.setVisibility(show||reviewed!=null?View.GONE:View.VISIBLE);
-        reviewPanel.setVisibility(reviewed!=null?View.VISIBLE:View.GONE);
+        if(loading==null)return;
+        boolean show=manual||loginRequired;
+        boolean waiting=!show&&reviewed==null&&(!ready||selecting);
+        // Keep a full-sized WebView for React/desktop layout, but never paint
+        // extraction behind the list. Both native states occupy the SAME frame.
+        webHolder.setVisibility(View.VISIBLE);webHolder.setAlpha(show?1f:0f);
+        webHolder.setImportantForAccessibility(show?View.IMPORTANT_FOR_ACCESSIBILITY_AUTO:View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         browser.setVisibility(View.VISIBLE);
-        toggle.setText(show?"Mostrar buscador":(seatPicker?"Ver CRM":"Ver CRM / Ingresar"));
-        if(show)status.setText("Iniciá sesión con Host para sincronizar Atendidas.");
-        else if(reviewed==null&&ready)status.setText(candidates.size()+" personas · Sincronizadas desde Host");
+        scrolling.setVisibility(!show&&!waiting&&reviewed==null?View.VISIBLE:View.GONE);
+        search.setVisibility(!show&&!waiting&&reviewed==null?View.VISIBLE:View.GONE);
+        resultSummary.setVisibility(!show&&!waiting&&reviewed==null?View.VISIBLE:View.GONE);
+        reviewPanel.setVisibility(reviewed!=null?View.VISIBLE:View.GONE);
+        workspace.setVisibility(reviewed!=null?View.GONE:View.VISIBLE);
+        actions.setVisibility(reviewed!=null||selecting||(!ready&&!loginRequired&&!manual)?View.GONE:View.VISIBLE);
+        if(waiting&&!loadTimedOut)loading.loading(selecting?"Verificando persona":"Cargando Atendidas",
+            selecting?"En un momento vas a poder confirmar sus datos.":"Estamos preparando la lista de personas.");
+        else if(!waiting)loading.setVisibility(View.GONE);
+        toggle.setText(show?"Volver a la lista":"Ingresar a Host");
+        if(show)status.setText("Ingresá con tu cuenta de Host para continuar.");
+        else if(reviewed==null)status.setText(ready&&!selecting?candidates.size()+" personas atendidas":"Un momento, por favor…");
     }
     private void sync(){
         if(isFinishing()||browser==null)return;
@@ -203,16 +232,20 @@ public final class HostLookupActivity extends Activity {
             if(safePath.equals("/floor")){
                 // Host login normally redirects to the Salón landing page.
                 // Go straight to Full-test without another manual navigation.
-                status.setText("Abriendo Atendidas con tu sesión Host…");
+                loginRequired=false;manual=false;showBrowser();
+                status.setText("Cargando personas atendidas…");
                 browser.loadUrl(ORIGIN+"/floor/full-test");
                 return;
             }
             if(safePath.equals("/floor/login")){
-                ready=false;showBrowser();
-                status.setText("Ingresá con el PIN de Host para activar el buscador.");
+                ready=false;
+                browser.evaluateJavascript("!!document.querySelector('form,input[type=password],input[name=pin]')",value->{
+                    loginRequired="true".equals(value);showBrowser();
+                });
             }
             handler.postDelayed(poll,4000);return;
         }
+        loginRequired=false;manual=false;
         // React tab is a button with aria-pressed. The list cards are links
         // to /floor/visits/<uuid>[/full-test], as in the original Full-test JS.
         String script="(()=>{const m=document.querySelector('main');if(!m)return JSON.stringify({ready:false});"+
@@ -224,12 +257,14 @@ public final class HostLookupActivity extends Activity {
             "const cells=a.children;const name=(cells[1]?.querySelector('span')?.textContent||'').trim();"+
             "const time=(cells[cells.length-1]?.textContent||'').trim();"+
             "return name?{name:name.slice(0,120),time:time.slice(0,24),path:p}:null}).filter(Boolean);"+
-            "return JSON.stringify({ready:true,items});})()";
+            "const busy=!!m.querySelector('[aria-busy=true],[role=progressbar]');"+
+            "const empty=/no (?:hay|se encontraron) [^\\n]*(?:atendid|visitas|personas)|sin personas/i.test(m.innerText||'');"+
+            "return JSON.stringify({ready:!busy&&(items.length>0||empty),items});})()";
         browser.evaluateJavascript(script,raw->{
             try{
                 String serialized=new JSONArray("["+raw+"]").getString(0);
                 JSONObject payload=new JSONObject(serialized);
-                if(!payload.optBoolean("ready")){ready=false;showBrowser();status.setText("Entrá al Full-test con el rol autorizado de Host.");}
+                if(!payload.optBoolean("ready")){if(!ready)showBrowser();}
                 else if(!payload.optBoolean("changing")){
                     ArrayList<Item> incoming=new ArrayList<>();
                     JSONArray rows=payload.optJSONArray("items");
@@ -251,7 +286,7 @@ public final class HostLookupActivity extends Activity {
                         candidates.addAll(incoming);
                     }
                     boolean wasReady=ready;
-                    ready=true;
+                    ready=true;loadTimedOut=false;
                     if(!manual)showBrowser();
                     status.setText("Atendidas de hoy: "+candidates.size()+" · Sesión Host · actualización automática");
                     // Polling happens every few seconds. Recreating hundreds of
@@ -337,7 +372,7 @@ public final class HostLookupActivity extends Activity {
     }
     private void select(Item item){
         if(selecting)return;
-        selecting=true;wantedPath=item.path;detailTries=0;
+        selecting=true;wantedPath=item.path;detailTries=0;showBrowser();
         search.clearFocus();
         ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
             .hideSoftInputFromWindow(search.getWindowToken(),0);
@@ -346,8 +381,9 @@ public final class HostLookupActivity extends Activity {
     }
     private void readSelected(){
         if(!selecting||browser==null)return;
+        if(isFinishing()||isDestroyed())return;
         if(detailTries++>12){
-            selecting=false;
+            selecting=false;ready=false;showBrowser();
             status.setText("No pudimos verificar esta ficha. Reintentá desde la lista.");
             UiSheets.notice(this,"No se pudo verificar la persona en el CRM.",true);
             browser.loadUrl(ORIGIN+"/floor/full-test");return;

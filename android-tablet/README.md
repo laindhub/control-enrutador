@@ -1,11 +1,21 @@
-# Más Dueños · App unificada para celulares (1.0.0)
+# Más Dueños · App unificada para celulares (1.0.1)
+
+## 1.0.1 · Carga privada y regreso a Enrutar
+
+- Atendidas, la verificación de la persona y la recuperación del test usan una máscara nativa opaca con animación. El WebView sigue montado al tamaño completo, pero con opacidad cero y sin accesibilidad mientras trabaja; no aparece el proceso interno. El login original de Host se muestra solamente si es necesario.
+- Tanto la lista como el test disponen de timeout y reintento. La generación del PDF se hace fuera del hilo de UI para mantener fluida la animación. Se conservan la sesión Host compartida y las comprobaciones de UUID y nombre.
+- La derivación oficial se abre en la pestaña Salón, con la sesión Enrutador ya existente. Se quita la sección «CRM» de Enrutar y se oculta el dock web duplicado.
+- El guardado del CRM sigue siendo manual. La app observa únicamente el resultado del envío de la visita elegida: confirmación JSON, 204, redirección del servidor o aviso de éxito posterior a un envío válido. Un GET, un error o abandonar el formulario nunca cuentan como guardado. Al confirmarse, actualiza el estado local y vuelve al tablero de esa charla.
+- Si el CRM cambia su respuesta y no puede reconocerse el éxito, «Ya guardé · volver» permite confirmar explícitamente. «Enrutar» o Atrás permiten salir sin marcar la ficha como registrada.
+- Prueba de los resultados: `node scripts/qa/verify-assignment-return.cjs` en Chromium con una página sintética. No se envían derivaciones reales durante las pruebas.
+- `versionCode 20`, mismo paquete y certificado para actualizar conservando los datos.
 
 ## Versión unificada actual
 
 Una APK combina Salón (incluida su integración de leads, ventas y comisiones) con las charlas, sillas, fichas, captura del Full-test e impresión de Enrutador. El módulo histórico conserva el directorio `android-tablet` para no cambiar el identificador Android ni perder el almacenamiento cifrado de las instalaciones existentes.
 
 - Navegación inferior única: **Salón · Enrutar · Yo**. No hay botón «Hoy».
-- Enrutación tiene secciones Charlas, Sillas y CRM. El tablero permite alternar plano 4 × 3 y lista de personas.
+- Enrutación tiene secciones Charlas y Sillas. El tablero permite alternar plano 4 × 3 y lista de personas.
 - Las fichas se organizan en Datos → Hoja → Confirmar. Se conserva la vista previa obligatoria de la hoja y el registro manual final en el CRM.
 - Salón usa su WebView y almacenamiento en `:salon`; Host mantiene `:host`; Enrutador conserva el proceso principal. Los perfiles no intercambian cookies, PINes ni tokens. El proceso Salón incorpora intacta la integración de ventas y los reintentos seguros del APK de referencia.
 - Los controles originales de Salón se conservan en el DOM y la barra nativa los activa por su etiqueta real. No se adivinan rutas del perfil. El dock web se oculta únicamente cuando se identifica su contenedor inferior, sin ocultar formularios ni contenido.

@@ -7,9 +7,13 @@
     // Header/profile controls are already visible in the streamed skeleton.
     // Wait for an actual form field, not the header or document load event.
     const main = document.querySelector('main') || document.body;
-    const text = main?.textContent || '';
+    const text = main && visible(main) ? main.innerText.replace(/\s+/g, ' ').trim() : '';
+    // A closed visit is a final CRM response, with no form controls to await.
+    // Reveal its original notice; closing alone does not prove an assignment
+    // was saved by this app, so it must not trigger the completion bridge.
+    const closed = /Esta visita está cerrada/i.test(text) && /Ya no admite pasos nuevos/i.test(text);
     // Some CRM versions render the choice cards as custom React controls.
-    return inputs.length > 0 || (/¿Cómo le fue en la charla\?/.test(text) && /La vio entera/.test(text));
+    return closed || inputs.length > 0 || (/¿Cómo le fue en la charla\?/.test(text) && /La vio entera/.test(text));
   }
   const main = document.querySelector('main') || document.body;
   if (!main || document.readyState === 'loading') return false;

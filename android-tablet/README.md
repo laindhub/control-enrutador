@@ -1,4 +1,8 @@
-# Más Dueños · App unificada para celulares (1.0.4)
+# Más Dueños · App unificada para celulares (1.0.5)
+
+## 1.0.5 · Visitas cerradas del CRM
+
+La respuesta visible «Esta visita está cerrada / Ya no admite pasos nuevos» termina la máscara de carga aunque no haya campos de formulario. Se muestra el aviso original del CRM y se conservan las acciones de regreso a Enrutar. Un aviso cerrado no dispara por sí solo una nueva confirmación de guardado ni reenvía la derivación. Se ignoran avisos ocultos en plantillas. Mismo DEX, paquete y certificado de 1.0.4; `versionCode 24`.
 
 ## 1.0.4 · Corrección de instalación
 

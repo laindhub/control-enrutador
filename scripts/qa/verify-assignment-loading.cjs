@@ -57,7 +57,14 @@ const uuid='11111111-1111-4111-8111-111111111111';
   assert.equal(await page.evaluate(script('assignment-readiness.js')),true,'show the real login if authentication is needed');
   await page.evaluate(uuid=>{history.replaceState({},'','/floor/visits/'+uuid+'/assignment');document.querySelector('main').innerHTML='<input type="hidden" value="uuid">';},uuid);
   assert.equal(await page.evaluate(script('assignment-readiness.js')),false,'hidden fields are not a usable form');
-  console.log('PASS: streamed CRM form completes without navigation, skeleton readiness, original login, single dock and native saved-only return.');
+  await page.evaluate(()=>{document.querySelector('main').innerHTML='<a href="/floor/router">Enrutador</a><section><h1>Esta visita está cerrada</h1><p>Ya no admite pasos nuevos.</p></section>';});
+  assert.equal(await page.evaluate(script('assignment-readiness.js')),true,'a closed CRM visit finishes loading even without a form');
+  assert.deepEqual(await page.evaluate(()=>window.__completed),['streamed-visit'],'a closed notice does not invent another successful save');
+  await page.evaluate(()=>{document.querySelector('main').innerHTML='<div class="animate-pulse">Cargando</div><section hidden><h1>Esta visita está cerrada</h1><p>Ya no admite pasos nuevos.</p></section>';});
+  assert.equal(await page.evaluate(script('assignment-readiness.js')),false,'a hidden closed notice in a loading template is not a final response');
+  await page.evaluate(()=>{document.querySelector('main').innerHTML='<h1>Esta visita está cerrada</h1><p>Ya no admite pasos nuevos.</p>';document.querySelector('main').style.display='none';});
+  assert.equal(await page.evaluate(script('assignment-readiness.js')),false,'an unrendered page cannot finish loading');
+  console.log('PASS: streamed CRM form, closed visit without form, hidden notice rejection, login, single dock and saved-only return.');
  } finally {
   if(browser)await browser.close();
   if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}

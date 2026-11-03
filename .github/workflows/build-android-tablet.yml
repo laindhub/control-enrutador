@@ -30,8 +30,10 @@ jobs:
       - name: Compile dedicated Android app
         working-directory: android-tablet
         run: gradle --no-daemon :app:assembleRelease
+      - name: Verify installable resource layout
+        run: python3 scripts/qa/verify-android-apk.py android-tablet/app/build/outputs/apk/release/*unsigned.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: masduenos-unificada-mobile-1.0.3-unsigned
+          name: masduenos-unificada-mobile-1.0.4-unsigned
           path: android-tablet/app/build/outputs/apk/release/*unsigned.apk
           if-no-files-found: error

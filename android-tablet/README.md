@@ -1,4 +1,8 @@
-# Más Dueños · App unificada para celulares (1.0.3)
+# Más Dueños · App unificada para celulares (1.0.4)
+
+## 1.0.4 · Corrección de instalación
+
+La 1.0.3 distribuida tenía `resources.arsc` comprimido: Android 11+ rechaza ese APK aunque su firma sea válida. Se conserva sin compresión, alineado a 4 bytes, y se comprueba con `python3 scripts/qa/verify-android-apk.py <apk>` además de apksigner. La CI ejecuta este control antes de publicar el artefacto. Mismo DEX y assets de 1.0.3, paquete y certificado; `versionCode 23`. No se debe recomprimir el contenido de `aapt2 link` al añadir el DEX: conservar los ZipInfo originales.
 
 ## 1.0.3 · Derivación sin interrumpir la carga del CRM
 

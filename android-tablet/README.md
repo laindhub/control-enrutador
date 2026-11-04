@@ -1,4 +1,12 @@
-# Más Dueños · App unificada para celulares (1.0.5)
+# Más Dueños · App unificada para celulares (1.0.6)
+
+## 1.0.6 · Recuperación de sesión Host
+
+- «Iniciar sesión Host» queda disponible durante la carga de Atendidas, la verificación de una persona y los errores. Abre el login original dentro del mismo selector y WebView compartido, sin borrar cookies ni fichas. La recuperación del test también dispone de ingreso manual.
+- El detector reconoce `/floor/login` aunque el selector de perfil no tenga un formulario, y reconoce un PIN o selector de perfil mostrado por React en otra ruta. Se consulta antes de verificar una ficha, para que la selección no bloquee la recuperación de sesión. Al ingresar vuelve a Atendidas.
+- El plazo de carga independiente ofrece reintento y acceso al login. Se cancela al mostrar el login/lista y se renueva por navegación/reintento, sin dejar vencimientos viejos sobre una carga nueva. Las lecturas anteriores se descartan al abrir el login.
+- `versionCode 25`, mismo paquete, certificado e ícono; conserva datos al actualizar.
+- QA adicional: `node scripts/qa/verify-host-access.cjs`.
 
 ## 1.0.5 · Visitas cerradas del CRM
 

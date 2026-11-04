@@ -45,6 +45,9 @@ public final class HostLookupActivity extends Activity {
     private FrameLayout webHolder,workspace;
     private LoadingScreen loading;
     private boolean loginRequired=false,loadTimedOut=false;
+    private static String lastListDate="";
+    private int scanGeneration;
+    private Runnable loadingDeadline;
     private EditText search;
     private TextView status;
     private Button toggle;
@@ -120,15 +123,20 @@ public final class HostLookupActivity extends Activity {
         refresh.setOnClickListener(v->{
             if(selecting)return;
             if(!ready){restartLoading();return;}
-            ready=false;loadTimedOut=false;manual=false;showBrowser();
+            ready=false;loadTimedOut=false;manual=false;showBrowser();armLoadingTimeout();
+            final int scan=++scanGeneration;
             browser.evaluateJavascript("(()=>{const b=[...document.querySelectorAll('button')].find(x=>/actualizar lista/i.test(x.textContent||''));if(b)b.click();return !!b})()",v2->{
+                if(isFinishing()||isDestroyed()||browser==null||scan!=scanGeneration)return;
                 if(!"true".equals(v2))browser.loadUrl(ORIGIN+"/floor/full-test");
-                handler.postDelayed(this::sync,900);handler.postDelayed(this::checkLoadingTimeout,30000);
+                handler.postDelayed(this::sync,900);
             });
         });
         buttons.addView(refresh,new LinearLayout.LayoutParams(0,Ui.dp(this,50),1));
         toggle=Ui.button(this,seatPicker?"Iniciar sesión Host":"Ver CRM / Ingresar",false);
-        toggle.setOnClickListener(v->{manual=!manual;showBrowser();});
+        toggle.setOnClickListener(v->{
+            if(manual||loginRequired){restartLoading();return;}
+            openHostLogin();
+        });
         LinearLayout.LayoutParams toggleParams=new LinearLayout.LayoutParams(0,Ui.dp(this,50),1);
         toggleParams.leftMargin=Ui.dp(this,8);buttons.addView(toggle,toggleParams);
         root.addView(buttons,Ui.spaced(this,9));
@@ -163,10 +171,20 @@ public final class HostLookupActivity extends Activity {
                 return true;
             }
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
-                if(!"/floor/login".equals(Uri.parse(url).getPath())){loginRequired=false;manual=false;showBrowser();}
+                ++scanGeneration;ready=false;
+                if("/floor/login".equals(Uri.parse(url).getPath()))showHostLogin();
+                else {loginRequired=false;manual=false;loadTimedOut=false;armLoadingTimeout();showBrowser();}
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){
-                if(request.isForMainFrame()){ready=false;loadTimedOut=true;showBrowser();loading.error("No pudimos cargar Atendidas","Revisá la conexión y volvé a intentar.",HostLookupActivity.this::restartLoading);}
+                if(request.isForMainFrame())showLoadingFailure("No pudimos cargar Atendidas");
+            }
+            @Override public void onReceivedHttpError(WebView view,WebResourceRequest request,android.webkit.WebResourceResponse response){
+                if(!request.isForMainFrame())return;
+                if(response.getStatusCode()==401||response.getStatusCode()==403){
+                    if("/floor/login".equals(request.getUrl().getPath()))showHostLogin();
+                    else openHostLogin();
+                }
+                else if(response.getStatusCode()>=400)showLoadingFailure("No pudimos cargar Atendidas");
             }
             @Override public void onPageFinished(WebView view,String url){
                 HostDesktopMode.enforce(view,()->{
@@ -179,8 +197,10 @@ public final class HostLookupActivity extends Activity {
         workspace.addView(scrolling,new FrameLayout.LayoutParams(-1,-1));
         loading=new LoadingScreen(this);workspace.addView(loading,new FrameLayout.LayoutParams(-1,-1));
         loading.loading("Cargando Atendidas","Estamos preparando la lista de personas.");
-        handler.postDelayed(this::checkLoadingTimeout,30000);
-        if(!HostWebSession.initialized()){
+        armLoadingTimeout();
+        String today=java.time.LocalDate.now().toString();
+        boolean newDay=!today.equals(lastListDate);lastListDate=today;
+        if(newDay||!HostWebSession.initialized()){
             browser.loadUrl(ORIGIN+"/floor/full-test");
         }else{
             String existing=Uri.parse(browser.getUrl()).getPath();
@@ -190,14 +210,37 @@ public final class HostLookupActivity extends Activity {
         showBrowser();
     }
     private void restartLoading(){
-        handler.removeCallbacks(poll);ready=false;manual=false;loginRequired=false;selecting=false;reviewed=null;loadTimedOut=false;
+        ++scanGeneration;handler.removeCallbacks(poll);ready=false;manual=false;loginRequired=false;selecting=false;reviewed=null;loadTimedOut=false;
         loading.loading("Cargando Atendidas","Estamos preparando la lista de personas.");
         showBrowser();browser.loadUrl(ORIGIN+"/floor/full-test");
-        handler.postDelayed(this::checkLoadingTimeout,30000);
+        armLoadingTimeout();
     }
-    private void checkLoadingTimeout(){
-        if(isFinishing()||ready||manual||loginRequired||reviewed!=null)return;
-        loadTimedOut=true;loading.error("La lista todavía no está lista","Revisá la conexión y volvé a intentar.",this::restartLoading);
+    private void cancelLoadingTimeout(){
+        if(loadingDeadline!=null)handler.removeCallbacks(loadingDeadline);
+        loadingDeadline=null;
+    }
+    private void armLoadingTimeout(){
+        cancelLoadingTimeout();
+        loadingDeadline=()->{
+            if(isFinishing()||isDestroyed()||ready||manual||loginRequired||reviewed!=null)return;
+            showLoadingFailure("La lista todavía no está lista");
+        };
+        handler.postDelayed(loadingDeadline,30000);
+    }
+    private void showLoadingFailure(String title){
+        ++scanGeneration;selecting=false;ready=false;manual=false;loginRequired=false;loadTimedOut=true;
+        cancelLoadingTimeout();showBrowser();
+        loading.error(title,"Podés reintentar o tocar Iniciar sesión Host para volver a ingresar.",this::restartLoading);
+    }
+    private void showHostLogin(){
+        ++scanGeneration;selecting=false;reviewed=null;ready=false;loginRequired=true;loadTimedOut=false;
+        candidates.clear();cancelLoadingTimeout();showBrowser();
+    }
+    private void openHostLogin(){
+        handler.removeCallbacks(poll);showHostLogin();manual=true;showBrowser();
+        // Reuse the same Host WebView and cookies. No logout or data deletion.
+        browser.stopLoading();browser.loadUrl(ORIGIN+"/floor/login");
+        handler.postDelayed(poll,700);
     }
     private void showBrowser(){
         if(loading==null)return;
@@ -213,20 +256,45 @@ public final class HostLookupActivity extends Activity {
         resultSummary.setVisibility(!show&&!waiting&&reviewed==null?View.VISIBLE:View.GONE);
         reviewPanel.setVisibility(reviewed!=null?View.VISIBLE:View.GONE);
         workspace.setVisibility(reviewed!=null?View.GONE:View.VISIBLE);
-        actions.setVisibility(reviewed!=null||selecting||(!ready&&!loginRequired&&!manual)?View.GONE:View.VISIBLE);
+        // Recovery must remain reachable while waiting, selecting or timed out.
+        actions.setVisibility(reviewed!=null?View.GONE:View.VISIBLE);
+        actions.getChildAt(0).setEnabled(!selecting);
         if(waiting&&!loadTimedOut)loading.loading(selecting?"Verificando persona":"Cargando Atendidas",
             selecting?"En un momento vas a poder confirmar sus datos.":"Estamos preparando la lista de personas.");
         else if(!waiting)loading.setVisibility(View.GONE);
-        toggle.setText(show?"Volver a la lista":"Ingresar a Host");
+        toggle.setText(show?"Volver a la lista":"Iniciar sesión Host");
         if(show)status.setText("Ingresá con tu cuenta de Host para continuar.");
         else if(reviewed==null)status.setText(ready&&!selecting?candidates.size()+" personas atendidas":"Un momento, por favor…");
     }
     private void sync(){
-        if(isFinishing()||browser==null)return;
+        if(isFinishing()||isDestroyed()||browser==null||reviewed!=null)return;
         handler.removeCallbacks(poll);
-        if(selecting){readSelected();return;}
         Uri uri=Uri.parse(browser.getUrl()==null?"":browser.getUrl());
-        if(!"https".equals(uri.getScheme())||!HOST.equals(uri.getHost())){status.setText("La sesión de Host no está disponible.");return;}
+        if(!"https".equals(uri.getScheme())||!HOST.equals(uri.getHost())){
+            showLoadingFailure("La sesión de Host no está disponible");return;
+        }
+        final int scan=++scanGeneration;
+        HostWebSession.checkAccess(browser,raw->{
+            if(isFinishing()||isDestroyed()||browser==null||scan!=scanGeneration)return;
+            try{
+                JSONObject access=new JSONObject(new JSONArray("["+raw+"]").getString(0));
+                if(access.optBoolean("login")){
+                    showHostLogin();handler.postDelayed(poll,1000);return;
+                }
+                if(manual||loginRequired){
+                    if(!access.optBoolean("authenticated")&&!"/floor".equals(uri.getPath())){
+                        handler.postDelayed(poll,1000);return;
+                    }
+                    manual=false;loginRequired=false;loadTimedOut=false;armLoadingTimeout();showBrowser();
+                }
+            }catch(Exception error){
+                if(manual||loginRequired){handler.postDelayed(poll,1000);return;}
+            }
+            if(selecting){readSelected();return;}
+            syncList(uri);
+        });
+    }
+    private void syncList(Uri uri){
         String safePath=uri.getPath()==null?"":uri.getPath();
         if(!safePath.startsWith("/floor/full-test")){
             if(safePath.equals("/floor")){
@@ -237,15 +305,8 @@ public final class HostLookupActivity extends Activity {
                 browser.loadUrl(ORIGIN+"/floor/full-test");
                 return;
             }
-            if(safePath.equals("/floor/login")){
-                ready=false;
-                browser.evaluateJavascript("!!document.querySelector('form,input[type=password],input[name=pin]')",value->{
-                    loginRequired="true".equals(value);showBrowser();
-                });
-            }
             handler.postDelayed(poll,4000);return;
         }
-        loginRequired=false;manual=false;
         // React tab is a button with aria-pressed. The list cards are links
         // to /floor/visits/<uuid>[/full-test], as in the original Full-test JS.
         String script="(()=>{const m=document.querySelector('main');if(!m)return JSON.stringify({ready:false});"+
@@ -260,7 +321,9 @@ public final class HostLookupActivity extends Activity {
             "const busy=!!m.querySelector('[aria-busy=true],[role=progressbar]');"+
             "const empty=/no (?:hay|se encontraron) [^\\n]*(?:atendid|visitas|personas)|sin personas/i.test(m.innerText||'');"+
             "return JSON.stringify({ready:!busy&&(items.length>0||empty),items});})()";
+        final int scan=scanGeneration;
         browser.evaluateJavascript(script,raw->{
+            if(isFinishing()||isDestroyed()||browser==null||scan!=scanGeneration)return;
             try{
                 String serialized=new JSONArray("["+raw+"]").getString(0);
                 JSONObject payload=new JSONObject(serialized);
@@ -286,7 +349,7 @@ public final class HostLookupActivity extends Activity {
                         candidates.addAll(incoming);
                     }
                     boolean wasReady=ready;
-                    ready=true;loadTimedOut=false;
+                    ready=true;loadTimedOut=false;cancelLoadingTimeout();
                     if(!manual)showBrowser();
                     status.setText("Atendidas de hoy: "+candidates.size()+" · Sesión Host · actualización automática");
                     // Polling happens every few seconds. Recreating hundreds of
@@ -335,7 +398,7 @@ public final class HostLookupActivity extends Activity {
         }
     }
     private void showReview(JSONObject data){
-        reviewed=data;selecting=false;
+        reviewed=data;selecting=false;cancelLoadingTimeout();
         reviewPanel.removeAllViews();
         TextView heading=Ui.label(this,"Confirmá que sea la persona correcta",17,true);
         reviewPanel.addView(heading);
@@ -372,7 +435,7 @@ public final class HostLookupActivity extends Activity {
     }
     private void select(Item item){
         if(selecting)return;
-        selecting=true;wantedPath=item.path;detailTries=0;showBrowser();
+        ++scanGeneration;selecting=true;wantedPath=item.path;detailTries=0;loadTimedOut=false;armLoadingTimeout();showBrowser();
         search.clearFocus();
         ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
             .hideSoftInputFromWindow(search.getWindowToken(),0);
@@ -395,7 +458,9 @@ public final class HostLookupActivity extends Activity {
             "const phone=(text.match(/Tel[eé]fono\\s*\\n?\\s*([+()0-9 \\-]{8,20})/i)?.[1]||'').trim();"+
             "const arrival=(text.match(/entr[oó]\\s+(\\d{1,2}:\\d{2})/i)?.[1]||'').trim();"+
             "return JSON.stringify({ready:name.length>1,name,phone,arrival});})()";
+        final int scan=scanGeneration;
         browser.evaluateJavascript(script,raw->{
+            if(!selecting||isFinishing()||isDestroyed()||browser==null||scan!=scanGeneration)return;
             try{
                 JSONObject data=new JSONObject(new JSONArray("["+raw+"]").getString(0));
                 if(!data.optBoolean("ready")){handler.postDelayed(poll,600);return;}
@@ -410,10 +475,20 @@ public final class HostLookupActivity extends Activity {
         if(manual){manual=false;showBrowser();return;}
         super.onBackPressed();
     }
-    @Override protected void onPause(){handler.removeCallbacks(poll);super.onPause();}
-    @Override protected void onResume(){super.onResume();if(browser!=null)handler.postDelayed(poll,700);}
+    @Override protected void onPause(){++scanGeneration;handler.removeCallbacks(poll);cancelLoadingTimeout();super.onPause();}
+    @Override protected void onResume(){
+        super.onResume();if(browser!=null){
+            String today=java.time.LocalDate.now().toString();
+            if(!today.equals(lastListDate)){
+                lastListDate=today;
+                if(!manual&&!loginRequired&&reviewed==null){candidates.clear();restartLoading();}
+            }
+            if(!ready&&!manual&&!loginRequired&&!loadTimedOut&&reviewed==null)armLoadingTimeout();
+            handler.removeCallbacks(poll);handler.postDelayed(poll,700);
+        }
+    }
     @Override protected void onDestroy(){
-        handler.removeCallbacksAndMessages(null);
+        ++scanGeneration;cancelLoadingTimeout();handler.removeCallbacksAndMessages(null);
         HostWebSession.release(this);
         browser=null;
         super.onDestroy();

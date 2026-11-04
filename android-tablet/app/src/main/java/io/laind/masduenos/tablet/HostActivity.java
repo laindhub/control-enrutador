@@ -50,7 +50,9 @@ public final class HostActivity extends Activity {
         TextView back=Ui.label(this,"‹",30,false);back.setGravity(android.view.Gravity.CENTER);
         back.setContentDescription("Cancelar y volver");back.setOnClickListener(v->finish());
         top.addView(back,new LinearLayout.LayoutParams(Ui.dp(this,44),Ui.dp(this,48)));
-        TextView title=Ui.label(this,"Preparar test",21,true);top.addView(title);root.addView(top);
+        TextView title=Ui.label(this,"Preparar test",21,true);top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        Button login=Ui.button(this,"Ingresar a Host",false);login.setOnClickListener(v->openHostLogin());
+        top.addView(login,new LinearLayout.LayoutParams(-2,Ui.dp(this,48)));root.addView(top);
         captureStatus=Ui.label(this,"",12,false); // Internal status is never painted during extraction.
         choose=Ui.button(this,"Reintentar",true);choose.setOnClickListener(v->retryCapture());
         FrameLayout workspace=new FrameLayout(this);root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
@@ -119,7 +121,7 @@ public final class HostActivity extends Activity {
         }
     }
     private void openVisitFromList(){
-        if(!printOnly||isFinishing()||browser==null||autoRequested||loadingFailed)return;
+        if(!printOnly||isFinishing()||browser==null||autoRequested||loadingFailed||loginShown)return;
         if(!"/floor/full-test".equals(Uri.parse(browser.getUrl()).getPath()))return;
         if(++listAttempts>26){
             captureStatus.setText("No se encontró la visita en Atendidas. Podés revisar el CRM y reintentar.");
@@ -145,7 +147,7 @@ public final class HostActivity extends Activity {
         });
     }
     private void checkSelectedVisit(){
-        if(isFinishing()||!printOnly||autoRequested||browser==null||loadingFailed)return;
+        if(isFinishing()||!printOnly||autoRequested||browser==null||loadingFailed||loginShown)return;
         if(++detailAttempts>22){
             captureStatus.setText("El Full-test no aparece todavía. Podés reintentar sin volver a ingresar tu PIN.");
             showCaptureError();return;
@@ -180,6 +182,7 @@ public final class HostActivity extends Activity {
             "return JSON.stringify({name,phone,arrival:entered,path:location.pathname,print});"+
             "})()";
         browser.evaluateJavascript(js,result->{
+            if(isFinishing()||isDestroyed()||browser==null||loadingFailed||loginShown)return;
             try{
                 String value=new JSONArray("["+result+"]").getString(0);
                 JSONObject obj=new JSONObject(value);
@@ -242,25 +245,36 @@ public final class HostActivity extends Activity {
         loading.error("No pudimos preparar el test","Revisá la conexión y volvé a intentar. No se imprimió ninguna hoja.",this::retryCapture);
     }
     private void captureTimeout(){if(!loginShown&&!isFinishing())showCaptureError();}
+    private void openHostLogin(){
+        handler.removeCallbacksAndMessages(null);capture.dispose();
+        listAttempts=0;detailAttempts=0;recoveryAttempts=0;tabRequested=false;autoRequested=false;
+        loadingFailed=false;loginShown=true;webHolder.setAlpha(1f);
+        webHolder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        loading.setVisibility(View.GONE);browser.stopLoading();
+        browser.loadUrl("https://"+HOST+"/floor/login");
+        handler.postDelayed(loginWatch,700);
+    }
     private void watchLogin(){
         if(isFinishing()||browser==null||loadingFailed)return;
         String current=Uri.parse(browser.getUrl()==null?"":browser.getUrl()).getPath();
-        if("/floor/login".equals(current)){
-            browser.evaluateJavascript("!!document.querySelector('form,input[type=password],input[name=pin]')",answer->{
-                if(isFinishing()||browser==null)return;
-                if("true".equals(answer)){
+        HostWebSession.checkAccess(browser,answer->{
+            if(isFinishing()||isDestroyed()||browser==null||loadingFailed)return;
+            try{
+                JSONObject access=new JSONObject(new JSONArray("["+answer+"]").getString(0));
+                if(access.optBoolean("login")){
                     loginShown=true;loading.setVisibility(View.GONE);webHolder.setAlpha(1f);
                     webHolder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+                }else if(loginShown&&(access.optBoolean("authenticated")||"/floor".equals(current))){
+                    loginShown=false;webHolder.setAlpha(0f);
+                    webHolder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+                    loading.loading("Recuperando el test","En un momento vas a poder revisar la hoja.");
+                    handler.postDelayed(this::captureTimeout,45000);
+                    if(targetPath.equals(current))checkSelectedVisit();
+                    else if("/floor/full-test".equals(current))openVisitFromList();
+                    else browser.loadUrl("https://"+HOST+"/floor/full-test");
                 }
-            });
-        }else if(loginShown){
-            loginShown=false;webHolder.setAlpha(0f);webHolder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-            loading.loading("Recuperando el test","En un momento vas a poder revisar la hoja.");
-            handler.postDelayed(this::captureTimeout,45000);
-            if(targetPath.equals(current))checkSelectedVisit();
-            else if("/floor/full-test".equals(current))openVisitFromList();
-            else browser.loadUrl("https://"+HOST+"/floor/full-test");
-        }
+            }catch(Exception ignored){} // The visible native login action remains available.
+        });
         handler.postDelayed(loginWatch,800);
     }
     @Override public void onBackPressed(){setResult(RESULT_CANCELED);finish();}

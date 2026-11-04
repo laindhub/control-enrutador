@@ -10,6 +10,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.ValueCallback;
 
 /**
  * Exactly one Host WebView in the isolated :host process.
@@ -25,8 +26,17 @@ import android.webkit.WebViewClient;
 final class HostWebSession {
     private static WebView shared;
     private static MutableContextWrapper context;
+    private static String accessScript="";
 
     static WebView attach(Activity activity,ViewGroup target) {
+        if(accessScript.isEmpty())try(java.io.InputStream input=activity.getAssets().open("host-access-state.js");
+                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream()){
+            byte[] buffer=new byte[4096];int n;
+            while((n=input.read(buffer))!=-1)out.write(buffer,0,n);
+            accessScript=new String(out.toByteArray(),java.nio.charset.StandardCharsets.UTF_8);
+        }catch(Exception ignored){
+            accessScript="JSON.stringify({login:location.pathname==='/floor/login',authenticated:false})";
+        }
         if(shared==null) {
             context=new MutableContextWrapper(activity);
             shared=new WebView(context);
@@ -53,6 +63,8 @@ final class HostWebSession {
     }
 
     static boolean initialized(){return shared!=null&&shared.getUrl()!=null;}
+
+    static void checkAccess(WebView page,ValueCallback<String> callback){page.evaluateJavascript(accessScript,callback);}
 
     static void release(Activity owner) {
         if(shared==null||context.getBaseContext()!=owner)return;

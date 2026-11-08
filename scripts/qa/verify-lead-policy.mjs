@@ -4,12 +4,13 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import ejs from 'ejs';
 import {chromium} from 'playwright';
-import {leadPolicy,leadSummary,normalizeLeadPolicy} from '../../src/presenter-leads.js';
+import {leadPlan,leadPolicy,leadSummary,normalizeLeadPolicy} from '../../src/presenter-leads.js';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const template=fs.readFileSync(path.join(root,'views/presenter.ejs'),'utf8');
 const browser=await chromium.launch({headless:true,executablePath:process.env.QA_CHROMIUM,args:['--no-sandbox']});
 const page=await browser.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
 let embedded=false,postCount=0,total=600,policies=new Map([['2026-10',{unlock:650,baseRate:1350,elite:780,eliteRate:1500}]]);
+const plans=new Map();
 function current(month){const key=[...policies.keys()].filter(k=>k<=month).sort().at(-1);return {key,policy:normalizeLeadPolicy(policies.get(key))};}
 const render=()=>ejs.render(template,{user:{username:'Prueba',role:'presenter_admin'},csrfToken:'test',embedded,assetUrl:p=>'/assets/'+p})
  .replace(/<script[^>]+src="([^"]+)"[^>]*><\/script>/g,(tag,url)=>url.endsWith('/presenter-policy.js')||(embedded&&url.endsWith('/presenter-leads.js'))?tag:'');
@@ -29,9 +30,14 @@ await page.route('**/*',async route=>{
   const month=url.searchParams.get('month')||'2026-11',state=current(month);
   return route.fulfill({contentType:'application/json',body:JSON.stringify({month,policy:state.policy,policyMonth:state.key})});
  }
+ if(url.pathname.endsWith('/lead-plan')&&request.method()==='POST'){
+  const body=request.postDataJSON();
+  plans.set(body.month,leadPlan(body,body.month));
+  return route.fulfill({json:{ok:true}});
+ }
  if(url.pathname.endsWith('/lead-state')){
-  const month=url.searchParams.get('month')||'2026-11',policy=current(month).policy;
-  return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan:{goal:780},entries:[],snapshot:{quantity:total,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:total,policy})})});
+  const month=url.searchParams.get('month')||'2026-11',policy=current(month).policy,plan=plans.get(month)||{goal:780};
+  return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan,entries:[],snapshot:{quantity:total,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:total,policy,plan})})});
  }
  return route.fulfill({contentType:'application/json',body:'{}'});
 });
@@ -92,6 +98,28 @@ try{
  await form.locator('[name=basicRate]').fill('1250');await form.locator('[type=submit]').click();
  await page.waitForFunction(()=>document.querySelector('#lead-metrics').textContent.includes('750.000'));
  assert.equal(await form.locator('[name=basicRate]').inputValue(),'1250','lead refresh cannot overwrite the editor');
+ await page.reload();
+ await page.evaluate(()=>{
+  document.querySelector('#panel-sales').hidden=true;
+  document.querySelector('#panel-leads').hidden=false;
+  document.querySelector('#lead-plan-form').parentElement.open=true;
+ });
+ await page.waitForFunction(()=>!document.querySelector('#lead-plan-fields').disabled);
+ await page.locator('#lead-use-calendar').check();
+ await page.locator('[data-date="2026-11-03"]').click();
+ await page.locator('[data-date="2026-11-04"]').click();
+ await page.locator('#lead-plan-form button[type=submit]').click();
+ await page.waitForFunction(()=>document.querySelector('#lead-progress').textContent.includes('26 jornadas restantes según tus francos'));
+ assert.deepEqual(plans.get('2026-11').offDates,['2026-11-03','2026-11-04']);
+ await page.locator('#lead-month').fill('2026-10');
+ await page.waitForFunction(()=>document.querySelector('[data-date="2026-10-31"]'));
+ assert.equal(await page.locator('#lead-use-calendar').isChecked(),false);
+ await page.locator('#lead-month').fill('2026-11');
+ await page.waitForFunction(()=>document.querySelector('[data-date="2026-11-03"][aria-pressed="true"]'));
+ await page.locator('#lead-use-calendar').uncheck();
+ await page.locator('#lead-plan-form button[type=submit]').click();
+ await page.waitForFunction(()=>document.querySelector('#lead-progress').textContent.includes('20 jornadas restantes estimadas'));
+ assert.equal(plans.get('2026-11').offDates,null);
  assert.deepEqual(errors,[]);
  console.log('PASS: web Gestión, six persisted fields, validation, 320/393/1280 layouts, original web logo, generated earnings by tier, unlock/elite potential and embedded refresh.');
 }finally{await browser.close();}

@@ -62,3 +62,23 @@ test('basic configuration rejects partial, invalid and out-of-order tiers',()=>{
  for(const change of [{basic:0},{basic:700},{basicRate:1400},{basicRate:-1},{basic:500.5},{elite:640},{eliteRate:1300}])assert.throws(()=>leadPolicy({...policy,...change}));
  const {basicRate,...partial}=policy;assert.throws(()=>leadPolicy(partial));
 });
+
+test('optional dated days off affect only remaining days of the selected month',()=>{
+ const month='2026-10';
+ const plan=leadPlan({goal:650,offDates:['2026-10-01','2026-10-12','2026-10-11','2026-10-12']},month);
+ assert.deepEqual(plan.offDates,['2026-10-01','2026-10-11','2026-10-12']);
+ const result=summary(173,{plan});
+ assert.equal(result.workingDays,19);
+ assert.equal(result.perDay,26);
+ assert.equal(result.estimatedDays,false);
+ assert.equal(summary(173,{plan:{...plan,offDates:[]}}).workingDays,21);
+ assert.equal(summary(173,{plan:{...plan,offDates:null}}).workingDays,15);
+ const lastDay=leadSummary({month,today:'2026-10-31',plan:{...plan,offDates:['2026-10-31']}});
+ assert.equal(lastDay.perDay,null);
+ assert.equal(lastDay.monthEnded,false);
+ assert.equal(leadSummary({month,today:'2026-11-01',plan}).monthEnded,true);
+ assert.equal(leadSummary({month:'2026-11',today:'2026-10-31',plan:{goal:650,offDates:['2026-11-01']}}).workingDays,29);
+ for(const offDates of [['2026-11-01'],['2026-10-32'],[1],'2026-10-10']){
+  assert.throws(()=>leadPlan({goal:650,offDates},month),{status:400});
+ }
+});

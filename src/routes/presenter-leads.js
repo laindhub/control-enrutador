@@ -16,7 +16,7 @@ export function createPresenterLeadsRouter(){
    pool.execute('SELECT * FROM presenter_lead_snapshots WHERE user_id=? AND month=?',[userId,month]),
    pool.execute('SELECT id,entry_date,quantity,notes FROM presenter_lead_entries WHERE user_id=? AND entry_date>=? AND entry_date<LAST_DAY(?) + INTERVAL 1 DAY AND deleted_at IS NULL ORDER BY entry_date DESC,id DESC',[userId,month+'-01',month+'-01']),
    pool.execute('SELECT plan_json FROM presenter_lead_plans WHERE user_id=? AND month=?',[userId,month])]);
-  const policy=normalizeLeadPolicy(json(policies[0]?.policy_json)||defaultLeadPolicy),plan=json(plans[0]?.plan_json)||{goal:policy.elite,offDays:null};
+  const policy=normalizeLeadPolicy(json(policies[0]?.policy_json)||defaultLeadPolicy),plan=json(plans[0]?.plan_json)||{goal:policy.elite,offDates:null};
   const snapshot=snapshots[0]||null,today=nowLocal().toISODate();
   res.set('Cache-Control','no-store').json({month,today,user:req.session.user,policy,policyMonth:policies[0]?.month||null,plan,snapshot,entries,summary:leadSummary({month,today,policy,plan,sourceCount:snapshot?Number(snapshot.quantity):null,manualCount:entries.reduce((sum,e)=>sum+Number(e.quantity),0)})});
  });
@@ -33,7 +33,14 @@ export function createPresenterLeadsRouter(){
  router.delete('/lead-entries/:id',async(req,res)=>{
   const [result]=await pool.execute('UPDATE presenter_lead_entries SET deleted_at=UTC_TIMESTAMP() WHERE id=? AND user_id=? AND deleted_at IS NULL',[leadInteger(req.params.id,1,Number.MAX_SAFE_INTEGER),req.session.user.id]);res.status(result.affectedRows?200:404).json(result.affectedRows?{ok:true}:{error:'Carga no encontrada.'});
  });
- router.post('/lead-plan',async(req,res)=>{const month=leadMonth(req.body.month),plan=leadPlan(req.body);await pool.execute('INSERT INTO presenter_lead_plans (user_id,month,plan_json) VALUES (?,?,?) ON DUPLICATE KEY UPDATE plan_json=VALUES(plan_json)',[req.session.user.id,month,JSON.stringify(plan)]);res.json({ok:true});});
+ router.post('/lead-plan',async(req,res)=>{
+  const month=leadMonth(req.body.month),plan=leadPlan(req.body,month);
+  const update=plan.offDates===undefined?"JSON_SET(plan_json, '$.goal', ?)":'VALUES(plan_json)';
+  const params=[req.session.user.id,month,JSON.stringify(plan)];
+  if(plan.offDates===undefined)params.push(plan.goal);
+  await pool.execute(`INSERT INTO presenter_lead_plans (user_id,month,plan_json) VALUES (?,?,?) ON DUPLICATE KEY UPDATE plan_json=${update}`,params);
+  res.json({ok:true});
+ });
  router.post('/lead-policy',admin,async(req,res)=>{
   const month=leadMonth(req.body.month),{policy:stored}=await policyForMonth(month);
   // A cached older editor must not erase an already configured Básico tier.

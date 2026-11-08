@@ -19,7 +19,17 @@ function leadTier(total,p){
  if(p.basic>0&&total>=p.basic)return {rate:p.basicRate,level:'basic'};
  return {rate:0,level:'locked'};
 }
-export function leadPlan(input){return {goal:leadInteger(input.goal,1)};}
+export function leadPlan(input,month){
+ const plan={goal:leadInteger(input.goal,1)};
+ if(input.offDates===undefined)return plan;
+ if(input.offDates===null)return {...plan,offDates:null};
+ leadMonth(month);
+ if(!Array.isArray(input.offDates)||input.offDates.length>31||
+    input.offDates.some(date=>typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)||
+      !date.startsWith(month+'-')||!DateTime.fromISO(date).isValid))
+  invalid('Elegí fechas de franco válidas del mes seleccionado.');
+ return {...plan,offDates:[...new Set(input.offDates)].sort()};
+}
 // The reached tier applies its rate to every interview of the month.
 export function leadGoalProjection(goal,policy=defaultLeadPolicy){
  const target=leadInteger(goal,1),{rate,level}=leadTier(target,normalizeLeadPolicy(policy));
@@ -30,17 +40,16 @@ export function leadSummary({month,today,sourceCount=null,manualCount=0,policy=d
  const total=Number(sourceCount||0)+Number(manualCount),tier=leadTier(total,policy);
  const rate=tier.level==='locked'?(policy.basic>0?policy.basicRate:policy.baseRate):tier.rate;
  const unlocked=total>=policy.unlock;const current=DateTime.fromISO(today),start=DateTime.fromISO(month+'-01'),end=start.endOf('month');
- // Five shifts per week with rotating days off; prorate partial weeks.
- let workingEstimate=0;
- for(let day=current>start?current:start;day<=end;){
-  const weekEnd=day.endOf('week').startOf('day'),segmentEnd=weekEnd<end?weekEnd:end;
-  const segmentDays=Math.floor(segmentEnd.diff(day,'days').days)+1;
-  workingEstimate+=segmentDays*5/7;day=segmentEnd.plus({days:1});
+ const estimatedDays=!Array.isArray(plan.offDates);
+ const offDates=new Set(estimatedDays?[]:plan.offDates);
+ let remainingDays=0;
+ for(let day=current>start?current:start;day<=end;day=day.plus({days:1})){
+  if(!offDates.has(day.toISODate()))remainingDays++;
  }
- const workingDays=Math.ceil(workingEstimate);
+ const workingDays=estimatedDays?Math.ceil(remainingDays*5/7):remainingDays;
  const target=plan.goal||policy.elite,remaining=Math.max(0,target-total),goalProjection=leadGoalProjection(target,policy);
  return {total,sourceKnown:sourceCount!==null,unlocked,level:tier.level,rate,potential:total*rate,earned:total*tier.rate,
   toBasic:policy.basic>0?Math.max(0,policy.basic-total):null,
-  toUnlock:Math.max(0,policy.unlock-total),toElite:Math.max(0,policy.elite-total),target,goalProjection,remaining,workingDays,estimatedDays:true,
+  toUnlock:Math.max(0,policy.unlock-total),toElite:Math.max(0,policy.elite-total),target,goalProjection,remaining,workingDays,estimatedDays,monthEnded:current>end,
   perDay:remaining===0?0:workingDays>0?Math.ceil(remaining/workingDays):null};
 }

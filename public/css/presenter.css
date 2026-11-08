@@ -314,3 +314,35 @@ dialog[open].is-closing::backdrop { animation:backdrop-out 160ms ease both; }
 .policy-values { display:grid; gap:12px; }
 #lead-policy-status { min-height:22px; }
 @media (max-width:700px) { .lead-policy-tiers { grid-template-columns:1fr; gap:16px; } .policy-values { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+#lead-plan-form .lead-calendar-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+#lead-use-calendar { width: 18px; height: 18px; accent-color: var(--ink, #18735d); }
+.lead-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  text-align: center;
+  align-items: center;
+}
+.lead-calendar-grid button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+}
+.lead-calendar-grid button[aria-pressed="true"] {
+  background: #18735d;
+  border-color: #18735d;
+  color: white;
+  font-weight: 700;
+}
+#lead-plan-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+#lead-plan-fields > .primary { margin-top: 8px; }

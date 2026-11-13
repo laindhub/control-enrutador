@@ -10,7 +10,7 @@ const template=fs.readFileSync(path.join(root,'views/presenter.ejs'),'utf8');
 const browser=await chromium.launch({headless:true,executablePath:process.env.QA_CHROMIUM,args:['--no-sandbox']});
 const page=await browser.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
 let embedded=false,postCount=0,total=600,policies=new Map([['2026-10',{unlock:650,baseRate:1350,elite:780,eliteRate:1500}]]);
-const plans=new Map();
+const plans=new Map(),entries=[];
 function current(month){const key=[...policies.keys()].filter(k=>k<=month).sort().at(-1);return {key,policy:normalizeLeadPolicy(policies.get(key))};}
 const render=()=>ejs.render(template,{user:{username:'Prueba',role:'presenter_admin'},csrfToken:'test',embedded,assetUrl:p=>'/assets/'+p})
  .replace(/<script[^>]+src="([^"]+)"[^>]*><\/script>/g,(tag,url)=>url.endsWith('/presenter-policy.js')||(embedded&&url.endsWith('/presenter-leads.js'))?tag:'');
@@ -35,9 +35,19 @@ await page.route('**/*',async route=>{
   plans.set(body.month,leadPlan(body,body.month));
   return route.fulfill({json:{ok:true}});
  }
+ if(url.pathname.endsWith('/lead-entries')&&request.method()==='POST'){
+  const body=request.postDataJSON();
+  assert.equal(body.operation,'subtract');
+  entries.push({id:1,entry_date:body.date,quantity:-Number(body.quantity),notes:body.notes});
+  return route.fulfill({status:201,json:{ok:true}});
+ }
+ if(url.pathname.endsWith('/lead-entries/1')&&request.method()==='DELETE'){
+  entries.length=0;
+  return route.fulfill({json:{ok:true}});
+ }
  if(url.pathname.endsWith('/lead-state')){
   const month=url.searchParams.get('month')||'2026-11',policy=current(month).policy,plan=plans.get(month)||{goal:780};
-  return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan,entries:[],snapshot:{quantity:total,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:total,policy,plan})})});
+  return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan,entries,snapshot:{quantity:total,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:total,manualCount:entries.reduce((sum,e)=>sum+e.quantity,0),policy,plan})})});
  }
  return route.fulfill({contentType:'application/json',body:'{}'});
 });
@@ -120,6 +130,17 @@ try{
  await page.locator('#lead-plan-form button[type=submit]').click();
  await page.waitForFunction(()=>document.querySelector('#lead-progress').textContent.includes('20 jornadas restantes estimadas'));
  assert.equal(plans.get('2026-11').offDates,null);
+ await page.setViewportSize({width:393,height:852});
+ await page.locator('#new-leads').click();
+ await page.locator('#lead-entry-form select[name=operation]').selectOption('subtract');
+ await page.locator('#lead-entry-form [name=quantity]').fill('3');
+ await page.locator('#lead-entry-form [name=notes]').fill('Corrección de duplicados');
+ await page.locator('#lead-entry-form button[type=submit]').click();
+ await page.waitForFunction(()=>document.querySelector('#lead-progress').textContent.includes('597 / 780'));
+ assert.match(await page.locator('#lead-entries').innerText(),/-3 entrevistas/);
+ await page.locator('[data-lead-entry-delete="1"]').click();
+ await page.locator('#lead-delete-confirm').click();
+ await page.waitForFunction(()=>document.querySelector('#lead-progress').textContent.includes('600 / 780'));
  assert.deepEqual(errors,[]);
  console.log('PASS: web Gestión, six persisted fields, validation, 320/393/1280 layouts, original web logo, generated earnings by tier, unlock/elite potential and embedded refresh.');
 }finally{await browser.close();}

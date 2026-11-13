@@ -32,7 +32,7 @@
   const items=[
    ['Ventas del mes',d.sales.length],['Comisión generada',money(d.salesTotal)],
    ['Transferencias registradas',money(paid)],['Entrevistas del mes',d.summary.total],
-   ['Salón · observadas',d.snapshot?snapshot:'Sin lectura'],['Otros registros',external]
+   ['Salón · observadas',d.snapshot?snapshot:'Sin lectura'],['Ajustes netos',external]
   ];
   $('#admin-person-summary').innerHTML=items.map(([name,value])=>`<article class="metric"><span>${esc(name)}</span><strong>${esc(value)}</strong></article>`).join('');
   $('#admin-person-sales').innerHTML=d.sales.length?d.sales.map(s=>
@@ -40,7 +40,7 @@
    '<p class="muted">Sin ventas registradas para este mes.</p>';
   const snap=d.snapshot?`<article class="card"><strong>${snapshot} entrevistas observadas en el salón</strong><p class="muted">Cuenta de origen: ${esc(d.snapshot.source_label||'Sin indicar')} · lectura ${esc(String(d.snapshot.captured_at||'').slice(0,19))}</p></article>`:'<p class="muted">Todavía no hay una lectura del salón para este mes.</p>';
   $('#admin-person-leads').innerHTML=`<p class="muted">Meta: ${d.summary.target} · faltan ${d.summary.remaining} · comisión potencial: ${money(d.summary.potential)}. El salón aporta un total mensual; las cargas externas se detallan por fecha y referencia.</p>`+
-   snap+(d.entries.map(e=>`<article class="card"><div class="sale-row"><div><strong>${Number(e.quantity)} entrevistas externas</strong><p class="muted">${esc(date(e.entry_date))} · ${esc(e.notes)}</p></div><button type="button" class="quiet" data-admin-delete-leads="${e.id}">Eliminar</button></div></article>`).join('')||'<p class="muted">Sin ajustes externos registrados.</p>');
+   snap+(d.entries.map(e=>`<article class="card"><div class="sale-row"><div><strong>${Number(e.quantity)>0?'+':''}${Number(e.quantity)} entrevistas</strong><p class="muted">${esc(date(e.entry_date))} · ${esc(e.notes)}</p></div><button type="button" class="quiet" data-admin-delete-leads="${e.id}">Eliminar</button></div></article>`).join('')||'<p class="muted">Sin ajustes externos registrados.</p>');
  }
  async function loadRecords() {
   const p=person(),month=$('#admin-month').value;

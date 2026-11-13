@@ -60,6 +60,13 @@ test('presenter routes isolate accounts and reject unauthorized writes', async (
     calls.length=0;
     assert.equal((await request('/lead-entries/99','DELETE')).status,404);
     assert.deepEqual(calls[0].params,[99,7]);
+    calls.length=0;
+    const adjustment={date:'2026-10-10',quantity:3,notes:'Corrección',requestId:'11111111-1111-4111-8111-111111111111'};
+    assert.equal((await request('/lead-entries','POST','presenter',{...adjustment,operation:'subtract'})).status,201);
+    assert.equal(calls[0].params[2],-3);
+    assert.equal((await request('/lead-entries','POST','presenter',adjustment)).status,201);
+    assert.equal(calls[1].params[2],3);
+    assert.equal((await request('/lead-entries','POST','presenter',{...adjustment,operation:'invalid'})).status,400);
     // Fixed off-days are legacy input; current planning deliberately uses rotating shifts.
     assert.equal((await request('/lead-plan','POST','presenter',{month:'2026-10',goal:650,offDays:[1]})).status,200);
     assert.equal((await request('/lead-plan','POST','presenter',{month:'2026-10',goal:0})).status,400);

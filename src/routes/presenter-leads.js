@@ -26,7 +26,10 @@ export function createPresenterLeadsRouter(){
   await pool.execute('INSERT INTO presenter_lead_snapshots (user_id,month,quantity,source_label) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE quantity=VALUES(quantity),source_label=VALUES(source_label),captured_at=CURRENT_TIMESTAMP',[req.session.user.id,month,quantity,sourceLabel]);res.json({ok:true});
  });
  router.post('/lead-entries',async(req,res)=>{
-  const date=validDate(req.body.date),quantity=leadInteger(req.body.quantity,1),notes=String(req.body.notes||'').trim().slice(0,1000),requestId=String(req.body.requestId||'');
+  const operation=req.body.operation??'add';
+  if(operation!=='add'&&operation!=='subtract')return res.status(400).json({error:'Elegí sumar o restar.'});
+  const quantity=leadInteger(req.body.quantity,1)*(operation==='subtract'?-1:1);
+  const date=validDate(req.body.date),notes=String(req.body.notes||'').trim().slice(0,1000),requestId=String(req.body.requestId||'');
   if(date>nowLocal().toISODate()||!notes||! /^[0-9a-f-]{36}$/i.test(requestId))return res.status(400).json({error:'Indicá fecha pasada o actual, referencia y cantidad válida.'});
   await pool.execute('INSERT INTO presenter_lead_entries (user_id,entry_date,quantity,notes,request_id) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE request_id=request_id',[req.session.user.id,date,quantity,notes,requestId]);res.status(201).json({ok:true});
  });

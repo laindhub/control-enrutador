@@ -82,3 +82,12 @@ test('optional dated days off affect only remaining days of the selected month',
   assert.throws(()=>leadPlan({goal:650,offDates},month),{status:400});
  }
 });
+
+test('subtractions change the commission tier and the total has a floor of zero',()=>{
+ const policy={basic:1,basicRate:1000,unlock:560,baseRate:1350,elite:760,eliteRate:1500};
+ const adjusted=summary(561,{manualCount:-3,policy});
+ assert.equal(adjusted.total,558);
+ assert.equal(adjusted.earned,558000);
+ assert.equal(adjusted.level,'basic');
+ assert.equal(summary(2,{manualCount:-3,policy}).total,0);
+});

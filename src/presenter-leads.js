@@ -37,7 +37,7 @@ export function leadGoalProjection(goal,policy=defaultLeadPolicy){
 }
 export function leadSummary({month,today,sourceCount=null,manualCount=0,policy=defaultLeadPolicy,plan={}}){
  leadMonth(month);policy=normalizeLeadPolicy(policy);
- const total=Number(sourceCount||0)+Number(manualCount),tier=leadTier(total,policy);
+ const total=Math.max(0,Number(sourceCount||0)+Number(manualCount)),tier=leadTier(total,policy);
  const rate=tier.level==='locked'?(policy.basic>0?policy.basicRate:policy.baseRate):tier.rate;
  const unlocked=total>=policy.unlock;const current=DateTime.fromISO(today),start=DateTime.fromISO(month+'-01'),end=start.endOf('month');
  const estimatedDays=!Array.isArray(plan.offDates);

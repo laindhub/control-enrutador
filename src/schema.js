@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { pool } from './db.js';
 import { config } from './config.js';
 
-const SCHEMA_VERSION = '6';
+const SCHEMA_VERSION = '7';
 const PRESENTER_ADMIN_AUDIT_DDL = `CREATE TABLE IF NOT EXISTS presenter_admin_audit (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     actor_id INT UNSIGNED NOT NULL,
@@ -29,7 +29,10 @@ export async function initializeDatabase() {
       "SELECT meta_value FROM system_meta WHERE meta_key = 'schema_version' LIMIT 1",
     );
     if (versionRows[0]?.meta_value !== SCHEMA_VERSION) {
-      for (const statement of schemaStatements) await connection.query(statement);
+      if (versionRows[0]?.meta_value !== '6') {
+        for (const statement of schemaStatements) await connection.query(statement);
+      }
+      await connection.query("ALTER TABLE presenter_lead_entries MODIFY COLUMN quantity INT NOT NULL");
       await connection.query(
         "INSERT IGNORE INTO app_locks (lock_name) VALUES ('attention_create'), ('retention_cleanup')",
       );

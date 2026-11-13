@@ -11,6 +11,7 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.QA
 const page=await browser.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
 let embedded=false,postCount=0,total=600,policies=new Map([['2026-10',{unlock:650,baseRate:1350,elite:780,eliteRate:1500}]]);
 const plans=new Map(),entries=[];
+let delayedLeads=false,releaseLeads;
 function current(month){const key=[...policies.keys()].filter(k=>k<=month).sort().at(-1);return {key,policy:normalizeLeadPolicy(policies.get(key))};}
 const render=()=>ejs.render(template,{user:{username:'Prueba',role:'presenter_admin'},csrfToken:'test',embedded,assetUrl:p=>'/assets/'+p})
  .replace(/<script[^>]+src="([^"]+)"[^>]*><\/script>/g,(tag,url)=>url.endsWith('/presenter-policy.js')||(embedded&&url.endsWith('/presenter-leads.js'))?tag:'');
@@ -46,6 +47,7 @@ await page.route('**/*',async route=>{
   return route.fulfill({json:{ok:true}});
  }
  if(url.pathname.endsWith('/lead-state')){
+  if(delayedLeads)await new Promise(resolve=>{releaseLeads=resolve;});
   const month=url.searchParams.get('month')||'2026-11',policy=current(month).policy,plan=plans.get(month)||{goal:780};
   return route.fulfill({contentType:'application/json',body:JSON.stringify({month,today:'2026-11-03',user:{username:'Prueba'},policy,plan,entries,snapshot:{quantity:total,source_label:'Prueba',captured_at:'2026-11-03'},summary:leadSummary({month,today:'2026-11-03',sourceCount:total,manualCount:entries.reduce((sum,e)=>sum+e.quantity,0),policy,plan})})});
  }
@@ -121,7 +123,15 @@ try{
  await page.locator('#lead-plan-form button[type=submit]').click();
  await page.waitForFunction(()=>document.querySelector('#lead-progress').textContent.includes('26 jornadas restantes según tus francos'));
  assert.deepEqual(plans.get('2026-11').offDates,['2026-11-03','2026-11-04']);
+ delayedLeads=true;
  await page.locator('#lead-month').fill('2026-10');
+ await page.waitForSelector('#panel-leads .presenter-skeleton');
+ assert.equal(await page.locator('#lead-metrics').isVisible(),false);
+ for(let i=0;i<100&&!releaseLeads;i++)await new Promise(resolve=>setTimeout(resolve,10));
+ assert.ok(releaseLeads,'API request is pending');
+ delayedLeads=false;releaseLeads();
+ await page.waitForSelector('#lead-metrics');
+ assert.equal(await page.locator('#panel-leads .presenter-skeleton').first().isVisible(),false);
  await page.waitForFunction(()=>document.querySelector('[data-date="2026-10-31"]'));
  assert.equal(await page.locator('#lead-use-calendar').isChecked(),false);
  await page.locator('#lead-month').fill('2026-11');

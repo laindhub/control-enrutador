@@ -75,15 +75,19 @@
   if(loading){reloadPending=true;return;}
   loading=true;clearTimeout(retry);
   const month=monthInput.value;
+  const panel=$('#panel-leads');
+  panel.setAttribute('aria-busy',!state||state.month!==month);
   try{
    const result=await api('/lead-state?month='+encodeURIComponent(month));
    if(monthInput.value!==month)return;
-   state=result;monthInput.value=state.month;render();message('');await saveSource();
+   state=result;monthInput.value=state.month;render();message('');
+   panel.setAttribute('aria-busy','false');
+   await saveSource();
   }catch(error){
    message('No se pudo actualizar las metas. Tus datos guardados se conservan. '+error.message,true);
    if(navigator.onLine!==false&&!document.hidden)retry=setTimeout(load,10000);
   }finally{
-   loading=false;
+   loading=false;panel.setAttribute('aria-busy','false');
    if(reloadPending){reloadPending=false;void load();}
   }
  }

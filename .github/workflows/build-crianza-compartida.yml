@@ -1,0 +1,42 @@
+name: Build Crianza Compartida APK
+on:
+  push:
+    branches: ['feature/crianza-compartida-android']
+    paths:
+      - 'projects/crianza-compartida/**'
+      - '.github/workflows/build-crianza-compartida.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Test backend logic
+        working-directory: projects/crianza-compartida/backend
+        run: python3 -m unittest -v test_server.py
+      - name: Compile debug APK
+        working-directory: projects/crianza-compartida
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrianzaCompartida-Android-Debug
+          path: projects/crianza-compartida/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30

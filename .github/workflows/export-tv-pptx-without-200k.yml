@@ -1,0 +1,48 @@
+name: Export updated presentation without $200k slide
+on:
+  push:
+    paths:
+      - '.github/workflows/export-tv-pptx-without-200k.yml'
+      - 'scripts/remove-tv-200k-slide.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  export-deck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install python-pptx
+        run: python -m pip install --quiet python-pptx
+      - name: Download updated 1.6.17 PowerPoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download masduenos-tv-1.6.17-cifras-actualizadas \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "MasDuenos_Liniers_2026_Actualizada.pptx" \
+            --dir .
+      - name: Remove only slide 32 and validate all other slides
+        run: python scripts/remove-tv-200k-slide.py
+      - name: Publish revised PowerPoint only, no APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="masduenos-tv-presentacion-sin-200mil"
+          file="MasDuenos_Liniers_2026_Sin_Diapositiva_200mil.pptx"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$file" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$file" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Más Dueños · 39 diapositivas (sin cuota 200 mil)" \
+              --notes "PowerPoint modificado, sin nueva APK. Se eliminó solamente la diapositiva 32 con cuota desde $200.000; permanecen las cifras actualizadas y Geraldine."
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

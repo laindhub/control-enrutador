@@ -43,3 +43,34 @@ jobs:
                 if text or (index<=5 and sh.shape_type in [13]):
                   print('  ',str(sh.shape_type),sh.name,'bbox',tuple(round(v/914400,2) for v in [sh.left,sh.top,sh.width,sh.height]),'text',repr(text[:200]))
           PY
+
+      - name: Locate the three marketing slides in raster PowerPoint
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr >/dev/null
+          pip install --quiet pillow pytesseract
+          python - <<'PY'
+          from pptx import Presentation
+          from PIL import Image
+          from io import BytesIO
+          import pytesseract
+          p=Presentation('/tmp/tv.pptx')
+          for n,slide in enumerate(p.slides,1):
+            canvas=Image.new('RGB',(1920,1080),'white')
+            for sh in slide.shapes:
+              if sh.shape_type!=13:continue
+              if sh.width==0 or sh.height==0:continue
+              x=round(sh.left/p.slide_width*1920)
+              y=round(sh.top/p.slide_height*1080)
+              w=round(sh.width/p.slide_width*1920)
+              h=round(sh.height/p.slide_height*1080)
+              im=Image.open(BytesIO(sh.image.blob)).convert('RGB')
+              canvas.paste(im.resize((w,h)),(x,y))
+            data=pytesseract.image_to_data(canvas,config='--psm 11',output_type=pytesseract.Output.DICT)
+            hits=[]
+            for i,token in enumerate(data['text']):
+              if token.strip():
+                hits.append((token, data['left'][i],data['top'][i],data['width'][i],data['height'][i]))
+            print('SLIDE',n,'TOKENS',' '.join(t[0] for t in hits)[:450])
+            if any(k in ' '.join(t[0] for t in hits).lower() for k in ['200','4.000','4000','2.800','2800','opiniones','equipo','dueños']):
+              print('MATCHES',n,repr(hits[:100]))
+          PY

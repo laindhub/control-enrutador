@@ -61,7 +61,8 @@ try{
   const shots=[];
   // Rendering happens here ONCE, on GitHub's much faster computer, never
   // at the moment the TCL presenter presses a remote control button.
-  for(let n=0;n<40;n++){
+  const expectedSlides=39;
+  for(let n=0;n<expectedSlides;n++){
     const state=await page.evaluate(index=>window.__tvCaptureSlide?.(index),n);
     if(state!==n)throw Error('PPTX captured incorrect slide: '+n+' became '+state);
     await page.waitForFunction(index=>document.getElementById('slides')?.dataset.slide===String(index),n);
@@ -80,7 +81,7 @@ try{
     if(jpeg.length<14000)throw Error('Slide '+(n+1)+' screenshot unexpectedly tiny');
     await writeFile(path,jpeg);
     shots.push(name);
-    console.log('Pre-rendered',n+1,'/ 40,',Math.round(jpeg.length/1024),'KiB');
+    console.log('Pre-rendered',n+1,'/ '+expectedSlides+',',Math.round(jpeg.length/1024),'KiB');
   }
   if(external.length)throw Error('Rendering fetched external resources: '+external.join(', '));
   await writeFile(join(output,'manifest.json'),JSON.stringify({
@@ -91,7 +92,7 @@ try{
     width:1920,height:1080,
     images:shots,
   },null,2)+'\n');
-  console.log('All 40 pre-rendered slides ready; PowerPoint tile redraw eliminated at runtime.');
+  console.log('All '+shots.length+' pre-rendered slides ready; PowerPoint tile redraw eliminated at runtime.');
 }finally{
   await browser.close();
   await new Promise(done=>server.close(done));

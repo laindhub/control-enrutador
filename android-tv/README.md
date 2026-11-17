@@ -385,3 +385,22 @@ lámina de Google cuando el archivo fuente esté disponible en CI mediante
 `--google-photo`; de lo contrario conserva la fotografía anterior del
 edificio y modifica la cantidad de opiniones, sin descargar imágenes
 externas. No se necesita Wi-Fi en la TCL para reproducir el contenido.
+
+## 1.6.18 — Presentación de 39 diapositivas, sin la lámina de $200.000
+
+El instalador utiliza **el PPTX exacto aprobado por el usuario**
+(`SHA-256 175c2002b3b2f7f5d9c42412bfb770514f1c03fc924b5833cc49bb63e1d53f12`,
+35.735.002 bytes), conservado en 46 fragmentos binarios bajo
+`android-tv/source/presentation-39/` para su reconstrucción reproducible
+por GitHub Actions. El archivo contiene 39 diapositivas, sin la anterior
+lámina 32 de $200.000. No se regenera el PowerPoint con otra plantilla.
+
+El proceso incorpora el video original de introducción y el video de
+Geraldine dentro del PPTX. Las 39 diapositivas se precalculan a 1080p,
+se comprueban sin Internet y se empaquetan junto al motor local y las
+fuentes. Geraldine permanece en la diapositiva 21 y se activa en el
+primer avance, igual que antes. Al instalar 1.6.18 encima de una versión
+vieja, el almacén compara los SHA-256 del contenido incorporado y sustituye
+el PowerPoint anterior en caché; además el menú de actualización no puede
+restaurar por accidente la versión de 40 diapositivas que todavía exista
+en el servidor.

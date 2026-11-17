@@ -122,7 +122,7 @@ async function loadFastSlides(blob){
     fastSlides=manifest;
     await Promise.all([warmFastFrame(0).ready,warmFastFrame(1).ready,
       warmFastFrame(total-1).ready]);
-    console.info('Presentación acelerada: 40 diapositivas precalculadas, sin repintado PPTX.');
+    console.info('Presentación acelerada: '+total+' diapositivas precalculadas, sin repintado PPTX.');
   }catch(err){
     console.warn('Usando el visor PowerPoint convencional:',err);
     fastSlides=null;fastDecoded.clear();
@@ -287,9 +287,9 @@ function hasVideoModel(element){
 }
 function locateGeraldineBuild(slides,known){
   if(Number.isInteger(known))return known;
-  // Existing 40-slide Liniers decks may be replaced in Hostinger; a hash
+  // Existing Liniers decks (39 or 40 slides) may be replaced; a hash
   // mismatch must not disable the click-triggered Geraldine slide altogether.
-  if(total===40&&Array.isArray(slides)&&(
+  if((total===39||total===40)&&Array.isArray(slides)&&(
     hasVideoModel(slides[20])||
     (hasVideoModel(slides[19])&&hasVideoModel(slides[20]))
   ))return 20;

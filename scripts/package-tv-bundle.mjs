@@ -57,6 +57,23 @@ async function main(){
   await mkdir(OUTPUT,{recursive:true});
   const bundled={version:1};
   for(const spec of specs){
+    // The complete APK uses the exact 39-slide user-approved PPTX restored
+    // from Git's checksum-pinned binary parts; only the introduction is
+    // fetched from the existing Hostinger media endpoint.
+    if(spec.kind==='presentation'){
+      const local=path.join(OUTPUT,spec.file);
+      let localBytes;
+      try {localBytes=await readFile(local);}catch(e){
+        throw Error('Approved 39-slide deck was not assembled before media packaging');
+      }
+      const localSha=createHash('sha256').update(localBytes).digest('hex');
+      if(localBytes.length!==35735002 ||
+         localSha!=='175c2002b3b2f7f5d9c42412bfb770514f1c03fc924b5833cc49bb63e1d53f12')
+        throw Error('Approved PowerPoint did not match supplied 39-slide file');
+      bundled.presentation={size:localBytes.length,sha256:localSha};
+      console.log('Bundled approved PPTX (not Hostinger):',localBytes.length,localSha);
+      continue;
+    }
     const info=manifest[spec.kind];
     if(!info)throw Error('Remote manifest missing '+spec.kind);
     const size=Number(info.size);
@@ -112,6 +129,6 @@ async function main(){
     if((await stat(file)).size!==info.size)
       throw Error('Bundle file changed during packaging: '+spec.kind);
   }
-  console.log('Ready to build permanent-signed standalone offline TV APK.');
+  console.log('Ready to build standalone 39-slide offline TV APK.');
 }
 main().catch(error=>{console.error('TV bundle build failed:',error);process.exitCode=1;});

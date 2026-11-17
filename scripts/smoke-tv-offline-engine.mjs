@@ -11,8 +11,8 @@ assert.ok(statSync(join(dir,'pptx-viewer-offline.js')).size>10000,'Bundled engin
 const snapshots=JSON.parse(readFileSync(join(dir,'slides','manifest.json'),'utf8'));
 const packageManifest=JSON.parse(readFileSync(join(dir,'bundle','manifest.json'),'utf8'));
 assert.equal(snapshots.pptxSha256,packageManifest.presentation.sha256,'Images must match original PPTX');
-assert.equal(snapshots.slideCount,40);
-for(let i=1;i<=40;i++)
+assert.equal(snapshots.slideCount,39);
+for(let i=1;i<=39;i++)
   assert.ok(statSync(join(dir,'slides','slide-'+String(i).padStart(3,'0')+'.jpg')).size>14000);
 const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation','.jpg':'image/jpeg','.json':'application/json'};
 const server=http.createServer((req,res)=>{
@@ -87,7 +87,7 @@ try{
   await page.evaluate(()=>window.tvRemoteKey?.('PageUp'));
   await page.waitForFunction(()=>document.querySelector('#tv-fast-layer img')?.src.endsWith('/slide-001.jpg'),null,{timeout:5000});
   assert.equal(await page.locator('#slides').getAttribute('data-slide'),'0');
-  console.log('Offline TCL scenario: all 40 screenshots pre-rendered, full PPTX loaded, next/previous without PPTX repaint or Wi-Fi PASSED');
+  console.log('Offline TCL scenario: all 39 screenshots pre-rendered, full PPTX loaded, next/previous without PPTX repaint or Wi-Fi PASSED');
 }finally{
   await browser.close();
   await new Promise(resolve=>server.close(resolve));

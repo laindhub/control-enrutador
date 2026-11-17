@@ -3,10 +3,18 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import {chromium} from 'playwright';
+import {videoStepForHash} from '../android-tv/app/src/main/assets/presentation-timing.js';
 
 const dir=path.resolve('android-tv/app/src/main/assets');
 const nativeRouter=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvActivity.java','utf8');
 const assetStore=readFileSync('android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java','utf8');
+assert.equal(videoStepForHash(35735002,
+  '175c2002b3b2f7f5d9c42412bfb770514f1c03fc924b5833cc49bb63e1d53f12'),20,
+  'The original Geraldine click-build remains on slide 21 of the 39-slide deck');
+assert.match(assetStore,/expectedSha\.equals\(saved\.getString\(kind\+"\.sha"/,
+  'An APK upgrade must replace outdated cached slides with the new bundled PPTX');
+assert.match(assetStore,/if\(bundled&&"presentation"\.equals\(kind\)\)/,
+  'Manual online updates must not restore the obsolete 40-slide Hostinger deck');
 assert.match(assetStore,/restoreBundledAssets\(listener\)/,
   'Bundled media must be restored before the server manifest fetch');
 assert.ok(assetStore.indexOf('restoreBundledAssets(listener)')<

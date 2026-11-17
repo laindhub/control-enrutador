@@ -8,7 +8,11 @@ on:
       - 'scripts/tv-pptx-engine-entry.mjs'
       - 'scripts/smoke-tv-offline-engine.mjs'
       - 'scripts/pre-render-tv-slides.mjs'
+      - 'scripts/assemble-tv-39-slide.mjs'
+      - 'scripts/package-tv-bundle.mjs'
       - 'scripts/update-tv-marketing.py'
+      - 'android-tv/source/presentation-39/**'
+      - 'android-tv/app/src/main/assets/presentation-timing.js'
       - 'android-tv/app/src/main/assets/tv.js'
       - 'scripts/e2e-android-tv.mjs'
       - 'android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java'
@@ -46,11 +50,12 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Verify Android TV navigation
         run: node scripts/e2e-android-tv.mjs
-      - name: Download official PPTX and MP4, verify each SHA-256
+      - name: Reconstruct approved 39-slide PPTX and fetch original intro MP4
         run: |
           set -euo pipefail
           for attempt in 1 2 3 4; do
             rm -rf android-tv/app/src/main/assets/bundle
+            node scripts/assemble-tv-39-slide.mjs
             if node scripts/package-tv-bundle.mjs; then
               echo "SHA-256 verified both media assets on attempt $attempt"
               exit 0
@@ -60,24 +65,30 @@ jobs:
           done
           echo "::error::Unable to verify both original media downloads after four retries."
           exit 1
-      - name: Update raster marketing slide metrics in verified source PPTX
+      - name: Verify exact 39-slide source, media and checksum
         run: |
-          python -m pip install --quiet Pillow python-pptx
-          python scripts/update-tv-marketing.py
+          python -m pip install --quiet python-pptx
           python - <<'PY'
           from pathlib import Path
-          import hashlib,json,zipfile
+          from hashlib import sha256
+          import json,zipfile
+          from pptx import Presentation
           root=Path("android-tv/app/src/main/assets/bundle")
           deck=(root/"presentation.pptx").read_bytes()
           manifest=json.loads((root/"manifest.json").read_text())
-          assert manifest["presentation"]["sha256"]==hashlib.sha256(deck).hexdigest()
+          digest=sha256(deck).hexdigest()
+          assert digest=="175c2002b3b2f7f5d9c42412bfb770514f1c03fc924b5833cc49bb63e1d53f12"
+          assert len(deck)==35735002
+          assert manifest["presentation"]["sha256"]==digest
           assert manifest["presentation"]["size"]==len(deck)
-          assert manifest["presentation"]["source_sha256"]=="bdb35bfa366b7c2570a36a0d5b1172836765d50796a8e772345b5a5ccf6f25c7"
-          with zipfile.ZipFile(root/"presentation.pptx") as p:
-            assert p.testzip() is None
-          print("Edited full PPTX integrity and pinned original checksum OK")
+          prs=Presentation(root/"presentation.pptx")
+          assert len(prs.slides)==39, f"Expected 39 slides, got {len(prs.slides)}"
+          with zipfile.ZipFile(root/"presentation.pptx") as z:
+            assert z.testzip() is None
+            assert "ppt/media/media1.mp4" in z.namelist(), "Geraldine MP4 missing"
+          print("APPROVED SOURCE VERIFIED: 39 slides, without $200000 slide; Geraldine media preserved")
           PY
-      - name: Pre-render 40 updated slide images, preserving instant navigation
+      - name: Pre-render 39 approved slide images, preserving instant navigation
         run: node scripts/pre-render-tv-slides.mjs
       - name: Verify actual PowerPoint and cached slide navigation offline
         run: node scripts/smoke-tv-offline-engine.mjs
@@ -92,7 +103,7 @@ jobs:
           unzip -Z -1 "$apk" | grep -Fx 'assets/pptx-viewer-offline.js'
           unzip -Z -1 "$apk" | grep -Fx 'assets/tv-fonts.css'
           unzip -Z -1 "$apk" | grep -Fx 'assets/slides/manifest.json'
-          for n in $(seq 1 40); do
+          for n in $(seq 1 39); do
             unzip -Z -1 "$apk" | grep -Fx "assets/slides/slide-$(printf '%03d' "$n").jpg"
           done
           for name in presentation.pptx introduccion.mp4 manifest.json; do
@@ -112,18 +123,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          direct="$RUNNER_TEMP/MasDuenosTV_1.6.17_Cifras_Actualizadas.apk"
+          direct="$RUNNER_TEMP/MasDuenosTV_1.6.18_39_Diapositivas.apk"
           cp android-tv/app/build/outputs/apk/debug/app-debug.apk "$direct"
-          sourceDeck="$RUNNER_TEMP/MasDuenos_Liniers_2026_Actualizada.pptx"
+          sourceDeck="$RUNNER_TEMP/MasDuenos_Liniers_39_Diapositivas.pptx"
           cp android-tv/app/src/main/assets/bundle/presentation.pptx "$sourceDeck"
-          tag="masduenos-tv-1.6.17-cifras-actualizadas"
+          tag="masduenos-tv-1.6.18-sin-200mil"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$direct" "$sourceDeck" --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$tag" "$direct" "$sourceDeck" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "Más Dueños TV 1.6.17 — Cifras actualizadas (offline)" \
-              --notes "Versión completa sin Wi-Fi con cifras actualizadas: +300 integrantes, +4.700 propietarios y +3.000 opiniones en Google, con referencia de 3.022 reseñas y 4,7 estrellas. Mantiene 40 diapositivas, Geraldine, introducción, imágenes precalculadas y Menú Pro."
+              --title "Más Dueños TV 1.6.18 — 39 diapositivas (sin $200.000)" \
+              --notes "Instalador completo sin Wi-Fi, generado desde el PowerPoint exacto del usuario con 39 diapositivas. Se eliminó la lámina de $200.000. Mantiene Geraldine, la introducción, las cifras actualizadas, imágenes precalculadas, navegación rápida y Menú Pro."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

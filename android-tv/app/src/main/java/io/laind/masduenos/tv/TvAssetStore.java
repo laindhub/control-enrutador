@@ -76,6 +76,14 @@ public final class TvAssetStore {
                 if(manifest.getInt("version")!=1)throw new IOException("Versión de manifiesto desconocida");
                 String[] kinds={"presentation","introduction"};
                 for(String kind:kinds){
+                    // The curated 39-slide deck is the canonical bundled
+                    // presentation. Never downgrade it to Hostinger's old
+                    // 40-slide deck when checking updates manually.
+                    if(bundled&&"presentation".equals(kind)){
+                        long n=file(kind).length();
+                        report(listener,kind,n,n,"guardado");
+                        continue;
+                    }
                     JSONObject info=manifest.optJSONObject(kind);
                     if(info==null){
                         report(listener,kind,0,0,has(kind)?"guardado":"no-disponible");
@@ -145,11 +153,12 @@ public final class TvAssetStore {
             if(!expectedSha.matches("[0-9a-f]{64}")||
                expectedSize<12||expectedSize>maxBytes(kind))
                 throw new IOException("Metadatos multimedia inválidos: "+kind);
-            // A newer cached version is valid too; never downgrade it merely
-            // because this APK was packaged with an older copy.
-            if(has(kind)){
-                long current=file(kind).length();
-                report(listener,kind,current,current,"guardado");
+            // On APK upgrade the user may have cached 40 old slides. Compare
+            // the saved digest against THIS APK, and atomically replace stale
+            // media from the new package before opening the presentation.
+            if(has(kind) && expectedSha.equals(saved.getString(kind+".sha","")) &&
+               expectedSize==file(kind).length()){
+                report(listener,kind,expectedSize,expectedSize,"guardado");
                 continue;
             }
             File original=file(kind);

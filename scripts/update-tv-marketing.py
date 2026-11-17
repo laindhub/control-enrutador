@@ -71,7 +71,7 @@ def make_canvas(prs, slide):
         h = round(shape.height / prs.slide_height * HEIGHT)
         if w < 1 or h < 1: continue
         canvas.paste(im.resize((w, h), Image.Resampling.LANCZOS), (x0, y0))
-        rel_id = shape._element.blipFill.blip.embed
+        rel_id = shape._element.blipFill.blip.rEmbed
         part = slide.part.related_part(rel_id)
         key = str(part.partname).lstrip("/")
         tile_parts[key] = (x0, y0, w, h, im.size, shape.image.ext.lower())
@@ -147,7 +147,7 @@ def main():
     for n,slide in enumerate(prs.slides,1):
         for sh in slide.shapes:
             if sh.shape_type==MSO_SHAPE_TYPE.PICTURE:
-                p=str(slide.part.related_part(sh._element.blipFill.blip.embed).partname).lstrip("/")
+                p=str(slide.part.related_part(sh._element.blipFill.blip.rEmbed).partname).lstrip("/")
                 part_occurrences[p]+=1
     for slide_no,editor in [
         (2,repaint_team),

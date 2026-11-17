@@ -18,7 +18,7 @@ jobs:
       - name: Download original deck and verify declared SHA
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 --output /tmp/tv.pptx https://masduenos.laind.io/tv/media/presentation.pptx
+          curl --http1.1 --fail --location --retry 5 --retry-all-errors --retry-delay 2 --output /tmp/tv.pptx https://masduenos.laind.io/tv/media/presentation.pptx
           curl --fail --location --retry 3 --output /tmp/manifest.json https://masduenos.laind.io/tv/manifest.json
           python - <<'PY'
           from hashlib import sha256

@@ -74,3 +74,25 @@ jobs:
             if any(k in ' '.join(t[0] for t in hits).lower() for k in ['200','4.000','4000','2.800','2800','opiniones','equipo','dueños']):
               print('MATCHES',n,repr(hits[:100]))
           PY
+
+      - name: Export review previews as compact inline JPEGs
+        run: |
+          pip install --quiet pillow python-pptx
+          python - <<'PY'
+          import base64
+          from pptx import Presentation
+          from PIL import Image
+          from io import BytesIO
+          deck=Presentation('/tmp/tv.pptx')
+          for n in [2,15,16,20]:
+            slide=deck.slides[n-1]
+            canvas=Image.new('RGB',(960,540),'white')
+            for sh in slide.shapes:
+              if sh.shape_type!=13 or sh.width==0 or sh.height==0:continue
+              x=round(sh.left/deck.slide_width*960);y=round(sh.top/deck.slide_height*540)
+              w=round(sh.width/deck.slide_width*960);h=round(sh.height/deck.slide_height*540)
+              img=Image.open(BytesIO(sh.image.blob)).convert('RGB')
+              canvas.paste(img.resize((w,h)),(x,y))
+            buffer=BytesIO();canvas.save(buffer,format='JPEG',quality=60,optimize=True)
+            print('PREVIEW_'+str(n)+'='+base64.b64encode(buffer.getvalue()).decode())
+          PY

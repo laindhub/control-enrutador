@@ -96,3 +96,21 @@ jobs:
             buffer=BytesIO();canvas.save(buffer,format='JPEG',quality=60,optimize=True)
             print('PREVIEW_'+str(n)+'='+base64.b64encode(buffer.getvalue()).decode())
           PY
+
+      - name: Apply and visually inspect exact numeric updates
+        run: |
+          mkdir -p /tmp/tv-edits
+          cp /tmp/tv.pptx /tmp/tv-edits/presentation.pptx
+          cp /tmp/manifest.json /tmp/tv-edits/manifest.json
+          python scripts/update-tv-marketing.py --pptx /tmp/tv-edits/presentation.pptx --manifest /tmp/tv-edits/manifest.json --preview-dir /tmp/tv-edits
+          python - <<'PY'
+          import base64, io
+          from PIL import Image
+          from pathlib import Path
+          for n in [2,15,20]:
+            im=Image.open(f'/tmp/tv-edits/slide-{n:02d}.jpg').convert('RGB')
+            im.thumbnail((960,540))
+            buffer=io.BytesIO()
+            im.save(buffer,format='JPEG',quality=65,optimize=True)
+            print('EDITED_'+str(n)+'='+base64.b64encode(buffer.getvalue()).decode())
+          PY

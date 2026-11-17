@@ -367,3 +367,21 @@ funcionando cuando no existen medios incorporados.
 No se añade ninguna imagen ni vídeo al menú, se reutiliza el vector
 original. Las mejoras de Geraldine, introducción, navegador y teclas K01
 se mantienen intactas.
+
+## 1.6.17 — Cifras de presentación actualizadas (noviembre de 2026)
+
+Se actualizan las láminas **2, 15 y 20** del archivo
+`presentation.pptx` original, cuya firma SHA-256 se comprueba antes
+de editar los mosaicos de imágenes. La diapositiva 2 muestra **+300**
+integrantes del equipo; la 20 **+4.700** propietarios; la 15 **+3.000**
+opiniones en Google y la referencia interna de Google **3.022 opiniones,
+4,7 estrellas**. Se conservan las 40 páginas, videos, animaciones y
+relaciones OOXML originales de Geraldine. El proceso de build modifica
+únicamente los archivos de imagen de esas tres láminas y actualiza el
+manifiesto SHA-256 antes de regenerar las imágenes instantáneas.
+
+El script permite incorporar una captura personalizada al centro de la
+lámina de Google cuando el archivo fuente esté disponible en CI mediante
+`--google-photo`; de lo contrario conserva la fotografía anterior del
+edificio y modifica la cantidad de opiniones, sin descargar imágenes
+externas. No se necesita Wi-Fi en la TCL para reproducir el contenido.

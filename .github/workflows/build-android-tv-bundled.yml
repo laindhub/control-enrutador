@@ -8,6 +8,7 @@ on:
       - 'scripts/tv-pptx-engine-entry.mjs'
       - 'scripts/smoke-tv-offline-engine.mjs'
       - 'scripts/pre-render-tv-slides.mjs'
+      - 'scripts/update-tv-marketing.py'
       - 'android-tv/app/src/main/assets/tv.js'
       - 'scripts/e2e-android-tv.mjs'
       - 'android-tv/app/src/main/java/io/laind/masduenos/tv/TvAssetStore.java'
@@ -28,6 +29,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.12'
@@ -56,7 +60,24 @@ jobs:
           done
           echo "::error::Unable to verify both original media downloads after four retries."
           exit 1
-      - name: Pre-render the 40 slides into instant-display images
+      - name: Update raster marketing slide metrics in verified source PPTX
+        run: |
+          python -m pip install --quiet Pillow python-pptx
+          python scripts/update-tv-marketing.py
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json,zipfile
+          root=Path("android-tv/app/src/main/assets/bundle")
+          deck=(root/"presentation.pptx").read_bytes()
+          manifest=json.loads((root/"manifest.json").read_text())
+          assert manifest["presentation"]["sha256"]==hashlib.sha256(deck).hexdigest()
+          assert manifest["presentation"]["size"]==len(deck)
+          assert manifest["presentation"]["source_sha256"]=="bdb35bfa366b7c2570a36a0d5b1172836765d50796a8e772345b5a5ccf6f25c7"
+          with zipfile.ZipFile(root/"presentation.pptx") as p:
+            assert p.testzip() is None
+          print("Edited full PPTX integrity and pinned original checksum OK")
+          PY
+      - name: Pre-render 40 updated slide images, preserving instant navigation
         run: node scripts/pre-render-tv-slides.mjs
       - name: Verify actual PowerPoint and cached slide navigation offline
         run: node scripts/smoke-tv-offline-engine.mjs
@@ -91,16 +112,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          direct="$RUNNER_TEMP/MasDuenosTV_1.6.16_Menu_Pro.apk"
+          direct="$RUNNER_TEMP/MasDuenosTV_1.6.17_Cifras_Actualizadas.apk"
           cp android-tv/app/build/outputs/apk/debug/app-debug.apk "$direct"
-          tag="masduenos-tv-1.6.16-menu-pro"
+          sourceDeck="$RUNNER_TEMP/MasDuenos_Liniers_2026_Actualizada.pptx"
+          cp android-tv/app/src/main/assets/bundle/presentation.pptx "$sourceDeck"
+          tag="masduenos-tv-1.6.17-cifras-actualizadas"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$tag" "$direct" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$tag" "$direct" "$sourceDeck" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$tag" "$direct" \
+            gh release create "$tag" "$direct" "$sourceDeck" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "Más Dueños TV 1.6.16 — Menú Pro rojo y negro" \
-              --notes "Instalador con las 40 diapositivas, video de introducción y motor PowerPoint incorporado. Validado sin Internet mediante navegador offline real. En TV basta instalar; no necesita red para abrir el PowerPoint."
+              --title "Más Dueños TV 1.6.17 — Cifras actualizadas (offline)" \
+              --notes "Versión completa sin Wi-Fi con cifras actualizadas: +300 integrantes, +4.700 propietarios y +3.000 opiniones en Google, con referencia de 3.022 reseñas y 4,7 estrellas. Mantiene 40 diapositivas, Geraldine, introducción, imágenes precalculadas y Menú Pro."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

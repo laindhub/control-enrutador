@@ -1,0 +1,45 @@
+name: Inspect original TV presentation values
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-tv-presentation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download original deck and verify declared SHA
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --output /tmp/tv.pptx https://masduenos.laind.io/tv/media/presentation.pptx
+          curl --fail --location --retry 3 --output /tmp/manifest.json https://masduenos.laind.io/tv/manifest.json
+          python - <<'PY'
+          from hashlib import sha256
+          import json
+          manifest=json.load(open('/tmp/manifest.json'))
+          deck=open('/tmp/tv.pptx','rb').read()
+          assert len(deck)==manifest['presentation']['size']
+          assert sha256(deck).hexdigest()==manifest['presentation']['sha256']
+          print('VALIDATED:',len(deck),sha256(deck).hexdigest())
+          PY
+      - name: Inspect editable text and positions
+        run: |
+          pip install --quiet python-pptx
+          python - <<'PY'
+          from pptx import Presentation
+          p=Presentation('/tmp/tv.pptx')
+          print('SIZE',len(p.slides),p.slide_width,p.slide_height)
+          for index,slide in enumerate(p.slides,1):
+            print('=== SLIDE',index,'SHAPES',len(slide.shapes))
+            for sh in slide.shapes:
+              text=sh.text.replace('\n',' / ') if sh.has_text_frame else ''
+              if text or index in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]:
+                if text or (index<=5 and sh.shape_type in [13]):
+                  print('  ',str(sh.shape_type),sh.name,'bbox',tuple(round(v/914400,2) for v in [sh.left,sh.top,sh.width,sh.height]),'text',repr(text[:200]))
+          PY

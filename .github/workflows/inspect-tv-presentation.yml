@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/inspect-tv-presentation.yml'
+      - 'scripts/update-tv-marketing.py'
   workflow_dispatch:
 permissions:
   contents: read

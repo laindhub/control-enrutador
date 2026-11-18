@@ -1,0 +1,71 @@
+name: Publish approved 39-slide Más Dueños TV APK
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-android-tv-39.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download previously verified APK from successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download 44327143780 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name masduenos-android-tv-offline-complete-apk \
+            --dir dist
+          test -s dist/app-debug.apk
+          mv dist/app-debug.apk dist/MasDuenosTV_1.6.18_39_Diapositivas.apk
+          ls -lh dist/MasDuenosTV_1.6.18_39_Diapositivas.apk
+      - name: Verify APK media, slide assets and cryptographic signature
+        run: |
+          set -euo pipefail
+          apk=dist/MasDuenosTV_1.6.18_39_Diapositivas.apk
+          unzip -Z -1 "$apk" | grep -Fx 'assets/bundle/presentation.pptx'
+          unzip -Z -1 "$apk" | grep -Fx 'assets/bundle/introduccion.mp4'
+          unzip -Z -1 "$apk" | grep -Fx 'assets/slides/manifest.json'
+          for n in $(seq 1 39); do
+            unzip -Z -1 "$apk" | grep -Fx "assets/slides/slide-$(printf '%03d' "$n").jpg"
+          done
+          signer=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)
+          "$signer" verify --verbose "$apk"
+          node scripts/assemble-tv-39-slide.mjs
+          node - <<'JS'
+          const fs=require('fs'),crypto=require('crypto'),cp=require('child_process');
+          const exact=fs.readFileSync('android-tv/app/src/main/assets/bundle/presentation.pptx');
+          const packed=cp.execFileSync('unzip',['-p','dist/MasDuenosTV_1.6.18_39_Diapositivas.apk','assets/bundle/presentation.pptx'],{maxBuffer:40*1024*1024});
+          if(!packed.equals(exact))throw Error('APK deck differs from approved 39-slide PowerPoint');
+          console.log('Approved 39-slide PPTX bytes match exactly inside signed APK');
+          console.log('APK SHA-256',crypto.createHash('sha256').update(fs.readFileSync('dist/MasDuenosTV_1.6.18_39_Diapositivas.apk')).digest('hex'));
+          JS
+      - name: Release directly installable APK and exact PowerPoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag='masduenos-tv-1.6.18-sin-200mil'
+          apk='dist/MasDuenosTV_1.6.18_39_Diapositivas.apk'
+          deck='dist/MasDuenos_Liniers_39_Diapositivas.pptx'
+          cp android-tv/app/src/main/assets/bundle/presentation.pptx "$deck"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" "$deck" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" "$deck" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title 'Más Dueños TV 1.6.18 — 39 diapositivas (sin $200.000)' \
+              --notes 'APK completo y firmado con 39 diapositivas exactas. Eliminada la diapositiva que anunciaba $200.000. Incluye Geraldine, video introductorio, menú Pro, navegación instantánea y todos los recursos offline. El PPTX aprobado también está adjunto.'
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets

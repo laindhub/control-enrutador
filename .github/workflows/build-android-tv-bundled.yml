@@ -94,7 +94,13 @@ jobs:
         run: node scripts/smoke-tv-offline-engine.mjs
       - name: Build Android TV APK including both files and local PPTX engine
         working-directory: android-tv
-        run: gradle --no-daemon :app:assembleDebug
+        run: |
+          # The exact 39-slide PPTX and intro MP4 exceed Gradle's default
+          # asset-compression worker heap; use a bounded 4 GiB daemon and
+          # only two workers on GitHub's Ubuntu runner.
+          gradle --no-daemon --max-workers=2 \
+            '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8' \
+            :app:assembleDebug
       - name: Verify both media payloads and APK signature
         run: |
           set -euo pipefail
